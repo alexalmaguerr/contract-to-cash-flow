@@ -232,16 +232,53 @@ const Medidores = () => {
         <DialogContent>
           <DialogHeader><DialogTitle>Asignar medidor a contrato</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <Select value={assignForm.medidorBodegaId} onValueChange={v => setAssignForm({ ...assignForm, medidorBodegaId: v })}>
-              <SelectTrigger><SelectValue placeholder="Medidor disponible en bodega" /></SelectTrigger>
-              <SelectContent>{disponiblesBodega.map(m => <SelectItem key={m.id} value={m.id}>{m.serie}</SelectItem>)}</SelectContent>
-            </Select>
-            <Select value={assignForm.contratoId} onValueChange={v => setAssignForm({ ...assignForm, contratoId: v })}>
-              <SelectTrigger><SelectValue placeholder="Contrato pendiente" /></SelectTrigger>
-              <SelectContent>{pendientes.map(c => <SelectItem key={c.id} value={c.id}>{c.id} - {c.nombre}</SelectItem>)}</SelectContent>
-            </Select>
-            <Input type="number" placeholder="Lectura inicial" value={assignForm.lecturaInicial || ''} onChange={e => setAssignForm({ ...assignForm, lecturaInicial: Number(e.target.value) || 0 })} />
-            <p className="text-xs text-muted-foreground">El contrato pasará a estado <strong>Activo</strong>.</p>
+            <div className="space-y-1.5">
+              <Label>Medidor disponible en bodega</Label>
+              <Select value={assignForm.medidorBodegaId || undefined} onValueChange={v => setAssignForm({ ...assignForm, medidorBodegaId: v })}>
+                <SelectTrigger><SelectValue placeholder="Seleccione un medidor" /></SelectTrigger>
+                <SelectContent>
+                  {disponiblesBodega.map(m => {
+                    const zonaNombre = m.zonaId ? zonas.find(z => z.id === m.zonaId)?.nombre : null;
+                    return (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.serie} {zonaNombre ? `(${zonaNombre})` : ''}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+              {assignForm.medidorBodegaId && (() => {
+                const mb = disponiblesBodega.find(m => m.id === assignForm.medidorBodegaId);
+                const zona = mb?.zonaId ? zonas.find(z => z.id === mb.zonaId) : null;
+                return zona ? <p className="text-xs text-muted-foreground">Zona del medidor: <strong>{zona.nombre}</strong></p> : null;
+              })()}
+            </div>
+            <div className="space-y-1.5">
+              <Label>Contrato pendiente</Label>
+              <Select value={assignForm.contratoId || undefined} onValueChange={v => setAssignForm({ ...assignForm, contratoId: v })}>
+                <SelectTrigger><SelectValue placeholder="Seleccione un contrato" /></SelectTrigger>
+                <SelectContent>
+                  {pendientes.map(c => {
+                    const zonaNombre = c.zonaId ? zonas.find(z => z.id === c.zonaId)?.nombre : null;
+                    return (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.id} – {c.nombre} {zonaNombre ? `(${zonaNombre})` : ''}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+              {assignForm.contratoId && (() => {
+                const c = pendientes.find(p => p.id === assignForm.contratoId);
+                const zona = c?.zonaId ? zonas.find(z => z.id === c.zonaId) : null;
+                return zona ? <p className="text-xs text-muted-foreground">Zona del contrato: <strong>{zona.nombre}</strong></p> : null;
+              })()}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="assign-lectura">Lectura inicial</Label>
+              <Input id="assign-lectura" type="number" placeholder="0" value={assignForm.lecturaInicial || ''} onChange={e => setAssignForm({ ...assignForm, lecturaInicial: Number(e.target.value) || 0 })} />
+            </div>
+            <p className="text-xs text-muted-foreground">El contrato pasará a estado <strong>Activo</strong>. Si el contrato no tenía zona, se asignará la zona del medidor.</p>
             <Button onClick={handleAssign} disabled={!assignForm.medidorBodegaId || !assignForm.contratoId} className="w-full">Asignar y activar</Button>
           </div>
         </DialogContent>
