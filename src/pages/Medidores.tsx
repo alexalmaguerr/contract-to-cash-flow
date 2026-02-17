@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Package, Gauge } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -199,15 +201,21 @@ const Medidores = () => {
         <DialogContent>
           <DialogHeader><DialogTitle>Alta de medidor en bodega</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <Input placeholder="Serie del medidor" value={bodegaForm.serie} onChange={e => setBodegaForm({ ...bodegaForm, serie: e.target.value })} />
-            <Select value={bodegaForm.zonaId} onValueChange={v => setBodegaForm({ ...bodegaForm, zonaId: v })}>
-              <SelectTrigger><SelectValue placeholder="Zona" /></SelectTrigger>
-              <SelectContent>
-                {(allowedZonaIds ? zonas.filter(z => allowedZonaIds.includes(z.id)) : zonas).map(z => (
-                  <SelectItem key={z.id} value={z.id}>{z.nombre}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="space-y-1.5">
+              <Label htmlFor="bodega-serie">Serie del medidor</Label>
+              <Input id="bodega-serie" placeholder="Ej. MED-2025-00001" value={bodegaForm.serie} onChange={e => setBodegaForm({ ...bodegaForm, serie: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Zona</Label>
+              <Select value={bodegaForm.zonaId || undefined} onValueChange={v => setBodegaForm({ ...bodegaForm, zonaId: v })}>
+                <SelectTrigger><SelectValue placeholder="Seleccione una zona" /></SelectTrigger>
+                <SelectContent>
+                  {(allowedZonaIds ? zonas.filter(z => allowedZonaIds.includes(z.id)) : zonas).map(z => (
+                    <SelectItem key={z.id} value={z.id}>{z.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <Select value={bodegaForm.estado} onValueChange={(v: 'Disponible' | 'En reparación') => setBodegaForm({ ...bodegaForm, estado: v })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
