@@ -4,13 +4,32 @@ import StatusBadge from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 type EtapaEstado = 'Pendiente' | 'Validada' | 'Aceptada';
+type PreFacturaItem = ReturnType<typeof useData>['preFacturas'][0];
 
 const PreFacturacion = () => {
-  const { preFacturas, addPreFactura, updatePreFactura, consumos, contratos, calcularTarifa, zonas, allowedZonaIds } = useData();
+  const { preFacturas, addPreFactura, updatePreFactura, consumos, contratos, calcularTarifa, zonas, allowedZonaIds, timbrados } = useData();
   const [zonaId, setZonaId] = useState<string>('all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [editingPf, setEditingPf] = useState<PreFacturaItem | null>(null);
+  const [editM3, setEditM3] = useState('');
+  const [editDescuento, setEditDescuento] = useState('');
+
+  const preFacturaIdsTimbradas = useMemo(
+    () => new Set(timbrados.map(t => t.preFacturaId)),
+    [timbrados]
+  );
 
   const contratosConAcceso = useMemo(() =>
     !allowedZonaIds ? contratos : contratos.filter(c => c.zonaId && allowedZonaIds.includes(c.zonaId)),
@@ -82,7 +101,36 @@ const PreFacturacion = () => {
     });
   };
 
-  const CardPreFactura = ({ pf, etapa }: { pf: typeof preFacturasFiltradas[0]; etapa: EtapaEstado }) => {
+  const abrirEdicion = (pf: PreFacturaItem) => {
+    setEditingPf(pf);
+    setEditM3(String(pf.consumoM3));
+    setEditDescuento(String(pf.descuento));
+  };
+
+  const guardarEdicion = () => {
+    if (!editingPf) return;
+    const contrato = contratosConAcceso.find(c => c.id === editingPf.contratoId);
+    if (!contrato) return;
+    const m3 = Number(editM3);
+    const descuento = Number(editDescuento) || 0;
+    if (Number.isNaN(m3) || m3 < 0) return;
+    const { subtotal, cargoFijo } = calcularTarifa(contrato.tipoServicio, m3);
+    const total = Math.max(0, subtotal + cargoFijo - descuento);
+    updatePreFactura(editingPf.id, {
+      consumoM3: m3,
+      subtotal,
+      descuento,
+      total,
+    });
+    setEditingPf(null);
+  };
+
+  const revertirEstado = (pf: PreFacturaItem) => {
+    if (pf.estado === 'Aceptada') updatePreFactura(pf.id, { estado: 'Validada' });
+    else if (pf.estado === 'Validada') updatePreFactura(pf.id, { estado: 'Pendiente' });
+  };
+
+  const CardPreFactura = ({ pf, etapa, isTimbrada }: { pf: typeof preFacturasFiltradas[0]; etapa: EtapaEstado; isTimbrada: boolean }) => {
     const contrato = contratosConAcceso.find(c => c.id === pf.contratoId);
     const checked = selectedIds.has(pf.id);
     return (
@@ -95,9 +143,20 @@ const PreFacturacion = () => {
           </div>
           <p className="text-sm mt-1"><span className="text-muted-foreground">Contrato:</span> {pf.contratoId} · {contrato?.nombre}</p>
           <p className="text-sm"><span className="text-muted-foreground">Periodo:</span> {pf.periodo} · <span className="text-muted-foreground">m³:</span> {pf.consumoM3} · <strong>${pf.total.toFixed(2)}</strong></p>
-          <div className="mt-2 flex gap-2">
+          <div className="mt-2 flex flex-wrap gap-2">
+            {isTimbrada ? (
+              <Button size="sm" variant="outline" disabled title="Pre-factura ya timbrada; no editable">Editar</Button>
+            ) : (
+              <Button size="sm" variant="outline" onClick={() => abrirEdicion(pf)}>Editar</Button>
+            )}
             {etapa === 'Pendiente' && <Button size="sm" variant="outline" onClick={() => updatePreFactura(pf.id, { estado: 'Validada' })}>Validar</Button>}
-            {etapa === 'Validada' && <Button size="sm" onClick={() => updatePreFactura(pf.id, { estado: 'Aceptada' })}>Aceptar</Button>}
+            {etapa === 'Validada' && (
+              <>
+                <Button size="sm" onClick={() => updatePreFactura(pf.id, { estado: 'Aceptada' })}>Aceptar</Button>
+                {!isTimbrada && <Button size="sm" variant="ghost" onClick={() => revertirEstado(pf)}>Revertir</Button>}
+              </>
+            )}
+            {etapa === 'Aceptada' && !isTimbrada && <Button size="sm" variant="ghost" onClick={() => revertirEstado(pf)}>Revertir</Button>}
           </div>
         </div>
       </div>
@@ -150,7 +209,7 @@ const PreFacturacion = () => {
             </Button>
           )}
           <div className="space-y-2">
-            {porEtapa.pendiente.map(pf => <CardPreFactura key={pf.id} pf={pf} etapa="Pendiente" />)}
+            {porEtapa.pendiente.map(pf => <CardPreFactura key={pf.id} pf={pf} etapa="Pendiente" isTimbrada={preFacturaIdsTimbradas.has(pf.id)} />)}
             {porEtapa.pendiente.length === 0 && <p className="text-sm text-muted-foreground">Sin pre-facturas pendientes</p>}
           </div>
         </div>
@@ -171,7 +230,7 @@ const PreFacturacion = () => {
             </Button>
           )}
           <div className="space-y-2">
-            {porEtapa.validada.map(pf => <CardPreFactura key={pf.id} pf={pf} etapa="Validada" />)}
+            {porEtapa.validada.map(pf => <CardPreFactura key={pf.id} pf={pf} etapa="Validada" isTimbrada={preFacturaIdsTimbradas.has(pf.id)} />)}
             {porEtapa.validada.length === 0 && <p className="text-sm text-muted-foreground">Sin pre-facturas validadas</p>}
           </div>
         </div>
@@ -182,11 +241,66 @@ const PreFacturacion = () => {
             <span className="text-sm text-muted-foreground">{porEtapa.aceptada.length}</span>
           </div>
           <div className="space-y-2">
-            {porEtapa.aceptada.map(pf => <CardPreFactura key={pf.id} pf={pf} etapa="Aceptada" />)}
+            {porEtapa.aceptada.map(pf => <CardPreFactura key={pf.id} pf={pf} etapa="Aceptada" isTimbrada={preFacturaIdsTimbradas.has(pf.id)} />)}
             {porEtapa.aceptada.length === 0 && <p className="text-sm text-muted-foreground">Sin pre-facturas aceptadas</p>}
           </div>
         </div>
       </div>
+
+      <Dialog open={!!editingPf} onOpenChange={open => !open && setEditingPf(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar pre-factura</DialogTitle>
+            <DialogDescription>
+              Corrija consumo (m³) y descuento. El subtotal y total se recalculan con la tarifa del contrato.
+            </DialogDescription>
+          </DialogHeader>
+          {editingPf && (() => {
+            const contratoEdit = contratosConAcceso.find(c => c.id === editingPf.contratoId);
+            const m3Preview = Number(editM3) || 0;
+            const descuentoPreview = Number(editDescuento) || 0;
+            const tarifaPreview = contratoEdit ? calcularTarifa(contratoEdit.tipoServicio, m3Preview) : null;
+            const totalPreview = tarifaPreview ? Math.max(0, tarifaPreview.subtotal + tarifaPreview.cargoFijo - descuentoPreview) : 0;
+            return (
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-m3">Consumo (m³)</Label>
+                  <Input
+                    id="edit-m3"
+                    type="number"
+                    min={0}
+                    value={editM3}
+                    onChange={e => setEditM3(e.target.value)}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-descuento">Descuento ($)</Label>
+                  <Input
+                    id="edit-descuento"
+                    type="number"
+                    min={0}
+                    value={editDescuento}
+                    onChange={e => setEditDescuento(e.target.value)}
+                  />
+                </div>
+                {tarifaPreview && (
+                  <div className="rounded-md border bg-muted/40 p-3 space-y-1 text-sm">
+                    <p className="font-medium text-muted-foreground">Total recalculado</p>
+                    <div className="flex justify-between"><span>Subtotal</span><span>${tarifaPreview.subtotal.toFixed(2)}</span></div>
+                    <div className="flex justify-between"><span>Cargo fijo</span><span>${tarifaPreview.cargoFijo.toFixed(2)}</span></div>
+                    <div className="flex justify-between"><span>Descuento</span><span>-${descuentoPreview.toFixed(2)}</span></div>
+                    <div className="flex justify-between font-semibold pt-1 border-t"><span>Total</span><span>${totalPreview.toFixed(2)}</span></div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingPf(null)}>Cancelar</Button>
+            <Button onClick={guardarEdicion} disabled={!editingPf || editM3 === ''}>Guardar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
