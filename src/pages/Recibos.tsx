@@ -157,27 +157,76 @@ const Recibos = () => {
       </div>
 
       <Dialog open={!!previewReciboId} onOpenChange={() => setPreviewReciboId(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Vista previa del recibo</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-xl">Vista previa del recibo</DialogTitle>
+          </DialogHeader>
           {previewRecibo && previewContrato && (
-            <div className="space-y-3 text-sm">
-              <div><span className="text-muted-foreground">Contrato:</span> {previewRecibo.contratoId} – {previewContrato.nombre}</div>
-              <div><span className="text-muted-foreground">Dirección:</span> {previewContrato.direccion}</div>
-              {previewTimbrado && <div><span className="text-muted-foreground">UUID:</span> {previewTimbrado.uuid}</div>}
-              <div><span className="text-muted-foreground">Fecha vencimiento:</span> {previewRecibo.fechaVencimiento}</div>
-              <div><span className="text-muted-foreground">Saldo vigente:</span> ${previewRecibo.saldoVigente.toFixed(2)}</div>
-              <div><span className="text-muted-foreground">Saldo vencido:</span> ${previewRecibo.saldoVencido.toFixed(2)}</div>
-              {previewParcialidades.length > 0 && (
+            <div className="space-y-5 text-sm">
+              {/* Datos del contrato */}
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-baseline gap-x-2">
+                  <span className="font-medium text-muted-foreground">Contrato</span>
+                  <span className="font-medium">{previewRecibo.contratoId} – {previewContrato.nombre}</span>
+                </div>
+                <div className="flex flex-wrap items-baseline gap-x-2">
+                  <span className="font-medium text-muted-foreground">Dirección</span>
+                  <span>{previewContrato.direccion}</span>
+                </div>
+                {previewTimbrado && (
+                  <div className="flex flex-wrap items-baseline gap-x-2">
+                    <span className="font-medium text-muted-foreground">UUID</span>
+                    <code className="text-xs font-mono bg-muted/60 px-1.5 py-0.5 rounded break-all" title={previewTimbrado.uuid}>{previewTimbrado.uuid}</code>
+                  </div>
+                )}
+                <div className="flex flex-wrap items-baseline gap-x-2">
+                  <span className="font-medium text-muted-foreground">Fecha vencimiento</span>
+                  <span>{previewRecibo.fechaVencimiento}</span>
+                </div>
+              </div>
+
+              {/* Saldos destacados */}
+              <div className="grid grid-cols-2 gap-3 rounded-lg border bg-muted/30 p-4">
                 <div>
-                  <span className="text-muted-foreground">Pagos en parcialidades:</span>
-                  <ul className="list-disc pl-4 mt-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Saldo vigente</p>
+                  <p className="text-lg font-bold tabular-nums">${previewRecibo.saldoVigente.toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Saldo vencido</p>
+                  <p className={`text-lg font-bold tabular-nums ${previewRecibo.saldoVencido > 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                    ${previewRecibo.saldoVencido.toFixed(2)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Parcialidades con badges de estado */}
+              {previewParcialidades.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pagos en parcialidades</h4>
+                  <ul className="space-y-2">
                     {previewParcialidades.map(pp => (
-                      <li key={pp.id}>Cuota {pp.numero}: ${pp.monto.toFixed(2)} – {pp.fechaVencimiento} ({pp.estado})</li>
+                      <li key={pp.id} className="flex flex-wrap items-center justify-between gap-2 rounded border bg-card px-3 py-2">
+                        <span className="font-medium">Cuota {pp.numero}</span>
+                        <span className="tabular-nums">${pp.monto.toFixed(2)}</span>
+                        <span className="text-muted-foreground">{pp.fechaVencimiento}</span>
+                        <span className={`status-badge ${pp.estado === 'Pagado' ? 'status-success' : 'status-warning'}`}>
+                          {pp.estado}
+                        </span>
+                      </li>
                     ))}
                   </ul>
                 </div>
               )}
-              <div><span className="text-muted-foreground">Mensaje:</span> {mensajeEfectivo(previewRecibo)}</div>
+
+              {/* Mensaje: solo mostrar bloque si hay contenido o texto amigable si no */}
+              <div className="space-y-1">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Mensaje</h4>
+                {(previewRecibo.mensajeIndividual ?? mensajeGlobalRecibos) ? (
+                  <p className="rounded border bg-muted/20 px-3 py-2 text-foreground">{mensajeEfectivo(previewRecibo)}</p>
+                ) : (
+                  <p className="text-muted-foreground italic">No hay mensaje para este recibo.</p>
+                )}
+              </div>
             </div>
           )}
         </DialogContent>
