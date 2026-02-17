@@ -1,11 +1,24 @@
+import { useState, useMemo } from 'react';
 import { useData } from '@/context/DataContext';
 import StatusBadge from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const TimbradoPage = () => {
-  const { timbrados, addTimbrado, updateTimbrado, preFacturas } = useData();
+  const { timbrados, addTimbrado, updateTimbrado, preFacturas, contratos, zonas, allowedZonaIds } = useData();
+  const [zonaId, setZonaId] = useState<string>('all');
 
-  const aceptadas = preFacturas.filter(pf => pf.estado === 'Aceptada' && !timbrados.some(t => t.preFacturaId === pf.id));
+  const contratoIdsZona = useMemo(() => {
+    if (zonaId === 'all') return new Set(contratos.map(c => c.id));
+    return new Set(contratos.filter(c => c.zonaId === zonaId).map(c => c.id));
+  }, [contratos, zonaId]);
+
+  const preFacturasZona = useMemo(() => preFacturas.filter(pf => contratoIdsZona.has(pf.contratoId)), [preFacturas, contratoIdsZona]);
+  const aceptadas = useMemo(() =>
+    preFacturasZona.filter(pf => pf.estado === 'Aceptada' && !timbrados.some(t => t.preFacturaId === pf.id)),
+    [preFacturasZona, timbrados]
+  );
+  const timbradosFiltrados = useMemo(() => timbrados.filter(t => contratoIdsZona.has(t.contratoId)), [timbrados, contratoIdsZona]);
 
   const timbrar = (pf: typeof preFacturas[0]) => {
     const exito = Math.random() > 0.3;
@@ -23,6 +36,15 @@ const TimbradoPage = () => {
     <div>
       <div className="page-header">
         <h1 className="page-title">Monitor de Timbrado</h1>
+        <Select value={zonaId} onValueChange={setZonaId}>
+          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Zona" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas las zonas</SelectItem>
+            {(allowedZonaIds ? zonas.filter(z => allowedZonaIds.includes(z.id)) : zonas).map(z => (
+              <SelectItem key={z.id} value={z.id}>{z.nombre}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {aceptadas.length > 0 && (
@@ -43,7 +65,7 @@ const TimbradoPage = () => {
         <table className="data-table">
           <thead><tr><th>ID</th><th>Pre-factura</th><th>Contrato</th><th>UUID</th><th>Estado</th><th>Error</th><th></th></tr></thead>
           <tbody>
-            {timbrados.map(t => (
+            {timbradosFiltrados.map(t => (
               <tr key={t.id}>
                 <td className="font-mono text-xs">{t.id}</td>
                 <td className="font-mono text-xs">{t.preFacturaId}</td>
@@ -65,7 +87,7 @@ const TimbradoPage = () => {
                 </td>
               </tr>
             ))}
-            {timbrados.length === 0 && <tr><td colSpan={7} className="text-center text-muted-foreground py-8">No hay timbrados</td></tr>}
+            {timbradosFiltrados.length === 0 && <tr><td colSpan={7} className="text-center text-muted-foreground py-8">No hay timbrados en esta zona</td></tr>}
           </tbody>
         </table>
       </div>

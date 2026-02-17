@@ -1,14 +1,74 @@
+import { useState, useMemo } from 'react';
 import { useData } from '@/context/DataContext';
 import StatusBadge from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+
+type EtapaEstado = 'Pendiente' | 'Validada' | 'Aceptada';
 
 const PreFacturacion = () => {
-  const { preFacturas, addPreFactura, updatePreFactura, consumos, contratos, calcularTarifa } = useData();
+  const { preFacturas, addPreFactura, updatePreFactura, consumos, contratos, calcularTarifa, zonas, allowedZonaIds } = useData();
+  const [zonaId, setZonaId] = useState<string>('all');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const consumosConfirmados = consumos.filter(c => c.confirmado && !preFacturas.some(pf => pf.contratoId === c.contratoId && pf.periodo === c.periodo));
+  const contratosConAcceso = useMemo(() =>
+    !allowedZonaIds ? contratos : contratos.filter(c => c.zonaId && allowedZonaIds.includes(c.zonaId)),
+    [contratos, allowedZonaIds]
+  );
+  const contratosEnZona = useMemo(() => {
+    if (zonaId === 'all') return contratosConAcceso;
+    return contratosConAcceso.filter(c => c.zonaId === zonaId);
+  }, [contratosConAcceso, zonaId]);
+  const contratoIdsZona = useMemo(() => new Set(contratosEnZona.map(c => c.id)), [contratosEnZona]);
+
+  const consumosConfirmados = useMemo(() =>
+    consumos.filter(c => c.confirmado && contratoIdsZona.has(c.contratoId) && !preFacturas.some(pf => pf.contratoId === c.contratoId && pf.periodo === c.periodo)),
+    [consumos, contratoIdsZona, preFacturas]
+  );
+  const preFacturasFiltradas = useMemo(() =>
+    preFacturas.filter(pf => contratoIdsZona.has(pf.contratoId)),
+    [preFacturas, contratoIdsZona]
+  );
+
+  const porEtapa = useMemo(() => {
+    const pendiente = preFacturasFiltradas.filter(pf => pf.estado === 'Pendiente');
+    const validada = preFacturasFiltradas.filter(pf => pf.estado === 'Validada');
+    const aceptada = preFacturasFiltradas.filter(pf => pf.estado === 'Aceptada');
+    return { pendiente, validada, aceptada };
+  }, [preFacturasFiltradas]);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAllInEtapa = (estado: EtapaEstado) => {
+    const ids = porEtapa[estado.toLowerCase() as keyof typeof porEtapa].map(pf => pf.id);
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      const allSelected = ids.every(id => next.has(id));
+      ids.forEach(id => (allSelected ? next.delete(id) : next.add(id)));
+      return next;
+    });
+  };
+
+  const validarSeleccionadas = () => {
+    selectedIds.forEach(id => updatePreFactura(id, { estado: 'Validada' }));
+    setSelectedIds(new Set());
+  };
+
+  const aceptarSeleccionadas = () => {
+    selectedIds.forEach(id => updatePreFactura(id, { estado: 'Aceptada' }));
+    setSelectedIds(new Set());
+  };
 
   const generarPreFactura = (consumo: typeof consumos[0]) => {
-    const contrato = contratos.find(c => c.id === consumo.contratoId);
+    const contrato = contratosConAcceso.find(c => c.id === consumo.contratoId);
     if (!contrato) return;
     const { subtotal, cargoFijo, total } = calcularTarifa(contrato.tipoServicio, consumo.m3);
     addPreFactura({
@@ -22,10 +82,41 @@ const PreFacturacion = () => {
     });
   };
 
+  const CardPreFactura = ({ pf, etapa }: { pf: typeof preFacturasFiltradas[0]; etapa: EtapaEstado }) => {
+    const contrato = contratosConAcceso.find(c => c.id === pf.contratoId);
+    const checked = selectedIds.has(pf.id);
+    return (
+      <div className="rounded-lg border bg-card p-3 flex items-start gap-3">
+        <Checkbox checked={checked} onCheckedChange={() => toggleSelect(pf.id)} />
+        <div className="flex-1 min-w-0">
+          <div className="flex justify-between gap-2">
+            <span className="font-mono text-xs">{pf.id}</span>
+            <StatusBadge status={pf.estado} />
+          </div>
+          <p className="text-sm mt-1"><span className="text-muted-foreground">Contrato:</span> {pf.contratoId} · {contrato?.nombre}</p>
+          <p className="text-sm"><span className="text-muted-foreground">Periodo:</span> {pf.periodo} · <span className="text-muted-foreground">m³:</span> {pf.consumoM3} · <strong>${pf.total.toFixed(2)}</strong></p>
+          <div className="mt-2 flex gap-2">
+            {etapa === 'Pendiente' && <Button size="sm" variant="outline" onClick={() => updatePreFactura(pf.id, { estado: 'Validada' })}>Validar</Button>}
+            {etapa === 'Validada' && <Button size="sm" onClick={() => updatePreFactura(pf.id, { estado: 'Aceptada' })}>Aceptar</Button>}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div>
       <div className="page-header">
         <h1 className="page-title">Pre-Facturación</h1>
+        <Select value={zonaId} onValueChange={setZonaId}>
+          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Zona" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas las zonas</SelectItem>
+            {(allowedZonaIds ? zonas.filter(z => allowedZonaIds.includes(z.id)) : zonas).map(z => (
+              <SelectItem key={z.id} value={z.id}>{z.nombre}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {consumosConfirmados.length > 0 && (
@@ -41,27 +132,60 @@ const PreFacturacion = () => {
         </div>
       )}
 
-      <div className="rounded-lg border overflow-hidden">
-        <table className="data-table">
-          <thead><tr><th>ID</th><th>Contrato</th><th>Periodo</th><th>m³</th><th>Total</th><th>Estado</th><th></th></tr></thead>
-          <tbody>
-            {preFacturas.map(pf => (
-              <tr key={pf.id}>
-                <td className="font-mono text-xs">{pf.id}</td>
-                <td className="font-mono text-xs">{pf.contratoId}</td>
-                <td>{pf.periodo}</td>
-                <td>{pf.consumoM3}</td>
-                <td className="font-semibold">${pf.total.toFixed(2)}</td>
-                <td><StatusBadge status={pf.estado} /></td>
-                <td>
-                  {pf.estado === 'Pendiente' && <Button size="sm" variant="outline" onClick={() => updatePreFactura(pf.id, { estado: 'Validada' })}>Validar</Button>}
-                  {pf.estado === 'Validada' && <Button size="sm" onClick={() => updatePreFactura(pf.id, { estado: 'Aceptada' })}>Aceptar</Button>}
-                </td>
-              </tr>
-            ))}
-            {preFacturas.length === 0 && <tr><td colSpan={7} className="text-center text-muted-foreground py-8">No hay pre-facturas</td></tr>}
-          </tbody>
-        </table>
+      <h3 className="section-title mb-2">Etapas de validación</h3>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="rounded-lg border-2 border-dashed border-muted-foreground/25 p-4 min-h-[200px]">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="font-semibold text-muted-foreground">Pendiente</h4>
+            <span className="text-sm text-muted-foreground">{porEtapa.pendiente.length}</span>
+          </div>
+          {porEtapa.pendiente.length > 0 && (
+            <Button size="sm" variant="ghost" className="mb-2" onClick={() => selectAllInEtapa('Pendiente')}>
+              Seleccionar todas
+            </Button>
+          )}
+          {selectedIds.size > 0 && porEtapa.pendiente.some(pf => selectedIds.has(pf.id)) && (
+            <Button size="sm" className="mb-2 w-full" onClick={validarSeleccionadas}>
+              Validar seleccionadas ({Array.from(selectedIds).filter(id => porEtapa.pendiente.some(p => p.id === id)).length})
+            </Button>
+          )}
+          <div className="space-y-2">
+            {porEtapa.pendiente.map(pf => <CardPreFactura key={pf.id} pf={pf} etapa="Pendiente" />)}
+            {porEtapa.pendiente.length === 0 && <p className="text-sm text-muted-foreground">Sin pre-facturas pendientes</p>}
+          </div>
+        </div>
+
+        <div className="rounded-lg border-2 border-dashed border-muted-foreground/25 p-4 min-h-[200px]">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="font-semibold text-muted-foreground">Validada</h4>
+            <span className="text-sm text-muted-foreground">{porEtapa.validada.length}</span>
+          </div>
+          {porEtapa.validada.length > 0 && (
+            <Button size="sm" variant="ghost" className="mb-2" onClick={() => selectAllInEtapa('Validada')}>
+              Seleccionar todas
+            </Button>
+          )}
+          {selectedIds.size > 0 && porEtapa.validada.some(pf => selectedIds.has(pf.id)) && (
+            <Button size="sm" className="mb-2 w-full" onClick={aceptarSeleccionadas}>
+              Aceptar seleccionadas ({Array.from(selectedIds).filter(id => porEtapa.validada.some(p => p.id === id)).length})
+            </Button>
+          )}
+          <div className="space-y-2">
+            {porEtapa.validada.map(pf => <CardPreFactura key={pf.id} pf={pf} etapa="Validada" />)}
+            {porEtapa.validada.length === 0 && <p className="text-sm text-muted-foreground">Sin pre-facturas validadas</p>}
+          </div>
+        </div>
+
+        <div className="rounded-lg border-2 border-dashed border-muted-foreground/25 p-4 min-h-[200px]">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="font-semibold text-muted-foreground">Aceptada</h4>
+            <span className="text-sm text-muted-foreground">{porEtapa.aceptada.length}</span>
+          </div>
+          <div className="space-y-2">
+            {porEtapa.aceptada.map(pf => <CardPreFactura key={pf.id} pf={pf} etapa="Aceptada" />)}
+            {porEtapa.aceptada.length === 0 && <p className="text-sm text-muted-foreground">Sin pre-facturas aceptadas</p>}
+          </div>
+        </div>
       </div>
     </div>
   );

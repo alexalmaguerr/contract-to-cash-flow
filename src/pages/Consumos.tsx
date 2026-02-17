@@ -1,18 +1,23 @@
+import { useState, useMemo } from 'react';
 import { useData } from '@/context/DataContext';
 import StatusBadge from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { useState } from 'react';
 
 const Consumos = () => {
-  const { consumos, addConsumo, updateConsumo, lecturas, contratos } = useData();
+  const { consumos, addConsumo, updateConsumo, lecturas, contratos, allowedZonaIds } = useData();
   const [contratoId, setContratoId] = useState('');
   const [tipo, setTipo] = useState<any>('Promedio histórico');
   const [m3, setM3] = useState('');
 
-  const lecturasValidas = lecturas.filter(l => l.estado === 'Válida');
-  const activos = contratos.filter(c => c.estado === 'Activo');
+  const contratosVisibles = useMemo(() =>
+    !allowedZonaIds ? contratos : contratos.filter(c => c.zonaId && allowedZonaIds.includes(c.zonaId)),
+    [contratos, allowedZonaIds]
+  );
+  const contratoIdsVisibles = useMemo(() => new Set(contratosVisibles.map(c => c.id)), [contratosVisibles]);
+  const consumosVisibles = useMemo(() => consumos.filter(c => contratoIdsVisibles.has(c.contratoId)), [consumos, contratoIdsVisibles]);
+  const activos = contratosVisibles.filter(c => c.estado === 'Activo');
 
   const handleEstimado = () => {
     addConsumo({
@@ -40,7 +45,7 @@ const Consumos = () => {
             <table className="data-table">
               <thead><tr><th>Contrato</th><th>Tipo</th><th>m³</th><th>Periodo</th><th>Confirmado</th><th></th></tr></thead>
               <tbody>
-                {consumos.map(c => (
+                {consumosVisibles.map(c => (
                   <tr key={c.id}>
                     <td className="font-mono text-xs">{c.contratoId}</td>
                     <td>{c.tipo}</td>
@@ -50,7 +55,7 @@ const Consumos = () => {
                     <td>{!c.confirmado && <Button size="sm" onClick={() => updateConsumo(c.id, { confirmado: true })}>Confirmar</Button>}</td>
                   </tr>
                 ))}
-                {consumos.length === 0 && <tr><td colSpan={6} className="text-center text-muted-foreground py-8">No hay consumos</td></tr>}
+                {consumosVisibles.length === 0 && <tr><td colSpan={6} className="text-center text-muted-foreground py-8">No hay consumos</td></tr>}
               </tbody>
             </table>
           </div>

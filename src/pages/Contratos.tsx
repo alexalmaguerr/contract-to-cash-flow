@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useData } from '@/context/DataContext';
 import StatusBadge from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useSearchParams } from 'react-router-dom';
 
 const Contratos = () => {
-  const { contratos, tomas, addContrato } = useData();
+  const { contratos, tomas, addContrato, allowedZonaIds, timbrados, recibos, preFacturas, pagos } = useData();
+  const contratosVisibles = useMemo(() =>
+    !allowedZonaIds ? contratos : contratos.filter(c => c.zonaId && allowedZonaIds.includes(c.zonaId)),
+    [contratos, allowedZonaIds]
+  );
   const [showWizard, setShowWizard] = useState(false);
   const [step, setStep] = useState(1);
   const [detail, setDetail] = useState<string | null>(null);
@@ -25,6 +29,7 @@ const Contratos = () => {
   }, [searchParams]);
 
   const disponibles = tomas.filter(t => t.estado === 'Disponible');
+  const contratoIdsVisibles = useMemo(() => new Set(contratosVisibles.map(c => c.id)), [contratosVisibles]);
 
   const handleCreate = () => {
     addContrato({ ...form, estado: 'Pendiente de alta', fecha: new Date().toISOString().split('T')[0] });
@@ -33,7 +38,38 @@ const Contratos = () => {
     setShowWizard(false);
   };
 
-  const selected = contratos.find(c => c.id === detail);
+  const selected = contratosVisibles.find(c => c.id === detail);
+
+  const facturasDesglose = useMemo(() => {
+    if (!selected) return { pagadas: [], porCobrar: [], vencidas: [] };
+    const facturasContrato = timbrados
+      .filter(t => t.contratoId === selected.id)
+      .map(t => {
+        const recibo = recibos.find(r => r.timbradoId === t.id);
+        const pf = preFacturas.find(p => p.id === t.preFacturaId);
+        const total = recibo ? recibo.saldoVigente + recibo.saldoVencido : (pf?.total ?? 0);
+        const fechaVenc = recibo?.fechaVencimiento ?? '';
+        return { timbrado: t, recibo, preFactura: pf, total, fechaVencimiento: fechaVenc };
+      })
+      .sort((a, b) => (a.preFactura?.periodo ?? '').localeCompare(b.preFactura?.periodo ?? ''));
+    const totalPagos = pagos.filter(p => p.contratoId === selected.id).reduce((s, p) => s + p.monto, 0);
+    let runningPagos = totalPagos;
+    const hoy = new Date().toISOString().split('T')[0];
+    const pagadas: typeof facturasContrato = [];
+    const porCobrar: typeof facturasContrato = [];
+    const vencidas: typeof facturasContrato = [];
+    facturasContrato.forEach(f => {
+      if (runningPagos >= f.total) {
+        pagadas.push(f);
+        runningPagos -= f.total;
+      } else if (f.fechaVencimiento && f.fechaVencimiento < hoy) {
+        vencidas.push(f);
+      } else {
+        porCobrar.push(f);
+      }
+    });
+    return { pagadas, porCobrar, vencidas };
+  }, [selected, timbrados, recibos, preFacturas, pagos]);
 
   return (
     <div>
@@ -55,7 +91,7 @@ const Contratos = () => {
         <table className="data-table">
           <thead><tr><th>ID</th><th>Titular</th><th>Tipo</th><th>Servicio</th><th>Estado</th><th>Fecha</th><th></th></tr></thead>
           <tbody>
-            {contratos.map(c => (
+            {contratosVisibles.map(c => (
               <tr key={c.id}>
                 <td className="font-mono text-xs">{c.id}</td>
                 <td>{c.nombre}</td>
@@ -66,7 +102,7 @@ const Contratos = () => {
                 <td><Button variant="ghost" size="sm" onClick={() => setDetail(c.id)}><Eye className="h-4 w-4" /></Button></td>
               </tr>
             ))}
-            {contratos.length === 0 && <tr><td colSpan={7} className="text-center text-muted-foreground py-8">No hay contratos</td></tr>}
+            {contratosVisibles.length === 0 && <tr><td colSpan={7} className="text-center text-muted-foreground py-8">No hay contratos</td></tr>}
           </tbody>
         </table>
       </div>
@@ -151,10 +187,10 @@ const Contratos = () => {
 
       {/* Detail */}
       <Dialog open={!!detail} onOpenChange={() => setDetail(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Contrato {selected?.id}</DialogTitle></DialogHeader>
           {selected && (
-            <div className="space-y-3 text-sm">
+            <div className="space-y-4 text-sm">
               <div className="grid grid-cols-2 gap-2">
                 <div><span className="text-muted-foreground">Titular:</span> {selected.nombre}</div>
                 <div><span className="text-muted-foreground">RFC:</span> {selected.rfc}</div>
@@ -164,6 +200,68 @@ const Contratos = () => {
                 <div><span className="text-muted-foreground">Ruta:</span> {selected.rutaId || 'Sin asignar'}</div>
               </div>
               <StatusBadge status={selected.estado} />
+
+              <h4 className="font-semibold pt-2">Desglose de facturas</h4>
+              <div className="space-y-3">
+                {facturasDesglose.pagadas.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Pagadas</p>
+                    <table className="w-full text-xs border rounded overflow-hidden">
+                      <thead><tr className="bg-muted/50"><th className="text-left p-2">Periodo</th><th className="text-left p-2">UUID</th><th className="text-right p-2">Monto</th><th className="p-2">Estado</th></tr></thead>
+                      <tbody>
+                        {facturasDesglose.pagadas.map(f => (
+                          <tr key={f.timbrado.id} className="border-t">
+                            <td className="p-2">{f.preFactura?.periodo ?? '—'}</td>
+                            <td className="p-2 font-mono">{f.timbrado.uuid || '—'}</td>
+                            <td className="p-2 text-right">${f.total.toFixed(2)}</td>
+                            <td className="p-2"><span className="status-badge status-success">Pagada</span></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {facturasDesglose.porCobrar.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Por cobrar</p>
+                    <table className="w-full text-xs border rounded overflow-hidden">
+                      <thead><tr className="bg-muted/50"><th className="text-left p-2">Periodo</th><th className="text-left p-2">UUID</th><th className="text-right p-2">Monto</th><th className="p-2">Estado</th></tr></thead>
+                      <tbody>
+                        {facturasDesglose.porCobrar.map(f => (
+                          <tr key={f.timbrado.id} className="border-t">
+                            <td className="p-2">{f.preFactura?.periodo ?? '—'}</td>
+                            <td className="p-2 font-mono">{f.timbrado.uuid || '—'}</td>
+                            <td className="p-2 text-right">${f.total.toFixed(2)}</td>
+                            <td className="p-2"><span className="status-badge status-warning">Por cobrar</span></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {facturasDesglose.vencidas.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Vencidas</p>
+                    <table className="w-full text-xs border rounded overflow-hidden">
+                      <thead><tr className="bg-muted/50"><th className="text-left p-2">Periodo</th><th className="text-left p-2">UUID</th><th className="text-right p-2">Monto</th><th className="p-2">Vencimiento</th><th className="p-2">Estado</th></tr></thead>
+                      <tbody>
+                        {facturasDesglose.vencidas.map(f => (
+                          <tr key={f.timbrado.id} className="border-t">
+                            <td className="p-2">{f.preFactura?.periodo ?? '—'}</td>
+                            <td className="p-2 font-mono">{f.timbrado.uuid || '—'}</td>
+                            <td className="p-2 text-right">${f.total.toFixed(2)}</td>
+                            <td className="p-2 text-destructive">{f.fechaVencimiento}</td>
+                            <td className="p-2"><span className="status-badge status-error">Vencida</span></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {facturasDesglose.pagadas.length === 0 && facturasDesglose.porCobrar.length === 0 && facturasDesglose.vencidas.length === 0 && (
+                  <p className="text-muted-foreground text-xs">Sin facturas para este contrato.</p>
+                )}
+              </div>
             </div>
           )}
         </DialogContent>

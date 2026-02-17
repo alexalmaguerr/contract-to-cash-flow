@@ -3,8 +3,10 @@ import { useState } from 'react';
 import {
   LayoutDashboard, FileCheck, Building2, Droplets, FileText, Gauge,
   Route, BookOpen, BarChart3, Calculator, FileSearch, Stamp, Printer,
-  CreditCard, PieChart, Menu, X, ChevronDown
+  CreditCard, PieChart, Menu, X, ChevronDown, User
 } from 'lucide-react';
+import { useData } from '@/context/DataContext';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const navGroups = [
   {
@@ -50,9 +52,22 @@ const navGroups = [
   },
 ];
 
+const MOCK_USERS = [
+  { id: 'all', name: 'Todas las zonas', administracionIds: [] as string[], zonaIds: [] as string[] },
+  { id: 'U001', name: 'Usuario CEA Norte', administracionIds: ['ADM01'], zonaIds: ['Z001', 'Z002', 'Z003'] },
+  { id: 'U002', name: 'Usuario Zibatá', administracionIds: ['ADM02'], zonaIds: ['Z004', 'Z005'] },
+];
+
 const AppLayout = () => {
+  const { currentUser, setCurrentUser, allowedZonaIds } = useData();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const currentValue = !currentUser ? 'all' : currentUser.id;
+  const handleUserChange = (id: string) => {
+    const u = MOCK_USERS.find(x => x.id === id);
+    if (id === 'all' || !u) setCurrentUser(null);
+    else setCurrentUser({ id: u.id, name: u.name, administracionIds: u.administracionIds, zonaIds: u.zonaIds });
+  };
 
   const toggleGroup = (label: string) => {
     setCollapsed(prev => ({ ...prev, [label]: !prev[label] }));
@@ -110,6 +125,16 @@ const AppLayout = () => {
             {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
           <span className="text-sm font-medium text-muted-foreground">Sistema de Gestión Comercial</span>
+          <div className="ml-auto flex items-center gap-2">
+            <User className="h-4 w-4 text-muted-foreground" />
+            <Select value={currentValue} onValueChange={handleUserChange}>
+              <SelectTrigger className="w-[200px]"><SelectValue placeholder="Acceso" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas las zonas</SelectItem>
+                {MOCK_USERS.filter(u => u.id !== 'all').map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
         </header>
         <main className="flex-1 overflow-y-auto p-6 animate-fade-in">
           <Outlet />
