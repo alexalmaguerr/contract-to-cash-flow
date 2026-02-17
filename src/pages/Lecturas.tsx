@@ -53,6 +53,14 @@ const Lecturas = () => {
   const ruta = rutasVisibles.find(r => r.id === selectedRuta);
   const rutaContratos = ruta ? contratos.filter(c => ruta.contratoIds.includes(c.id) && contratoIdsVisibles.has(c.id)) : [];
 
+  // Lectura anterior que se usará para el contrato seleccionado (para mostrar en captura)
+  const lecturaAnteriorParaCaptura = useMemo(() => {
+    if (!captureContratoId) return null;
+    const medidor = medidores.find(m => m.contratoId === captureContratoId);
+    const lastLectura = lecturasVisibles.filter(l => l.contratoId === captureContratoId).sort((a, b) => b.fecha.localeCompare(a.fecha))[0];
+    return lastLectura ? lastLectura.lecturaActual : (medidor?.lecturaInicial ?? 0);
+  }, [captureContratoId, medidores, lecturasVisibles]);
+
   const handleCapture = () => {
     const medidor = medidores.find(m => m.contratoId === captureContratoId);
     const lastLectura = lecturasVisibles.filter(l => l.contratoId === captureContratoId).sort((a, b) => b.fecha.localeCompare(a.fecha))[0];
@@ -91,18 +99,22 @@ const Lecturas = () => {
 
   const COLORS = { Válida: '#22c55e', 'No válida': '#ef4444', Pendiente: '#eab308' };
 
-  // Lecturas que exceden máximo o están bajo mínimo
+  // Lecturas que exceden máximo o están bajo mínimo (más recientes primero)
   const fueraRango = useMemo(() => {
-    return lecturasVisibles.filter(l => {
-      const min = l.lecturaMinZona ?? RANGO_MIN;
-      const max = l.lecturaMaxZona ?? RANGO_MAX;
-      return l.consumo > max || l.consumo < min;
-    });
+    return lecturasVisibles
+      .filter(l => {
+        const min = l.lecturaMinZona ?? RANGO_MIN;
+        const max = l.lecturaMaxZona ?? RANGO_MAX;
+        return l.consumo > max || l.consumo < min;
+      })
+      .sort((a, b) => b.fecha.localeCompare(a.fecha) || b.periodo.localeCompare(a.periodo));
   }, [lecturasVisibles]);
 
-  // Lecturas no válidas con simulado
+  // Lecturas no válidas con simulado (más recientes primero)
   const noValidasConSimulado = useMemo(() => {
-    return lecturasVisibles.filter(l => l.estado === 'No válida');
+    return lecturasVisibles
+      .filter(l => l.estado === 'No válida')
+      .sort((a, b) => b.fecha.localeCompare(a.fecha) || b.periodo.localeCompare(a.periodo));
   }, [lecturasVisibles]);
 
   // Historial filtrado y paginado
@@ -143,7 +155,13 @@ const Lecturas = () => {
             <div className="widget-card">
               <h3 className="section-title">Captura de lectura</h3>
               <div className="space-y-3">
-            <Select value={selectedRuta} onValueChange={setSelectedRuta}>
+            <Select
+              value={selectedRuta}
+              onValueChange={(v) => {
+                setSelectedRuta(v);
+                setCaptureContratoId('');
+              }}
+            >
               <SelectTrigger><SelectValue placeholder="Seleccionar ruta" /></SelectTrigger>
               <SelectContent>{rutasVisibles.map(r => <SelectItem key={r.id} value={r.id}>{getZonaNombre(r.zonaId)} - {r.sector} ({r.lecturista})</SelectItem>)}</SelectContent>
             </Select>
@@ -153,6 +171,9 @@ const Lecturas = () => {
                       <SelectTrigger><SelectValue placeholder="Seleccionar contrato" /></SelectTrigger>
                       <SelectContent>{rutaContratos.map(c => <SelectItem key={c.id} value={c.id}>{c.id} - {c.nombre}</SelectItem>)}</SelectContent>
                     </Select>
+                    {lecturaAnteriorParaCaptura != null && (
+                      <p className="text-sm text-muted-foreground">Lectura anterior para este contrato: <strong>{lecturaAnteriorParaCaptura} m³</strong></p>
+                    )}
                     <Input type="number" placeholder="Lectura actual" value={lecturaActual} onChange={e => setLecturaActual(e.target.value)} />
                     <Input placeholder="Incidencia (opcional)" value={incidencia} onChange={e => setIncidencia(e.target.value)} />
                     <p className="text-xs text-muted-foreground">Rango válido: {RANGO_MIN} - {RANGO_MAX} m³.</p>
