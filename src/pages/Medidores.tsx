@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Plus, Package, Gauge } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -30,8 +29,8 @@ const Medidores = () => {
   );
   const [showAddBodega, setShowAddBodega] = useState(false);
   const [showAssign, setShowAssign] = useState(false);
-  const [bodegaForm, setBodegaForm] = useState({ serie: '', zonaId: '', estado: 'Disponible' as 'Disponible' | 'En reparación' });
-  const [assignForm, setAssignForm] = useState({ medidorBodegaId: '', contratoId: '', lecturaInicial: 0 });
+  const [bodegaForm, setBodegaForm] = useState({ serie: '', estado: 'Disponible' as 'Disponible' | 'En reparación' });
+  const [assignForm, setAssignForm] = useState({ medidorBodegaId: '', contratoId: '', zonaId: '', lecturaInicial: 0 });
 
   // Filtros asignados
   const [filtroZona, setFiltroZona] = useState<string>('all');
@@ -65,14 +64,14 @@ const Medidores = () => {
   }, [medidoresBodega, filtroBodegaEstado, filtroBodegaSerie]);
 
   const handleAddBodega = () => {
-    addMedidorBodega({ serie: bodegaForm.serie, zonaId: bodegaForm.zonaId, estado: bodegaForm.estado });
-    setBodegaForm({ serie: '', zonaId: '', estado: 'Disponible' });
+    addMedidorBodega({ serie: bodegaForm.serie, estado: bodegaForm.estado });
+    setBodegaForm({ serie: '', estado: 'Disponible' });
     setShowAddBodega(false);
   };
 
   const handleAssign = () => {
-    assignMedidorFromBodega(assignForm.medidorBodegaId, assignForm.contratoId, assignForm.lecturaInicial);
-    setAssignForm({ medidorBodegaId: '', contratoId: '', lecturaInicial: 0 });
+    assignMedidorFromBodega(assignForm.medidorBodegaId, assignForm.contratoId, assignForm.lecturaInicial, assignForm.zonaId);
+    setAssignForm({ medidorBodegaId: '', contratoId: '', zonaId: '', lecturaInicial: 0 });
     setShowAssign(false);
   };
 
@@ -206,24 +205,16 @@ const Medidores = () => {
               <Input id="bodega-serie" placeholder="Ej. MED-2025-00001" value={bodegaForm.serie} onChange={e => setBodegaForm({ ...bodegaForm, serie: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <Label>Zona</Label>
-              <Select value={bodegaForm.zonaId || undefined} onValueChange={v => setBodegaForm({ ...bodegaForm, zonaId: v })}>
-                <SelectTrigger><SelectValue placeholder="Seleccione una zona" /></SelectTrigger>
+              <Label>Estado</Label>
+              <Select value={bodegaForm.estado} onValueChange={(v: 'Disponible' | 'En reparación') => setBodegaForm({ ...bodegaForm, estado: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {(allowedZonaIds ? zonas.filter(z => allowedZonaIds.includes(z.id)) : zonas).map(z => (
-                    <SelectItem key={z.id} value={z.id}>{z.nombre}</SelectItem>
-                  ))}
+                  <SelectItem value="Disponible">Disponible</SelectItem>
+                  <SelectItem value="En reparación">En reparación</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <Select value={bodegaForm.estado} onValueChange={(v: 'Disponible' | 'En reparación') => setBodegaForm({ ...bodegaForm, estado: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Disponible">Disponible</SelectItem>
-                <SelectItem value="En reparación">En reparación</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button onClick={handleAddBodega} disabled={!bodegaForm.serie.trim() || !bodegaForm.zonaId} className="w-full">Agregar a bodega</Button>
+            <Button onClick={handleAddBodega} disabled={!bodegaForm.serie.trim()} className="w-full">Agregar a bodega</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -237,49 +228,40 @@ const Medidores = () => {
               <Select value={assignForm.medidorBodegaId || undefined} onValueChange={v => setAssignForm({ ...assignForm, medidorBodegaId: v })}>
                 <SelectTrigger><SelectValue placeholder="Seleccione un medidor" /></SelectTrigger>
                 <SelectContent>
-                  {disponiblesBodega.map(m => {
-                    const zonaNombre = m.zonaId ? zonas.find(z => z.id === m.zonaId)?.nombre : null;
-                    return (
-                      <SelectItem key={m.id} value={m.id}>
-                        {m.serie} {zonaNombre ? `(${zonaNombre})` : ''}
-                      </SelectItem>
-                    );
-                  })}
+                  {disponiblesBodega.map(m => (
+                    <SelectItem key={m.id} value={m.id}>{m.serie}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-              {assignForm.medidorBodegaId && (() => {
-                const mb = disponiblesBodega.find(m => m.id === assignForm.medidorBodegaId);
-                const zona = mb?.zonaId ? zonas.find(z => z.id === mb.zonaId) : null;
-                return zona ? <p className="text-xs text-muted-foreground">Zona del medidor: <strong>{zona.nombre}</strong></p> : null;
-              })()}
             </div>
             <div className="space-y-1.5">
               <Label>Contrato pendiente</Label>
               <Select value={assignForm.contratoId || undefined} onValueChange={v => setAssignForm({ ...assignForm, contratoId: v })}>
                 <SelectTrigger><SelectValue placeholder="Seleccione un contrato" /></SelectTrigger>
                 <SelectContent>
-                  {pendientes.map(c => {
-                    const zonaNombre = c.zonaId ? zonas.find(z => z.id === c.zonaId)?.nombre : null;
-                    return (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.id} – {c.nombre} {zonaNombre ? `(${zonaNombre})` : ''}
-                      </SelectItem>
-                    );
-                  })}
+                  {pendientes.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.id} – {c.nombre}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-              {assignForm.contratoId && (() => {
-                const c = pendientes.find(p => p.id === assignForm.contratoId);
-                const zona = c?.zonaId ? zonas.find(z => z.id === c.zonaId) : null;
-                return zona ? <p className="text-xs text-muted-foreground">Zona del contrato: <strong>{zona.nombre}</strong></p> : null;
-              })()}
+            </div>
+            <div className="space-y-1.5">
+              <Label>Zona (se asigna al contrato)</Label>
+              <Select value={assignForm.zonaId || undefined} onValueChange={v => setAssignForm({ ...assignForm, zonaId: v })}>
+                <SelectTrigger><SelectValue placeholder="Seleccione una zona" /></SelectTrigger>
+                <SelectContent>
+                  {(allowedZonaIds ? zonas.filter(z => allowedZonaIds.includes(z.id)) : zonas).map(z => (
+                    <SelectItem key={z.id} value={z.id}>{z.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="assign-lectura">Lectura inicial</Label>
               <Input id="assign-lectura" type="number" placeholder="0" value={assignForm.lecturaInicial || ''} onChange={e => setAssignForm({ ...assignForm, lecturaInicial: Number(e.target.value) || 0 })} />
             </div>
-            <p className="text-xs text-muted-foreground">El contrato pasará a estado <strong>Activo</strong>. Si el contrato no tenía zona, se asignará la zona del medidor.</p>
-            <Button onClick={handleAssign} disabled={!assignForm.medidorBodegaId || !assignForm.contratoId} className="w-full">Asignar y activar</Button>
+            <p className="text-xs text-muted-foreground">El contrato pasará a estado <strong>Activo</strong> y se le asignará la zona elegida.</p>
+            <Button onClick={handleAssign} disabled={!assignForm.medidorBodegaId || !assignForm.contratoId || !assignForm.zonaId} className="w-full">Asignar y activar</Button>
           </div>
         </DialogContent>
       </Dialog>

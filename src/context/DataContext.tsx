@@ -11,7 +11,8 @@ export type MedidorBodegaEstado = 'Disponible' | 'En reparación';
 export interface MedidorBodega {
   id: string;
   serie: string;
-  zonaId: string;
+  /** Zona no se asigna en inventario; solo al unir medidor con contrato. */
+  zonaId?: string;
   estado: MedidorBodegaEstado;
 }
 export type LecturaEstado = 'Válida' | 'No válida' | 'Pendiente';
@@ -515,7 +516,7 @@ interface DataContextType {
   addMedidorBodega: (m: Omit<MedidorBodega, 'id'>) => void;
   updateMedidorBodega: (id: string, updates: Partial<MedidorBodega>) => void;
   removeMedidorBodega: (id: string) => void;
-  assignMedidorFromBodega: (medidorBodegaId: string, contratoId: string, lecturaInicial: number) => void;
+  assignMedidorFromBodega: (medidorBodegaId: string, contratoId: string, lecturaInicial: number, zonaId: string) => void;
   addRuta: (r: Omit<Ruta, 'id'>) => void;
   updateRuta: (id: string, updates: Partial<Ruta>) => void;
   moveContratoToRuta: (contratoId: string, rutaId: string | null) => void;
@@ -595,12 +596,11 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const addMedidorBodega = (m: Omit<MedidorBodega, 'id'>) => setMedidoresBodega(prev => [...prev, { ...m, id: genId('MB') }]);
   const updateMedidorBodega = (id: string, updates: Partial<MedidorBodega>) => setMedidoresBodega(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
   const removeMedidorBodega = (id: string) => setMedidoresBodega(prev => prev.filter(m => m.id !== id));
-  const assignMedidorFromBodega = (medidorBodegaId: string, contratoId: string, lecturaInicial: number) => {
+  const assignMedidorFromBodega = (medidorBodegaId: string, contratoId: string, lecturaInicial: number, zonaId: string) => {
     const mb = medidoresBodega.find(m => m.id === medidorBodegaId);
     if (!mb || mb.estado !== 'Disponible') return;
     addMedidor({ contratoId, serie: mb.serie, estado: 'Activo', cobroDiferido: false, lecturaInicial });
-    const contrato = contratos.find(c => c.id === contratoId);
-    if (contrato && !contrato.zonaId && mb.zonaId) updateContrato(contratoId, { zonaId: mb.zonaId });
+    updateContrato(contratoId, { zonaId });
     removeMedidorBodega(medidorBodegaId);
   };
 
