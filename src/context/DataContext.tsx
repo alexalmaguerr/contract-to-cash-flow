@@ -616,16 +616,19 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     const contrato = contratos.find(c => c.id === contratoId);
     if (!contrato) return;
     const prevRutaId = contrato.rutaId;
-    if (prevRutaId) {
-      const ruta = rutas.find(r => r.id === prevRutaId);
-      if (ruta) updateRuta(prevRutaId, { contratoIds: ruta.contratoIds.filter(cid => cid !== contratoId) });
-    }
+    // Una sola actualización de rutas: quitar de la anterior y añadir a la nueva (evita duplicados por batching)
+    setRutas(prev =>
+      prev.map(r => {
+        if (prevRutaId && r.id === prevRutaId)
+          return { ...r, contratoIds: r.contratoIds.filter(cid => cid !== contratoId) };
+        if (rutaId && r.id === rutaId)
+          return { ...r, contratoIds: r.contratoIds.includes(contratoId) ? r.contratoIds : [...r.contratoIds, contratoId] };
+        return r;
+      })
+    );
     if (rutaId) {
       const ruta = rutas.find(r => r.id === rutaId);
-      if (ruta) {
-        updateRuta(rutaId, { contratoIds: [...ruta.contratoIds, contratoId] });
-        updateContrato(contratoId, { rutaId, zonaId: ruta.zonaId });
-      }
+      if (ruta) updateContrato(contratoId, { rutaId, zonaId: ruta.zonaId });
     } else {
       updateContrato(contratoId, { rutaId: undefined, zonaId: undefined });
     }
