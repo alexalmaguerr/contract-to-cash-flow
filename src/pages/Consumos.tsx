@@ -16,7 +16,13 @@ const Consumos = () => {
     [contratos, allowedZonaIds]
   );
   const contratoIdsVisibles = useMemo(() => new Set(contratosVisibles.map(c => c.id)), [contratosVisibles]);
-  const consumosVisibles = useMemo(() => consumos.filter(c => contratoIdsVisibles.has(c.contratoId)), [consumos, contratoIdsVisibles]);
+  const consumosVisibles = useMemo(
+    () =>
+      consumos
+        .filter(c => contratoIdsVisibles.has(c.contratoId))
+        .sort((a, b) => b.periodo.localeCompare(a.periodo)),
+    [consumos, contratoIdsVisibles]
+  );
   const activos = contratosVisibles.filter(c => c.estado === 'Activo');
 
   const handleEstimado = () => {
