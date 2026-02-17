@@ -11,6 +11,7 @@ export type MedidorBodegaEstado = 'Disponible' | 'En reparación';
 export interface MedidorBodega {
   id: string;
   serie: string;
+  zonaId: string;
   estado: MedidorBodegaEstado;
 }
 export type LecturaEstado = 'Válida' | 'No válida' | 'Pendiente';
@@ -276,10 +277,10 @@ const initialContratos: Contrato[] = [
 ];
 
 const initialMedidoresBodega: MedidorBodega[] = [
-  { id: 'MB001', serie: 'MED-2025-00010', estado: 'Disponible' },
-  { id: 'MB002', serie: 'MED-2025-00011', estado: 'Disponible' },
-  { id: 'MB003', serie: 'MED-2025-00012', estado: 'En reparación' },
-  { id: 'MB004', serie: 'MED-2025-00013', estado: 'Disponible' },
+  { id: 'MB001', serie: 'MED-2025-00010', zonaId: 'Z001', estado: 'Disponible' },
+  { id: 'MB002', serie: 'MED-2025-00011', zonaId: 'Z001', estado: 'Disponible' },
+  { id: 'MB003', serie: 'MED-2025-00012', zonaId: 'Z002', estado: 'En reparación' },
+  { id: 'MB004', serie: 'MED-2025-00013', zonaId: 'Z001', estado: 'Disponible' },
 ];
 
 const initialMedidores: Medidor[] = [
@@ -598,6 +599,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     const mb = medidoresBodega.find(m => m.id === medidorBodegaId);
     if (!mb || mb.estado !== 'Disponible') return;
     addMedidor({ contratoId, serie: mb.serie, estado: 'Activo', cobroDiferido: false, lecturaInicial });
+    const contrato = contratos.find(c => c.id === contratoId);
+    if (contrato && !contrato.zonaId && mb.zonaId) updateContrato(contratoId, { zonaId: mb.zonaId });
     removeMedidorBodega(medidorBodegaId);
   };
 

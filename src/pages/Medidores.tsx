@@ -28,7 +28,7 @@ const Medidores = () => {
   );
   const [showAddBodega, setShowAddBodega] = useState(false);
   const [showAssign, setShowAssign] = useState(false);
-  const [bodegaForm, setBodegaForm] = useState({ serie: '', estado: 'Disponible' as 'Disponible' | 'En reparación' });
+  const [bodegaForm, setBodegaForm] = useState({ serie: '', zonaId: '', estado: 'Disponible' as 'Disponible' | 'En reparación' });
   const [assignForm, setAssignForm] = useState({ medidorBodegaId: '', contratoId: '', lecturaInicial: 0 });
 
   // Filtros asignados
@@ -63,8 +63,8 @@ const Medidores = () => {
   }, [medidoresBodega, filtroBodegaEstado, filtroBodegaSerie]);
 
   const handleAddBodega = () => {
-    addMedidorBodega({ serie: bodegaForm.serie, estado: bodegaForm.estado });
-    setBodegaForm({ serie: '', estado: 'Disponible' });
+    addMedidorBodega({ serie: bodegaForm.serie, zonaId: bodegaForm.zonaId, estado: bodegaForm.estado });
+    setBodegaForm({ serie: '', zonaId: '', estado: 'Disponible' });
     setShowAddBodega(false);
   };
 
@@ -166,12 +166,15 @@ const Medidores = () => {
           </div>
           <div className="rounded-lg border overflow-hidden">
             <table className="data-table">
-              <thead><tr><th>ID</th><th>Serie</th><th>Estado</th><th>Acciones</th></tr></thead>
+              <thead><tr><th>ID</th><th>Serie</th><th>Zona</th><th>Estado</th><th>Acciones</th></tr></thead>
               <tbody>
-                {bodegaFiltrados.map(m => (
+                {bodegaFiltrados.map(m => {
+                  const zona = m.zonaId ? zonas.find(z => z.id === m.zonaId) : null;
+                  return (
                   <tr key={m.id}>
                     <td className="font-mono text-xs">{m.id}</td>
                     <td>{m.serie}</td>
+                    <td className="text-sm">{zona?.nombre ?? '—'}</td>
                     <td><StatusBadge status={m.estado} /></td>
                     <td>
                       <Select value={m.estado} onValueChange={(v: 'Disponible' | 'En reparación') => updateMedidorBodega(m.id, { estado: v })}>
@@ -183,8 +186,9 @@ const Medidores = () => {
                       </Select>
                     </td>
                   </tr>
-                ))}
-                {bodegaFiltrados.length === 0 && <tr><td colSpan={4} className="text-center text-muted-foreground py-8">No hay medidores en bodega</td></tr>}
+                  );
+                })}
+                {bodegaFiltrados.length === 0 && <tr><td colSpan={5} className="text-center text-muted-foreground py-8">No hay medidores en bodega</td></tr>}
               </tbody>
             </table>
           </div>
@@ -196,6 +200,14 @@ const Medidores = () => {
           <DialogHeader><DialogTitle>Alta de medidor en bodega</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <Input placeholder="Serie del medidor" value={bodegaForm.serie} onChange={e => setBodegaForm({ ...bodegaForm, serie: e.target.value })} />
+            <Select value={bodegaForm.zonaId} onValueChange={v => setBodegaForm({ ...bodegaForm, zonaId: v })}>
+              <SelectTrigger><SelectValue placeholder="Zona" /></SelectTrigger>
+              <SelectContent>
+                {(allowedZonaIds ? zonas.filter(z => allowedZonaIds.includes(z.id)) : zonas).map(z => (
+                  <SelectItem key={z.id} value={z.id}>{z.nombre}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select value={bodegaForm.estado} onValueChange={(v: 'Disponible' | 'En reparación') => setBodegaForm({ ...bodegaForm, estado: v })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -203,7 +215,7 @@ const Medidores = () => {
                 <SelectItem value="En reparación">En reparación</SelectItem>
               </SelectContent>
             </Select>
-            <Button onClick={handleAddBodega} disabled={!bodegaForm.serie.trim()} className="w-full">Agregar a bodega</Button>
+            <Button onClick={handleAddBodega} disabled={!bodegaForm.serie.trim() || !bodegaForm.zonaId} className="w-full">Agregar a bodega</Button>
           </div>
         </DialogContent>
       </Dialog>
