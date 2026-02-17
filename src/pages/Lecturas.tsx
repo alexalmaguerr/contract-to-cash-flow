@@ -117,18 +117,20 @@ const Lecturas = () => {
       .sort((a, b) => b.fecha.localeCompare(a.fecha) || b.periodo.localeCompare(a.periodo));
   }, [lecturasVisibles]);
 
-  // Historial filtrado y paginado
+  // Historial filtrado y paginado (más nuevo al más viejo)
   const historialFiltrado = useMemo(() => {
-    return lecturasVisibles.filter(l => {
-      if (filtroRuta !== 'all' && l.rutaId !== filtroRuta) return false;
-      const contrato = contratos.find(c => c.id === l.contratoId);
-      if (filtroZona !== 'all' && contrato?.zonaId !== filtroZona) return false;
-      if (filtroContrato !== 'all' && l.contratoId !== filtroContrato) return false;
-      if (filtroEstado !== 'all' && l.estado !== filtroEstado) return false;
-      if (filtroPeriodo && l.periodo !== filtroPeriodo) return false;
-      if (filtroFecha && l.fecha !== filtroFecha) return false;
-      return true;
-    });
+    return lecturasVisibles
+      .filter(l => {
+        if (filtroRuta !== 'all' && l.rutaId !== filtroRuta) return false;
+        const contrato = contratos.find(c => c.id === l.contratoId);
+        if (filtroZona !== 'all' && contrato?.zonaId !== filtroZona) return false;
+        if (filtroContrato !== 'all' && l.contratoId !== filtroContrato) return false;
+        if (filtroEstado !== 'all' && l.estado !== filtroEstado) return false;
+        if (filtroPeriodo && l.periodo !== filtroPeriodo) return false;
+        if (filtroFecha && l.fecha !== filtroFecha) return false;
+        return true;
+      })
+      .sort((a, b) => b.fecha.localeCompare(a.fecha) || b.periodo.localeCompare(a.periodo));
   }, [lecturasVisibles, contratos, filtroRuta, filtroZona, filtroContrato, filtroEstado, filtroPeriodo, filtroFecha]);
 
   const totalPages = Math.max(1, Math.ceil(historialFiltrado.length / PAGE_SIZE));
