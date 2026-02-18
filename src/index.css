@@ -132,6 +132,14 @@
   .data-table tr:hover td {
     background-color: hsl(var(--muted) / 0.5);
   }
+  .data-table-interactive tr {
+    transition: background-color 0.2s ease;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .data-table-interactive tr {
+      transition: none;
+    }
+  }
   .page-header {
     @apply mb-6 flex items-center justify-between;
   }
@@ -140,5 +148,30 @@
   }
   .section-title {
     @apply text-lg font-semibold mb-3;
+  }
+  .section-subtitle {
+    @apply text-sm font-medium text-muted-foreground mt-3 mb-1;
+  }
+  .section-subtitle:first-of-type {
+    @apply mt-0;
+  }
+
+  /* Scrollbar del menú lateral: fino y acorde al tema del sidebar */
+  .sidebar-nav {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--sidebar-border)) transparent;
+  }
+  .sidebar-nav::-webkit-scrollbar {
+    width: 6px;
+  }
+  .sidebar-nav::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .sidebar-nav::-webkit-scrollbar-thumb {
+    background: hsl(var(--sidebar-border));
+    border-radius: 3px;
+  }
+  .sidebar-nav::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--sidebar-muted));
   }
 }

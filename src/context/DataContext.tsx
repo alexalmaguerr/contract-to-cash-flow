@@ -87,6 +87,19 @@ export interface Contrato {
   medidorId?: string;
   rutaId?: string;
   zonaId?: string;
+  /** Domiciliación bancaria activa */
+  domiciliado?: boolean;
+  /** Fecha prevista de reconexión (solo cuando estado es Suspendido por baja temporal) */
+  fechaReconexionPrevista?: string;
+}
+
+/** Costo o cargo fijo asociado al contrato (ej. cargo por contrato, concepto fijo) */
+export interface CostoContrato {
+  id: string;
+  contratoId: string;
+  concepto: string;
+  monto: number;
+  periodo?: string;
 }
 
 export interface Medidor {
@@ -228,6 +241,81 @@ export interface PagoExterno {
   concepto?: string;
 }
 
+/** Trámite asignado al contrato (domiciliación, cláusulas, estatus, etc.) */
+export type TramiteTipo = 'Domiciliación' | 'Cláusulas del contrato' | 'Estatus de servicio' | 'Convenio' | 'Baja temporal' | 'Baja definitiva';
+export interface TramiteAsignado {
+  id: string;
+  contratoId: string;
+  tipo: TramiteTipo;
+  estado: 'Pendiente' | 'En trámite' | 'Completado' | 'Rechazado';
+  fechaAsignacion: string;
+  fechaVencimiento?: string;
+  observaciones?: string;
+}
+
+/** Cláusula del contrato (texto legal o condicional) */
+export interface ClausulaContrato {
+  id: string;
+  contratoId: string;
+  orden: number;
+  titulo: string;
+  texto: string;
+}
+
+/** Catálogo de tipos de ajuste a la facturación (por área/origen) */
+export const TIPOS_AJUSTE_FACTURACION = [
+  { id: 'actualizacion_datos', label: 'Actualización de datos', area: 'Facturación' },
+  { id: 'atencion_publico', label: 'Atención al público', area: 'Atención a clientes' },
+  { id: 'deuda', label: 'Deuda', area: 'Cartera' },
+  { id: 'juridica', label: 'Jurídica', area: 'Jurídico' },
+  { id: 'convenio', label: 'Convenio', area: 'Cartera' },
+  { id: 'correccion_lectura', label: 'Corrección por lectura', area: 'Facturación' },
+  { id: 'corte_reconexion', label: 'Corte / Reconexión', area: 'Operación' },
+] as const;
+export type TipoAjusteFacturacionId = (typeof TIPOS_AJUSTE_FACTURACION)[number]['id'];
+
+/** Parámetros para aplicar un ajuste a una prefactura */
+export interface AjusteFacturaParams {
+  tipoAjusteId: TipoAjusteFacturacionId;
+  preFacturaId: string;
+  /** Nuevo consumo m³ (solo aplica en corrección por lectura / actualización datos) */
+  consumoM3?: number;
+  /** Descuento adicional (algunos tipos permiten descuento) */
+  descuentoAdicional?: number;
+  /** Motivo u observación del ajuste */
+  observacion?: string;
+}
+
+/** Área que gestiona el convenio */
+export type ConvenioArea = 'Atención a clientes' | 'Cartera' | 'Jurídico' | 'Facturación';
+export type ConvenioEstado = 'Vigente' | 'Cumplido' | 'Vencido' | 'Cancelado';
+
+export interface Convenio {
+  id: string;
+  contratoId: string;
+  tipo: string;
+  area: ConvenioArea;
+  importeTotal: number;
+  pagosRealizados: number;
+  fechaInicio: string;
+  fechaVencimiento: string;
+  estado: ConvenioEstado;
+  numeroParcialidades: number;
+  observaciones?: string;
+}
+
+/** Queja o aclaración registrada contra un contrato (historial) */
+export type QuejaAclaracionTipo = 'Queja' | 'Aclaración';
+export interface QuejaAclaracion {
+  id: string;
+  contratoId: string;
+  fecha: string;
+  tipo: QuejaAclaracionTipo;
+  descripcion: string;
+  estado: 'Registrada' | 'En atención' | 'Resuelta' | 'Cerrada';
+  atendidoPor?: string;
+}
+
 // Initial mock data
 const initialFactibilidades: Factibilidad[] = [
   { id: 'F001', predio: 'Lote 23-A Juriquilla', solicitante: 'Carlos Mendoza', direccion: 'Av. Juriquilla 450', estado: 'Aprobada', fecha: '2025-01-15', notas: 'Zona con infraestructura disponible' },
@@ -272,9 +360,26 @@ const initialAdministraciones: Administracion[] = [
 ];
 
 const initialContratos: Contrato[] = [
-  { id: 'CT001', tomaId: 'T001', tipoContrato: 'Agua', tipoServicio: 'Doméstico', nombre: 'Juan Pérez García', rfc: 'PEGJ800101XXX', direccion: 'Juriquilla Lote 23-A #1', contacto: '442-111-2233', estado: 'Activo', fecha: '2025-01-25', medidorId: 'M001', rutaId: 'R001', zonaId: 'Z001' },
-  { id: 'CT002', tomaId: 'T002', tipoContrato: 'Agua', tipoServicio: 'Doméstico', nombre: 'María López', rfc: 'LOM850202YYY', direccion: 'Juriquilla Lote 23-A #2', contacto: '442-222-3344', estado: 'Activo', fecha: '2025-01-26', medidorId: 'M002', rutaId: 'R001', zonaId: 'Z001' },
-  { id: 'CT003', tomaId: 'T003', tipoContrato: 'Saneamiento', tipoServicio: 'Comercial', nombre: 'Comercial Norte SA', rfc: 'NSA900101ZZZ', direccion: 'Juriquilla Lote 23-A #3', contacto: '442-333-4455', estado: 'Activo', fecha: '2025-01-27', medidorId: 'M003', rutaId: 'R002', zonaId: 'Z002' },
+  { id: 'CT001', tomaId: 'T001', tipoContrato: 'Agua', tipoServicio: 'Doméstico', nombre: 'Juan Pérez García', rfc: 'PEGJ800101XXX', direccion: 'Juriquilla Lote 23-A #1', contacto: '442-111-2233', estado: 'Activo', fecha: '2025-01-25', medidorId: 'M001', rutaId: 'R001', zonaId: 'Z001', domiciliado: true },
+  { id: 'CT002', tomaId: 'T002', tipoContrato: 'Agua', tipoServicio: 'Doméstico', nombre: 'María López', rfc: 'LOM850202YYY', direccion: 'Juriquilla Lote 23-A #2', contacto: '442-222-3344', estado: 'Activo', fecha: '2025-01-26', medidorId: 'M002', rutaId: 'R001', zonaId: 'Z001', domiciliado: false },
+  { id: 'CT003', tomaId: 'T003', tipoContrato: 'Saneamiento', tipoServicio: 'Comercial', nombre: 'Comercial Norte SA', rfc: 'NSA900101ZZZ', direccion: 'Juriquilla Lote 23-A #3', contacto: '442-333-4455', estado: 'Activo', fecha: '2025-01-27', medidorId: 'M003', rutaId: 'R002', zonaId: 'Z002', domiciliado: false },
+];
+
+const initialCostosContrato: CostoContrato[] = [
+  { id: 'CC001', contratoId: 'CT001', concepto: 'Cargo fijo mensual', monto: 45, periodo: 'mensual' },
+  { id: 'CC002', contratoId: 'CT001', concepto: 'Derecho de acometida (amort.)', monto: 0, periodo: 'mensual' },
+  { id: 'CC003', contratoId: 'CT002', concepto: 'Cargo fijo mensual', monto: 45, periodo: 'mensual' },
+  { id: 'CC004', contratoId: 'CT003', concepto: 'Cargo fijo mensual', monto: 120, periodo: 'mensual' },
+];
+
+const initialConvenios: Convenio[] = [
+  { id: 'CONV001', contratoId: 'CT001', tipo: 'Diferido 6 meses', area: 'Cartera', importeTotal: 900, pagosRealizados: 300, fechaInicio: '2025-01-15', fechaVencimiento: '2025-07-15', estado: 'Vigente', numeroParcialidades: 6, observaciones: 'Convenio por regularización' },
+  { id: 'CONV002', contratoId: 'CT002', tipo: 'Quita', area: 'Jurídico', importeTotal: 500, pagosRealizados: 500, fechaInicio: '2024-11-01', fechaVencimiento: '2025-01-31', estado: 'Cumplido', numeroParcialidades: 3 },
+];
+
+const initialQuejasAclaraciones: QuejaAclaracion[] = [
+  { id: 'QA001', contratoId: 'CT001', fecha: '2025-01-20', tipo: 'Aclaración', descripcion: 'Consulta sobre importe del recibo diciembre 2024.', estado: 'Resuelta', atendidoPor: 'jgodinez' },
+  { id: 'QA002', contratoId: 'CT001', fecha: '2025-02-01', tipo: 'Queja', descripcion: 'Demora en toma de lectura.', estado: 'En atención' },
 ];
 
 const initialMedidoresBodega: MedidorBodega[] = [
@@ -470,6 +575,23 @@ const initialPagos: Pago[] = [
   { id: 'P002', contratoId: 'CT001', monto: 250, fecha: '2025-02-05', tipo: 'Link de pago', concepto: 'Pago en línea', origen: 'nativo' },
 ];
 
+const initialTramitesAsignados: TramiteAsignado[] = [
+  { id: 'TR001', contratoId: 'CT001', tipo: 'Domiciliación', estado: 'Completado', fechaAsignacion: '2024-06-01', observaciones: 'Cuenta vinculada' },
+  { id: 'TR002', contratoId: 'CT001', tipo: 'Cláusulas del contrato', estado: 'Completado', fechaAsignacion: '2024-06-01' },
+  { id: 'TR003', contratoId: 'CT001', tipo: 'Estatus de servicio', estado: 'Completado', fechaAsignacion: '2025-01-25' },
+  { id: 'TR004', contratoId: 'CT002', tipo: 'Domiciliación', estado: 'Pendiente', fechaAsignacion: '2025-01-26' },
+  { id: 'TR005', contratoId: 'CT002', tipo: 'Cláusulas del contrato', estado: 'Completado', fechaAsignacion: '2025-01-26' },
+  { id: 'TR006', contratoId: 'CT003', tipo: 'Domiciliación', estado: 'En trámite', fechaAsignacion: '2025-02-01', fechaVencimiento: '2025-03-01' },
+];
+
+const initialClausulasContrato: ClausulaContrato[] = [
+  { id: 'CL001', contratoId: 'CT001', orden: 1, titulo: 'Objeto del contrato', texto: 'El presente contrato tiene por objeto la prestación del servicio de agua potable y saneamiento en los términos establecidos por la normativa vigente.' },
+  { id: 'CL002', contratoId: 'CT001', orden: 2, titulo: 'Obligaciones del usuario', texto: 'El usuario se obliga al pago puntual de las tarifas y al uso responsable del servicio. Cualquier alteración no autorizada del medidor dará lugar a la aplicación de sanciones.' },
+  { id: 'CL003', contratoId: 'CT001', orden: 3, titulo: 'Suspensión del servicio', texto: 'El organismo podrá suspender el servicio por falta de pago, después del periodo de gracia establecido, sin perjuicio del cobro de adeudos y recargos.' },
+  { id: 'CL004', contratoId: 'CT002', orden: 1, titulo: 'Objeto del contrato', texto: 'Prestación del servicio de agua potable conforme a la normativa vigente.' },
+  { id: 'CL005', contratoId: 'CT003', orden: 1, titulo: 'Objeto del contrato', texto: 'Servicio comercial de agua y saneamiento bajo tarifa industrial.' },
+];
+
 interface DataContextType {
   factibilidades: Factibilidad[];
   construcciones: Construccion[];
@@ -485,6 +607,14 @@ interface DataContextType {
   timbrados: Timbrado[];
   recibos: Recibo[];
   pagos: Pago[];
+  tramitesAsignados: TramiteAsignado[];
+  clausulasContrato: ClausulaContrato[];
+  costosContrato: CostoContrato[];
+  convenios: Convenio[];
+  addConvenio: (c: Omit<Convenio, 'id'>) => void;
+  updateConvenio: (id: string, updates: Partial<Convenio>) => void;
+  quejasAclaraciones: QuejaAclaracion[];
+  addQuejaAclaracion: (q: Omit<QuejaAclaracion, 'id'>) => void;
   administraciones: Administracion[];
   zonas: Zona[];
   distritos: Distrito[];
@@ -538,6 +668,8 @@ interface DataContextType {
   addDistrito: (d: Omit<Distrito, 'id'>) => void;
   updateDistrito: (id: string, updates: Partial<Distrito>) => void;
   calcularTarifa: (tipoServicio: string, m3: number) => { subtotal: number; cargoFijo: number; total: number };
+  /** Aplica un ajuste a una prefactura según el tipo de ajuste (algoritmo por tipo). */
+  aplicarAjusteFactura: (params: AjusteFacturaParams) => boolean;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -569,6 +701,14 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const [mensajeGlobalRecibos, setMensajeGlobalRecibos] = useState('');
   const [pagosParcialidad, setPagosParcialidad] = useState(initialPagosParcialidad);
   const [pagosExternos, setPagosExternos] = useState(initialPagosExternos);
+  const [tramitesAsignados] = useState(initialTramitesAsignados);
+  const [clausulasContrato] = useState(initialClausulasContrato);
+  const [costosContrato] = useState(initialCostosContrato);
+  const [convenios, setConvenios] = useState(initialConvenios);
+  const addConvenio = (c: Omit<Convenio, 'id'>) => setConvenios(prev => [...prev, { ...c, id: genId('CONV') }]);
+  const updateConvenio = (id: string, updates: Partial<Convenio>) => setConvenios(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+  const [quejasAclaraciones, setQuejasAclaraciones] = useState(initialQuejasAclaraciones);
+  const addQuejaAclaracion = (q: Omit<QuejaAclaracion, 'id'>) => setQuejasAclaraciones(prev => [...prev, { ...q, id: genId('QA') }]);
 
   const addFactibilidad = (f: Omit<Factibilidad, 'id'>) => setFactibilidades(prev => [...prev, { ...f, id: genId('F') }]);
   const updateFactibilidad = (id: string, updates: Partial<Factibilidad>) => setFactibilidades(prev => prev.map(f => f.id === id ? { ...f, ...updates } : f));
@@ -677,9 +817,49 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     return { subtotal, cargoFijo: tarifa.cargoFijo, total: subtotal + tarifa.cargoFijo };
   };
 
+  const aplicarAjusteFactura = (params: AjusteFacturaParams): boolean => {
+    const pf = preFacturas.find(p => p.id === params.preFacturaId);
+    if (!pf) return false;
+    const contrato = contratos.find(c => c.id === pf.contratoId);
+    if (!contrato) return false;
+    const tipo = params.tipoAjusteId;
+    if (tipo === 'actualizacion_datos' || tipo === 'correccion_lectura') {
+      if (params.consumoM3 != null) {
+        const { subtotal, cargoFijo, total } = calcularTarifa(contrato.tipoServicio, params.consumoM3);
+        const nuevoTotal = Math.max(0, subtotal + cargoFijo - pf.descuento);
+        setPreFacturas(prev =>
+          prev.map(p =>
+            p.id === params.preFacturaId
+              ? { ...p, consumoM3: params.consumoM3!, subtotal, total: nuevoTotal, descuento: p.descuento }
+              : p
+          )
+        );
+        return true;
+      }
+    }
+    if (tipo === 'deuda' || tipo === 'juridica' || tipo === 'convenio' || tipo === 'atencion_publico') {
+      const descuentoAdicional = params.descuentoAdicional ?? 0;
+      const nuevoDescuento = pf.descuento + descuentoAdicional;
+      const nuevoTotal = Math.max(0, pf.total - descuentoAdicional);
+      setPreFacturas(prev =>
+        prev.map(p =>
+          p.id === params.preFacturaId ? { ...p, descuento: nuevoDescuento, total: nuevoTotal } : p
+        )
+      );
+      return true;
+    }
+    if (tipo === 'corte_reconexion') {
+      // Solo registro; no cambia importes por defecto
+      return true;
+    }
+    return false;
+  };
+
   return (
     <DataContext.Provider value={{
       factibilidades, construcciones, tomas, contratos, medidores, rutas, lecturas, consumos, tarifas, descuentos, preFacturas, timbrados, recibos, pagos,
+      tramitesAsignados, clausulasContrato, costosContrato, convenios, addConvenio, updateConvenio,
+      quejasAclaraciones, addQuejaAclaracion,
       administraciones, zonas, distritos,
       currentUser, setCurrentUser, allowedZonaIds, mensajeGlobalRecibos, setMensajeGlobalRecibos,
       pagosParcialidad, addPagoParcialidad, updatePagoParcialidad,
@@ -689,6 +869,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       addContrato, updateContrato, addMedidor, updateMedidor, addRuta, updateRuta, moveContratoToRuta,
       addLectura, updateLectura, addConsumo, updateConsumo, addPreFactura, updatePreFactura,
       addTimbrado, updateTimbrado, addRecibo, updateRecibo, addPago, calcularTarifa,
+      aplicarAjusteFactura,
       addAdministracion, updateAdministracion, addZona, updateZona, addDistrito, updateDistrito,
     }}>
       {children}

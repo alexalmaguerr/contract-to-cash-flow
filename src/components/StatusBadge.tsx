@@ -18,8 +18,11 @@ const statusMap: Record<string, string> = {
   'En proceso': 'status-warning',
   'Pendiente de alta': 'status-warning',
   'Pendiente': 'status-warning',
+  'Completado': 'status-success',
+  'En trámite': 'status-warning',
   'No válida': 'status-error',
   'Rechazada': 'status-error',
+  'Rechazado': 'status-error',
   'Cancelado': 'status-error',
   'Inactivo': 'status-error',
   'Error PAC': 'status-error',
@@ -30,6 +33,16 @@ const statusMap: Record<string, string> = {
   'Pre-factibilidad': 'status-info',
   'Planeación': 'status-info',
   'Asignada': 'status-info',
+  'ALIA': 'status-info',
+  'COBRADA': 'status-success',
+  'PENDIENTE': 'status-warning',
+  'Vigente': 'status-warning',
+  'Cumplido': 'status-success',
+  'Vencido': 'status-error',
+  'Registrada': 'status-warning',
+  'En atención': 'status-warning',
+  'Resuelta': 'status-success',
+  'Cerrada': 'status-success',
 };
 
 const StatusBadge = ({ status, className = '' }: StatusBadgeProps) => (

@@ -21,6 +21,11 @@ import TimbradoPage from "@/pages/TimbradoPage";
 import Recibos from "@/pages/Recibos";
 import Pagos from "@/pages/Pagos";
 import Contabilidad from "@/pages/Contabilidad";
+import AtencionClientes from "@/pages/AtencionClientes";
+import AjustesFacturacion from "@/pages/AjustesFacturacion";
+import TramitesDigitales from "@/pages/TramitesDigitales";
+import PortalLayout from "@/components/PortalLayout";
+import PortalCliente from "@/pages/PortalCliente";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +38,12 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
+            <Route path="/portal" element={<PortalLayout />}>
+              <Route index element={<PortalCliente />} />
+            </Route>
+            <Route path="/tramites-digitales" element={<PortalLayout />}>
+              <Route index element={<TramitesDigitales />} />
+            </Route>
             <Route element={<AppLayout />}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/factibilidades" element={<Factibilidades />} />
@@ -46,10 +57,12 @@ const App = () => (
               <Route path="/tarifas" element={<Tarifas />} />
               <Route path="/simulador" element={<Simulador />} />
               <Route path="/prefacturacion" element={<PreFacturacion />} />
+              <Route path="/ajustes-facturacion" element={<AjustesFacturacion />} />
               <Route path="/timbrado" element={<TimbradoPage />} />
               <Route path="/recibos" element={<Recibos />} />
               <Route path="/pagos" element={<Pagos />} />
               <Route path="/contabilidad" element={<Contabilidad />} />
+              <Route path="/atencion-clientes" element={<AtencionClientes />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -179,8 +179,18 @@ const PreFacturacion = () => {
       </div>
 
       {consumosConfirmados.length > 0 && (
-        <div className="mb-6">
-          <h3 className="section-title">Consumos listos para facturar</h3>
+        <div className="mb-6 widget-card">
+          <h3 className="section-title">Facturación masiva</h3>
+          <p className="text-sm text-muted-foreground mb-3">
+            Generar prefacturas para todos los consumos confirmados de la zona seleccionada que aún no tienen prefactura.
+          </p>
+          <Button
+            onClick={() => consumosConfirmados.forEach(c => generarPreFactura(c))}
+            className="mb-4"
+          >
+            Generar todas las prefacturas ({consumosConfirmados.length})
+          </Button>
+          <h4 className="section-subtitle">Consumos listos para facturar (individual)</h4>
           <div className="flex gap-2 flex-wrap">
             {consumosConfirmados.map(c => (
               <Button key={c.id} variant="outline" size="sm" onClick={() => generarPreFactura(c)}>

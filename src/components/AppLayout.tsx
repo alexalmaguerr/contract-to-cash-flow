@@ -3,7 +3,8 @@ import { useState } from 'react';
 import {
   LayoutDashboard, FileCheck, Building2, Droplets, FileText, Gauge,
   Route, BookOpen, BarChart3, Calculator, FileSearch, Stamp, Printer,
-  CreditCard, PieChart, Menu, X, ChevronDown, User
+  CreditCard, PieChart, Menu, X, ChevronDown, User, Headphones, SlidersHorizontal,
+  Globe, ClipboardList
 } from 'lucide-react';
 import { useData } from '@/context/DataContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -39,6 +40,7 @@ const navGroups = [
       { to: '/tarifas', icon: Calculator, label: 'Tarifas' },
       { to: '/simulador', icon: FileSearch, label: 'Simulador' },
       { to: '/prefacturacion', icon: FileSearch, label: 'Pre-Facturación' },
+      { to: '/ajustes-facturacion', icon: SlidersHorizontal, label: 'Ajustes facturación' },
       { to: '/timbrado', icon: Stamp, label: 'Timbrado' },
       { to: '/recibos', icon: Printer, label: 'Recibos' },
     ]
@@ -48,6 +50,14 @@ const navGroups = [
     items: [
       { to: '/pagos', icon: CreditCard, label: 'Pagos' },
       { to: '/contabilidad', icon: PieChart, label: 'Contabilidad' },
+    ]
+  },
+  {
+    label: 'Interfaces de Cliente',
+    items: [
+      { to: '/atencion-clientes', icon: Headphones, label: 'Atención a clientes' },
+      { to: '/tramites-digitales', icon: ClipboardList, label: 'Trámites Digitales' },
+      { to: '/portal', icon: Globe, label: 'Portal de Clientes' },
     ]
   },
 ];
@@ -85,7 +95,7 @@ const AppLayout = () => {
               <p className="text-[10px] text-sidebar-muted">Sistema de Gestión</p>
             </div>
           </div>
-          <nav className="flex-1 overflow-y-auto py-2 px-2">
+          <nav className="sidebar-nav flex-1 overflow-y-auto py-2 px-2">
             {navGroups.map(group => (
               <div key={group.label} className="mb-1">
                 <button
