@@ -46,6 +46,7 @@ import QuejaDetalle from './atencion/QuejaDetalle';
 import type { QuejaAclaracion, QuejaAreaAsignada, SeguimientoTipo } from '@/context/DataContext';
 import type { ContratoSearch } from '@/api/atencion';
 import { updateQueja, addSeguimientoQueja } from '@/api/atencion';
+import { fetchContrato, type ContratoDto } from '@/api/contratos';
 
 // --- Types for Atención a Clientes (view / mock) ---
 export interface OrdenRow {
@@ -223,6 +224,7 @@ const AtencionClientes = () => {
   const [contratoSeleccionadoSearch, setContratoSeleccionadoSearch] = useState<ContratoSearch | null>(null);
   /** URL para el modal grande de foto/sistema externo de lectura */
   const [lecturaModalUrl, setLecturaModalUrl] = useState<string | null>(null);
+  const [contratoFromApi, setContratoFromApi] = useState<ContratoDto | null>(null);
 
   useEffect(() => {
     if (contratos.length && !contratoId) {
@@ -231,10 +233,23 @@ const AtencionClientes = () => {
     }
   }, [contratos, contratoId]);
 
-  const contrato = useMemo(
+  const contratoFromMock = useMemo(
     () => (contratoId ? contratos.find((c) => c.id === contratoId) ?? null : null),
     [contratos, contratoId]
   );
+
+  // Cuando el contratoId no está en el mock (contrato real de la BD), cargarlo via API
+  useEffect(() => {
+    if (contratoId && !contratoFromMock) {
+      fetchContrato(contratoId)
+        .then(setContratoFromApi)
+        .catch(() => setContratoFromApi(null));
+    } else {
+      setContratoFromApi(null);
+    }
+  }, [contratoId, contratoFromMock]);
+
+  const contrato = contratoFromMock ?? contratoFromApi;
 
   const handleBuscar = () => {
     const id = contratoInput.trim().toUpperCase();
