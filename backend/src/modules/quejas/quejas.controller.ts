@@ -25,6 +25,11 @@ export class QuejasController {
     return this.quejasService.findByContrato(contratoId);
   }
 
+  @Get('contrato/:contratoId')
+  findByContratoId(@Param('contratoId') contratoId: string) {
+    return this.quejasService.findByContrato(contratoId);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.quejasService.findOne(id);

@@ -28,7 +28,8 @@ export async function fetchPagos(): Promise<PagoDto[]> {
 }
 
 export async function fetchPagosExternos(): Promise<PagoExternoDto[]> {
-  return apiRequest<PagoExternoDto[]>('/pagos-externos');
+  const res = await apiRequest<PagoExternoDto[] | { data: PagoExternoDto[] }>('/pagos-externos');
+  return Array.isArray(res) ? res : ((res as { data: PagoExternoDto[] }).data ?? []);
 }
 
 export { hasApi };

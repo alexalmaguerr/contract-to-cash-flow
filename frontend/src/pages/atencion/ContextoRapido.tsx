@@ -6,6 +6,8 @@ import { getContextoAtencion, type ContextoAtencion } from '@/api/atencion';
 interface ContextoRapidoProps {
   contratoId: string;
   onVerQuejas: () => void;
+  /** Cuando cambia, se vuelve a cargar el contexto (p. ej. tras crear/cerrar una queja). */
+  refreshKey?: number;
 }
 
 function formatCurrency(n: number) {
@@ -46,7 +48,7 @@ const ESTADO_CONFIG: Record<string, { label: string; icon: React.ReactNode; clas
   },
 };
 
-export default function ContextoRapido({ contratoId, onVerQuejas }: ContextoRapidoProps) {
+export default function ContextoRapido({ contratoId, onVerQuejas, refreshKey }: ContextoRapidoProps) {
   const [contexto, setContexto] = useState<ContextoAtencion | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -56,7 +58,7 @@ export default function ContextoRapido({ contratoId, onVerQuejas }: ContextoRapi
       .then(setContexto)
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [contratoId]);
+  }, [contratoId, refreshKey]);
 
   if (loading) {
     return <div className="text-sm text-muted-foreground py-4">Cargando contexto...</div>;

@@ -45,6 +45,7 @@ import QuejaDialog from './atencion/QuejaDialog';
 import QuejaDetalle from './atencion/QuejaDetalle';
 import type { QuejaAclaracion, QuejaAreaAsignada, SeguimientoTipo } from '@/context/DataContext';
 import type { ContratoSearch } from '@/api/atencion';
+import { updateQueja, addSeguimientoQueja } from '@/api/atencion';
 
 // --- Types for Atención a Clientes (view / mock) ---
 export interface OrdenRow {
@@ -178,8 +179,6 @@ const AtencionClientes = () => {
     addConvenio,
     quejasAclaraciones,
     addQuejaAclaracion,
-    updateQuejaAclaracion,
-    addSeguimientoQueja,
     updateContrato,
     updateMedidor,
     tarifas,
@@ -222,6 +221,8 @@ const AtencionClientes = () => {
   const [quejaSeleccionada, setQuejaSeleccionada] = useState<QuejaAclaracion | null>(null);
   const [quejaRefreshKey, setQuejaRefreshKey] = useState(0);
   const [contratoSeleccionadoSearch, setContratoSeleccionadoSearch] = useState<ContratoSearch | null>(null);
+  /** URL para el modal grande de foto/sistema externo de lectura */
+  const [lecturaModalUrl, setLecturaModalUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (contratos.length && !contratoId) {
@@ -505,6 +506,7 @@ const AtencionClientes = () => {
           <ContextoRapido
             contratoId={contrato.id}
             onVerQuejas={() => setActiveTab('quejas')}
+            refreshKey={quejaRefreshKey}
           />
         </>
       )}
@@ -1060,14 +1062,13 @@ const AtencionClientes = () => {
                           <td>{l.averia}</td>
                           <td>{l.usuario}</td>
                           <td onClick={(e) => e.stopPropagation()}>
-                            <a
-                              href={l.urlFoto}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                            <button
+                              type="button"
+                              onClick={() => setLecturaModalUrl(l.urlFoto)}
                               className="text-primary underline hover:no-underline text-xs cursor-pointer"
                             >
                               Ver foto
-                            </a>
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -1322,40 +1323,63 @@ const AtencionClientes = () => {
             open={quejaDetalleOpen}
             onOpenChange={setQuejaDetalleOpen}
             usuarioActual="jgodinez"
-            onCambiarEstado={(quejaId, nuevoEstado, motivo) => {
-              updateQuejaAclaracion(quejaId, {
-                estado: nuevoEstado,
-                ...(motivo ? { motivoCierre: motivo } : {}),
-              });
-              if (quejaSeleccionada?.id === quejaId) {
-                setQuejaSeleccionada(prev => prev ? { ...prev, estado: nuevoEstado, ...(motivo ? { motivoCierre: motivo } : {}) } : null);
+            onCambiarEstado={async (quejaId, nuevoEstado, motivo) => {
+              try {
+                await updateQueja(quejaId, {
+                  estado: nuevoEstado,
+                  ...(motivo ? { motivoCierre: motivo } : {}),
+                });
+                if (quejaSeleccionada?.id === quejaId) {
+                  setQuejaSeleccionada(prev =>
+                    prev ? { ...prev, estado: nuevoEstado, ...(motivo ? { motivoCierre: motivo } : {}) } : null
+                  );
+                }
+                setQuejaRefreshKey((k) => k + 1);
+              } catch (err) {
+                console.error('Error al cambiar estado de la queja:', err);
               }
             }}
-            onReasignar={(quejaId, area) => {
-              updateQuejaAclaracion(quejaId, { areaAsignada: area });
-              if (quejaSeleccionada?.id === quejaId) {
-                setQuejaSeleccionada(prev => prev ? { ...prev, areaAsignada: area } : null);
+            onReasignar={async (quejaId, area) => {
+              try {
+                await updateQueja(quejaId, { areaAsignada: area });
+                if (quejaSeleccionada?.id === quejaId) {
+                  setQuejaSeleccionada(prev => (prev ? { ...prev, areaAsignada: area } : null));
+                }
+                setQuejaRefreshKey((k) => k + 1);
+              } catch (err) {
+                console.error('Error al reasignar queja:', err);
               }
             }}
-            onAgregarNota={(quejaId, nota, tipo) => {
-              addSeguimientoQueja(quejaId, {
-                fecha: new Date().toISOString(),
-                nota,
-                usuario: 'jgodinez',
-                tipo,
-              });
-              if (quejaSeleccionada?.id === quejaId) {
-                setQuejaSeleccionada(prev =>
-                  prev
-                    ? {
-                        ...prev,
-                        seguimientos: [
-                          ...(prev.seguimientos ?? []),
-                          { id: `tmp-${Date.now()}`, quejaId, fecha: new Date().toISOString(), nota, usuario: 'jgodinez', tipo },
-                        ],
-                      }
-                    : null
-                );
+            onAgregarNota={async (quejaId, nota, tipo) => {
+              try {
+                await addSeguimientoQueja(quejaId, {
+                  nota,
+                  usuario: 'jgodinez',
+                  tipo,
+                });
+                if (quejaSeleccionada?.id === quejaId) {
+                  setQuejaSeleccionada(prev =>
+                    prev
+                      ? {
+                          ...prev,
+                          seguimientos: [
+                            ...(prev.seguimientos ?? []),
+                            {
+                              id: `tmp-${Date.now()}`,
+                              quejaId,
+                              fecha: new Date().toISOString(),
+                              nota,
+                              usuario: 'jgodinez',
+                              tipo,
+                            },
+                          ],
+                        }
+                      : null
+                  );
+                }
+                setQuejaRefreshKey((k) => k + 1);
+              } catch (err) {
+                console.error('Error al agregar seguimiento:', err);
               }
             }}
           />
@@ -1649,12 +1673,16 @@ const AtencionClientes = () => {
                       <div className="space-y-2">
                         <p className="text-muted-foreground text-xs font-medium">Foto de lectura</p>
                         <div className="rounded-md border overflow-hidden bg-muted/30">
-                          <img src={l.urlFoto} alt={`Lectura periodo ${l.periodoDisplay}`} className="w-full h-auto max-h-64 object-contain" loading="lazy" />
+                          <img src={l.urlFoto} alt={`Lectura periodo ${l.periodoDisplay}`} className="w-full h-auto max-h-64 object-contain cursor-pointer hover:opacity-90" loading="lazy" onClick={() => setLecturaModalUrl(l.urlFoto)} />
                         </div>
-                        <a href={l.urlFoto} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary text-xs hover:underline">
+                        <button
+                          type="button"
+                          onClick={() => setLecturaModalUrl(l.urlFoto)}
+                          className="inline-flex items-center gap-1 text-primary text-xs hover:underline"
+                        >
                           <ExternalLink className="h-3 w-3" aria-hidden />
-                          Abrir en nueva pestaña
-                        </a>
+                          Abrir en pantalla grande
+                        </button>
                       </div>
                     </div>
                   </ScrollArea>
@@ -1662,6 +1690,38 @@ const AtencionClientes = () => {
               })()}
             </SheetContent>
           </Sheet>
+
+          {/* Modal grande: foto / sistema externo de lectura */}
+          <Dialog open={!!lecturaModalUrl} onOpenChange={(open) => !open && setLecturaModalUrl(null)}>
+            <DialogContent
+              className="max-w-[95vw] w-full max-h-[95vh] flex flex-col gap-0 p-0 overflow-hidden"
+              aria-describedby={undefined}
+            >
+              <DialogHeader className="sr-only">
+                <DialogTitle>Foto de lectura / Sistema externo</DialogTitle>
+              </DialogHeader>
+              {lecturaModalUrl && (
+                <>
+                  <div className="flex items-center justify-end gap-2 px-3 py-2 border-b bg-muted/40 shrink-0">
+                    <a
+                      href={lecturaModalUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      Abrir en nueva pestaña
+                    </a>
+                  </div>
+                  <iframe
+                    src={lecturaModalUrl}
+                    title="Foto de lectura"
+                    className="w-full flex-1 min-h-[70vh] border-0"
+                  />
+                </>
+              )}
+            </DialogContent>
+          </Dialog>
 
           {/* Sheet Detalle Orden */}
           <Sheet open={!!detalleOrdenId} onOpenChange={(open) => !open && setDetalleOrdenId(null)}>
