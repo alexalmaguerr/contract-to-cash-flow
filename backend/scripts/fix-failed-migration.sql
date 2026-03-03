@@ -1,10 +1,3 @@
--- Paso 1: Ejecutar este SQL contra la BD de producción para limpiar estado parcial.
---   psql $DATABASE_URL -f scripts/fix-failed-migration.sql
---
--- Paso 2: Marcar la migración fallida como rolled-back.
---   npm run migrate:resolve-failed
---
--- Paso 3: Aplicar migraciones pendientes.
---   prisma migrate deploy
-
+-- Limpia tabla sige_hydra si quedó en estado parcial.
+-- Uso: npm run migrate:fix-p3009 (con DATABASE_URL apuntando a la BD)
 DROP TABLE IF EXISTS "sige_hydra" CASCADE;
