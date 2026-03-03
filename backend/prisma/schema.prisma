@@ -134,6 +134,7 @@ model Contrato {
   tramites                Tramite[]
   convenios               Convenio[]
   anticipos               Anticipo[]
+  sigeHydraCasos          SigeHydra[]
 
   @@index([tomaId])
   @@index([rutaId])
@@ -901,4 +902,20 @@ model ConciliacionReporte {
   @@index([tipo])
   @@index([periodo])
   @@map("conciliacion_reportes")
+}
+
+// ---- SIGE Hydra (relación contrato SIGE) ----
+model SigeHydra {
+  id          String    @id @default(cuid())
+  cnttnum     String    @unique @map("cnttnum")
+  cnttrefant  String    @map("cnttrefant")
+  contratoId  String?   @map("contrato_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  contrato    Contrato? @relation(fields: [contratoId], references: [id], onDelete: SetNull)
+
+  @@index([contratoId])
+  @@index([cnttrefant])
+  @@map("sige_hydra")
 }

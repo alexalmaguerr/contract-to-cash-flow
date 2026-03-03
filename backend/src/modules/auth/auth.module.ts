@@ -8,6 +8,7 @@ import { RolesGuard } from './roles.guard';
 import { LdapStrategy } from './ldap.strategy';
 import { InternalGuard } from './internal.guard';
 import { PortalGuard } from './portal.guard';
+import { ApiTokenGuard } from './api-token.guard';
 
 @Module({
   imports: [
@@ -18,7 +19,22 @@ import { PortalGuard } from './portal.guard';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, LdapStrategy, RolesGuard, InternalGuard, PortalGuard],
-  exports: [AuthService, JwtModule, RolesGuard, InternalGuard, PortalGuard],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    LdapStrategy,
+    RolesGuard,
+    InternalGuard,
+    PortalGuard,
+    ApiTokenGuard,
+  ],
+  exports: [
+    AuthService,
+    JwtModule,
+    RolesGuard,
+    InternalGuard,
+    PortalGuard,
+    ApiTokenGuard,
+  ],
 })
 export class AuthModule {}

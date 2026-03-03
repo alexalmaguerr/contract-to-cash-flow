@@ -23,6 +23,7 @@ import { MonitoreoModule } from './modules/monitoreo/monitoreo.module';
 import { ConciliacionesModule } from './modules/conciliaciones/conciliaciones.module';
 import { AgoraModule } from './modules/agora/agora.module';
 import { NotificacionesModule } from './modules/notificaciones/notificaciones.module';
+import { SigeHydraModule } from './modules/sige-hydra/sige-hydra.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { NotificacionesModule } from './modules/notificaciones/notificaciones.mo
     MonitoreoModule,
     ConciliacionesModule,
     AgoraModule,
+    SigeHydraModule,
   ],
   controllers: [AppController],
   providers: [AppService],
