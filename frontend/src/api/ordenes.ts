@@ -33,8 +33,13 @@ export interface OrdenesPaginadas {
   totalPages: number;
 }
 
-export const fetchOrdenesByContrato = (contratoId: string) =>
-  apiRequest<OrdenDto[]>(`/ordenes?contratoId=${contratoId}&limit=50`);
+export const fetchOrdenesByContrato = (contratoId: string): Promise<OrdenDto[]> =>
+  apiRequest<unknown>(`/ordenes?contratoId=${contratoId}&limit=50`).then((res) => {
+    if (Array.isArray(res)) return res as OrdenDto[];
+    if (res && Array.isArray((res as any).data)) return (res as any).data as OrdenDto[];
+    if (res && Array.isArray((res as any).items)) return (res as any).items as OrdenDto[];
+    return [];
+  });
 
 export const fetchOrdenes = (params?: {
   tipo?: string;

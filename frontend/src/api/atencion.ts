@@ -41,21 +41,30 @@ export interface QuejaApi {
   createdAt: string;
 }
 
+/** Normalize any API response to an array (handles paginated `{ data: [] }` wrappers). */
+function toArray<T>(res: unknown): T[] {
+  if (Array.isArray(res)) return res as T[];
+  if (res && Array.isArray((res as any).data)) return (res as any).data as T[];
+  if (res && Array.isArray((res as any).items)) return (res as any).items as T[];
+  return [];
+}
+
 export function buscarContratos(q: string, limit = 10): Promise<ContratoSearch[]> {
   const params = new URLSearchParams({ q, limit: String(limit) });
-  return apiRequest<ContratoSearch[]>(`/contratos/search?${params}`);
+  return apiRequest<unknown>(`/contratos/search?${params}`).then(toArray<ContratoSearch>);
 }
 
 export function getContextoAtencion(contratoId: string): Promise<ContextoAtencion> {
-  return apiRequest<ContextoAtencion>(`/contratos/${contratoId}/contexto-atencion`);
+  return apiRequest<ContextoAtencion>(`/contratos/${contratoId}/contexto-atencion`).then((res) => ({
+    ...res,
+    ultimosPagos: Array.isArray(res.ultimosPagos) ? res.ultimosPagos : [],
+    ultimasFacturas: Array.isArray(res.ultimasFacturas) ? res.ultimasFacturas : [],
+    quejasAbiertas: Array.isArray(res.quejasAbiertas) ? res.quejasAbiertas : [],
+  }));
 }
 
 export function getQuejasByContrato(contratoId: string): Promise<QuejaApi[]> {
-  return apiRequest<unknown>(`/quejas/contrato/${contratoId}`).then((res) => {
-    if (Array.isArray(res)) return res as QuejaApi[];
-    if (res && Array.isArray((res as any).data)) return (res as any).data as QuejaApi[];
-    return [];
-  });
+  return apiRequest<unknown>(`/quejas/contrato/${contratoId}`).then(toArray<QuejaApi>);
 }
 
 export function createQueja(data: {
