@@ -4,7 +4,10 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --prefer-offline 2>/dev/null \
+    || npm ci --prefer-offline \
+    || npm ci
 
 COPY . .
 ENV DATABASE_URL="postgresql://placeholder:placeholder@placeholder:5432/placeholder"
