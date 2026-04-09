@@ -1,7 +1,18 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateContratoDto } from './dto/create-contrato.dto';
 import { Prisma } from '@prisma/client';
+
+/** FK string fields: trim; empty string becomes null (avoids invalid "" references). */
+function optionalFkId(value?: string | null): string | null {
+  if (value == null) return null;
+  const t = String(value).trim();
+  return t.length > 0 ? t : null;
+}
 
 // Estados que implican servicio activo
 const ESTADOS_ACTIVOS = ['Activo', 'activo'];
@@ -275,12 +286,147 @@ export class ContratosService {
   }
 
   async create(dto: CreateContratoDto) {
+    const tomaId = optionalFkId(dto.tomaId);
+    const puntoServicioId = optionalFkId(dto.puntoServicioId);
+    const domicilioId = optionalFkId(dto.domicilioId);
+    const tipoContratacionId = optionalFkId(dto.tipoContratacionId);
+    const medidorId = optionalFkId(dto.medidorId);
+    const rutaId = optionalFkId(dto.rutaId);
+    const zonaId = optionalFkId(dto.zonaId);
+    const actividadId = optionalFkId(dto.actividadId);
+    const categoriaId = optionalFkId(dto.categoriaId);
+
+    const refChecks: Promise<void>[] = [];
+
+    if (tomaId) {
+      refChecks.push(
+        this.prisma.toma
+          .findUnique({ where: { id: tomaId }, select: { id: true } })
+          .then((row) => {
+            if (!row) {
+              throw new BadRequestException(
+                `La toma indicada no existe (tomaId: ${tomaId}).`,
+              );
+            }
+          }),
+      );
+    }
+    if (puntoServicioId) {
+      refChecks.push(
+        this.prisma.puntoServicio
+          .findUnique({ where: { id: puntoServicioId }, select: { id: true } })
+          .then((row) => {
+            if (!row) {
+              throw new BadRequestException(
+                `El punto de servicio indicado no existe (puntoServicioId: ${puntoServicioId}).`,
+              );
+            }
+          }),
+      );
+    }
+    if (domicilioId) {
+      refChecks.push(
+        this.prisma.domicilio
+          .findUnique({ where: { id: domicilioId }, select: { id: true } })
+          .then((row) => {
+            if (!row) {
+              throw new BadRequestException(
+                `El domicilio indicado no existe (domicilioId: ${domicilioId}).`,
+              );
+            }
+          }),
+      );
+    }
+    if (tipoContratacionId) {
+      refChecks.push(
+        this.prisma.tipoContratacion
+          .findUnique({
+            where: { id: tipoContratacionId },
+            select: { id: true },
+          })
+          .then((row) => {
+            if (!row) {
+              throw new BadRequestException(
+                `El tipo de contratación indicado no existe (tipoContratacionId: ${tipoContratacionId}).`,
+              );
+            }
+          }),
+      );
+    }
+    if (medidorId) {
+      refChecks.push(
+        this.prisma.medidor
+          .findUnique({ where: { id: medidorId }, select: { id: true } })
+          .then((row) => {
+            if (!row) {
+              throw new BadRequestException(
+                `El medidor indicado no existe (medidorId: ${medidorId}).`,
+              );
+            }
+          }),
+      );
+    }
+    if (rutaId) {
+      refChecks.push(
+        this.prisma.ruta
+          .findUnique({ where: { id: rutaId }, select: { id: true } })
+          .then((row) => {
+            if (!row) {
+              throw new BadRequestException(
+                `La ruta indicada no existe (rutaId: ${rutaId}).`,
+              );
+            }
+          }),
+      );
+    }
+    if (zonaId) {
+      refChecks.push(
+        this.prisma.zona
+          .findUnique({ where: { id: zonaId }, select: { id: true } })
+          .then((row) => {
+            if (!row) {
+              throw new BadRequestException(
+                `La zona indicada no existe (zonaId: ${zonaId}).`,
+              );
+            }
+          }),
+      );
+    }
+    if (actividadId) {
+      refChecks.push(
+        this.prisma.catalogoActividad
+          .findUnique({ where: { id: actividadId }, select: { id: true } })
+          .then((row) => {
+            if (!row) {
+              throw new BadRequestException(
+                `La actividad del catálogo indicada no existe (actividadId: ${actividadId}).`,
+              );
+            }
+          }),
+      );
+    }
+    if (categoriaId) {
+      refChecks.push(
+        this.prisma.catalogoCategoria
+          .findUnique({ where: { id: categoriaId }, select: { id: true } })
+          .then((row) => {
+            if (!row) {
+              throw new BadRequestException(
+                `La categoría del catálogo indicada no existe (categoriaId: ${categoriaId}).`,
+              );
+            }
+          }),
+      );
+    }
+
+    await Promise.all(refChecks);
+
     return this.prisma.contrato.create({
       data: {
-        tomaId: dto.tomaId ?? null,
-        puntoServicioId: dto.puntoServicioId ?? null,
-        domicilioId: dto.domicilioId ?? null,
-        tipoContratacionId: dto.tipoContratacionId ?? null,
+        tomaId,
+        puntoServicioId,
+        domicilioId,
+        tipoContratacionId,
         tipoContrato: dto.tipoContrato,
         tipoServicio: dto.tipoServicio,
         nombre: dto.nombre,
@@ -289,15 +435,15 @@ export class ContratosService {
         contacto: dto.contacto ?? '',
         estado: dto.estado,
         fecha: dto.fecha,
-        medidorId: dto.medidorId ?? null,
-        rutaId: dto.rutaId ?? null,
-        zonaId: dto.zonaId ?? null,
+        medidorId,
+        rutaId,
+        zonaId,
         domiciliado: dto.domiciliado ?? false,
         fechaReconexionPrevista: dto.fechaReconexionPrevista ?? null,
         ceaNumContrato: dto.ceaNumContrato ?? null,
         fechaBaja: dto.fechaBaja ?? null,
-        actividadId: dto.actividadId ?? null,
-        categoriaId: dto.categoriaId ?? null,
+        actividadId,
+        categoriaId,
         referenciaContratoAnterior: dto.referenciaContratoAnterior ?? null,
         observaciones: dto.observaciones ?? null,
         tipoEnvioFactura: dto.tipoEnvioFactura ?? null,
