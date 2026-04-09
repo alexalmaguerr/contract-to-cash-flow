@@ -1,13 +1,13 @@
 # CEA Water Management — Design System
 
-> Estándar visual definido por Stitch para **contract-to-cash-flow**.  
+> Estándar visual para **contract-to-cash-flow**.  
 > Toda nueva pantalla, componente o modificación de UI **debe seguir este documento**.
 
 ---
 
 ## 1. Paleta de Colores
 
-### Brand tokens (Stitch)
+### Brand tokens
 
 | Token         | Hex       | HSL approx              | Uso principal                              |
 |---------------|-----------|-------------------------|--------------------------------------------|
@@ -321,7 +321,7 @@ shadow-lg  → box-shadow: 0 10px 15px rgba(0,0,0,0.08)    /* modales */
 
 ## 10. Tokens CSS (`index.css`)
 
-Los siguientes valores reemplazan los actuales para alinear Tailwind con la paleta Stitch:
+Los siguientes valores reemplazan los actuales para alinear Tailwind con la paleta de colores:
 
 ```css
 :root {
