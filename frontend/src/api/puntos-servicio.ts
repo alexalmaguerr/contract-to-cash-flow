@@ -11,7 +11,18 @@ export interface PuntoServicioListItem {
     codigoPostal: string | null;
   } | null;
   tipoSuministro?: { id: string; codigo: string; descripcion: string } | null;
-  _count?: { contratos: number };
+  estructuraTecnica?: { id: string; codigo: string; descripcion: string } | null;
+  zonaFacturacion?: { id: string; codigo: string; descripcion: string } | null;
+  codigoRecorrido?: { id: string; codigo: string; descripcion: string } | null;
+  tipoRelacionPadre?: {
+    id: string;
+    codigo: string;
+    descripcion: string;
+    metodo: string;
+    reparteConsumo: boolean;
+  } | null;
+  puntoServicioPadre?: { id: string; codigo: string } | null;
+  _count?: { contratos: number; puntosServicioHijos?: number };
 }
 
 export interface PuntosServicioListResponse {
