@@ -267,11 +267,16 @@ export class TiposContratacionService {
     tipo: string;
     montoBase?: number;
     ivaPct?: number;
+    formula?: string;
+    variablesFormula?: object;
   }) {
     return this.prisma.conceptoCobro.create({ data: dto });
   }
 
-  async updateConceptoCobro(id: string, dto: Partial<{ nombre: string; tipo: string; montoBase: number; ivaPct: number; activo: boolean }>) {
+  async updateConceptoCobro(
+    id: string,
+    dto: Partial<{ nombre: string; tipo: string; montoBase: number; ivaPct: number; formula: string; variablesFormula: object; activo: boolean }>,
+  ) {
     return this.prisma.conceptoCobro.update({ where: { id }, data: dto });
   }
 

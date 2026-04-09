@@ -76,4 +76,48 @@ export class CatalogosController {
   ) {
     return this.service.createEstructuraTecnica(body);
   }
+
+  // --- Zonas de facturación ---
+
+  @Get('zonas-facturacion')
+  findZonasFacturacion() {
+    return this.service.findZonasFacturacion();
+  }
+
+  @Post('zonas-facturacion')
+  createZonaFacturacion(
+    @Body() body: { codigo: string; descripcion: string; activo?: boolean },
+  ) {
+    return this.service.createZonaFacturacion(body);
+  }
+
+  @Patch('zonas-facturacion/:id')
+  updateZonaFacturacion(
+    @Param('id') id: string,
+    @Body() body: Partial<{ descripcion: string; activo: boolean }>,
+  ) {
+    return this.service.updateZonaFacturacion(id, body);
+  }
+
+  // --- Códigos de recorrido ---
+
+  @Get('codigos-recorrido')
+  findCodigosRecorrido() {
+    return this.service.findCodigosRecorrido();
+  }
+
+  @Post('codigos-recorrido')
+  createCodigoRecorrido(
+    @Body() body: { codigo: string; descripcion: string; rutaId?: string; activo?: boolean },
+  ) {
+    return this.service.createCodigoRecorrido(body);
+  }
+
+  @Patch('codigos-recorrido/:id')
+  updateCodigoRecorrido(
+    @Param('id') id: string,
+    @Body() body: Partial<{ descripcion: string; rutaId: string; activo: boolean }>,
+  ) {
+    return this.service.updateCodigoRecorrido(id, body);
+  }
 }

@@ -32,6 +32,8 @@ export class CatalogosContratacionController {
       tipo: string;
       montoBase?: number;
       ivaPct?: number;
+      formula?: string;
+      variablesFormula?: object;
     },
   ) {
     return this.service.createConceptoCobro(body);
@@ -46,6 +48,8 @@ export class CatalogosContratacionController {
       tipo?: string;
       montoBase?: number;
       ivaPct?: number;
+      formula?: string;
+      variablesFormula?: object;
       activo?: boolean;
     },
   ) {

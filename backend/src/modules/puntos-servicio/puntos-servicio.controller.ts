@@ -45,6 +45,8 @@ export class PuntosServicioController {
       domicilioId?: string;
       tipoSuministroId?: string;
       estructuraTecnicaId?: string;
+      zonaFacturacionId?: string;
+      codigoRecorridoId?: string;
       diametroToma?: string;
       materialTuberia?: string;
       profundidadToma?: number;
@@ -68,6 +70,8 @@ export class PuntosServicioController {
       domicilioId?: string;
       tipoSuministroId?: string;
       estructuraTecnicaId?: string;
+      zonaFacturacionId?: string;
+      codigoRecorridoId?: string;
       diametroToma?: string;
       materialTuberia?: string;
       profundidadToma?: number;

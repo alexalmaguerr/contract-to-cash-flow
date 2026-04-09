@@ -1025,11 +1025,15 @@ model PuntoServicio {
   motivoNoCortable     String?                    @map("motivo_no_cortable")
   puntoServicioPadreId String?                    @map("punto_servicio_padre_id")
   reparticionConsumo   Decimal?                   @map("reparticion_consumo") @db.Decimal(5, 2)
+  zonaFacturacionId    String?                    @map("zona_facturacion_id")
+  codigoRecorridoId    String?                    @map("codigo_recorrido_id")
   createdAt            DateTime                   @default(now()) @map("created_at")
   updatedAt            DateTime                   @updatedAt @map("updated_at")
   domicilio            Domicilio?                 @relation(fields: [domicilioId], references: [id], onDelete: SetNull)
   tipoSuministro       CatalogoTipoSuministro?    @relation(fields: [tipoSuministroId], references: [id], onDelete: SetNull)
   estructuraTecnica    CatalogoEstructuraTecnica? @relation(fields: [estructuraTecnicaId], references: [id], onDelete: SetNull)
+  zonaFacturacion      CatalogoZonaFacturacion?   @relation(fields: [zonaFacturacionId], references: [id], onDelete: SetNull)
+  codigoRecorrido      CatalogoCodigoRecorrido?   @relation(fields: [codigoRecorridoId], references: [id], onDelete: SetNull)
   puntoServicioPadre   PuntoServicio?             @relation("PuntoServicioHijos", fields: [puntoServicioPadreId], references: [id], onDelete: SetNull)
   puntosServicioHijos  PuntoServicio[]            @relation("PuntoServicioHijos")
   contratos            Contrato[]
@@ -1037,6 +1041,8 @@ model PuntoServicio {
   @@index([domicilioId])
   @@index([tipoSuministroId])
   @@index([puntoServicioPadreId])
+  @@index([zonaFacturacionId])
+  @@index([codigoRecorridoId])
   @@map("puntos_servicio")
 }
 
@@ -1076,6 +1082,31 @@ model CatalogoEstructuraTecnica {
   puntos      PuntoServicio[]
 
   @@map("catalogo_estructuras_tecnicas")
+}
+
+model CatalogoZonaFacturacion {
+  id          String          @id @default(cuid())
+  codigo      String          @unique
+  descripcion String
+  activo      Boolean         @default(true)
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  puntos      PuntoServicio[]
+
+  @@map("catalogo_zonas_facturacion")
+}
+
+model CatalogoCodigoRecorrido {
+  id          String          @id @default(cuid())
+  codigo      String          @unique
+  descripcion String
+  rutaId      String?         @map("ruta_id")
+  activo      Boolean         @default(true)
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  puntos      PuntoServicio[]
+
+  @@map("catalogo_codigos_recorrido")
 }
 
 // ---- T12: Modelo de Domicilios Homologado INEGI ----
@@ -1216,6 +1247,9 @@ model ConceptoCobro {
   tipo              String // fijo | variable | porcentual
   montoBase         Decimal?                        @map("monto_base") @db.Decimal(10, 2)
   ivaPct            Decimal                         @default(16) @map("iva_pct") @db.Decimal(5, 2)
+  // Fórmulas tarifarias de contratación (req PRD #26)
+  formula           String?                         // e.g. "precioBase + (componenteProporcional * cantidad)"
+  variablesFormula  Json?                           @map("variables_formula") // e.g. { "distancia": true, "diametro": true }
   activo            Boolean                         @default(true)
   createdAt         DateTime                        @default(now()) @map("created_at")
   updatedAt         DateTime                        @updatedAt @map("updated_at")
