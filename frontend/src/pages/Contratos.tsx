@@ -96,10 +96,22 @@ const Contratos = () => {
   const [detail, setDetail] = useState<string | null>(null);
   const [searchParams] = useSearchParams();
 
-  const [form, setForm] = useState({
-    tomaId: '', tipoContrato: '' as any, tipoServicio: '' as any,
-    nombre: '', rfc: '', direccion: '', contacto: ''
+  const emptyWizardForm = () => ({
+    tomaId: '',
+    tipoContrato: '' as string,
+    tipoServicio: '' as string,
+    nombre: '',
+    rfc: '',
+    direccion: '',
+    contacto: '',
+    razonSocial: '',
+    regimenFiscal: '',
+    generarOrdenInstalacionToma: false,
+    generarOrdenInstalacionMedidor: false,
+    omitirRegistroPersonaTitular: false,
   });
+
+  const [form, setForm] = useState(emptyWizardForm);
 
   useEffect(() => {
     if (searchParams.get('new') === '1') setShowWizard(true);
@@ -109,18 +121,37 @@ const Contratos = () => {
   const contratoIdsVisibles = useMemo(() => new Set(contratosVisibles.map(c => c.id)), [contratosVisibles]);
 
   const handleCreate = () => {
-    const payload = { ...form, estado: 'Pendiente de alta', fecha: new Date().toISOString().split('T')[0] };
+    const fecha = new Date().toISOString().split('T')[0];
+    const payload: CreateContratoDto = {
+      tomaId: form.tomaId || undefined,
+      tipoContrato: form.tipoContrato,
+      tipoServicio: form.tipoServicio,
+      nombre: form.nombre,
+      rfc: form.rfc,
+      direccion: form.direccion,
+      contacto: form.contacto,
+      estado: 'Pendiente de alta',
+      fecha,
+      generarOrdenInstalacionToma: form.generarOrdenInstalacionToma || undefined,
+      generarOrdenInstalacionMedidor:
+        !form.generarOrdenInstalacionToma && form.generarOrdenInstalacionMedidor
+          ? true
+          : undefined,
+      omitirRegistroPersonaTitular: form.omitirRegistroPersonaTitular || undefined,
+    };
+    if (form.razonSocial.trim()) payload.razonSocial = form.razonSocial.trim();
+    if (form.regimenFiscal.trim()) payload.regimenFiscal = form.regimenFiscal.trim();
     if (useApi) {
-      createMutation.mutate(payload as CreateContratoDto, {
+      createMutation.mutate(payload, {
         onSuccess: () => {
-          setForm({ tomaId: '', tipoContrato: '', tipoServicio: '', nombre: '', rfc: '', direccion: '', contacto: '' });
+          setForm(emptyWizardForm());
           setStep(1);
           setShowWizard(false);
         },
       });
     } else {
       addContrato(payload);
-      setForm({ tomaId: '', tipoContrato: '', tipoServicio: '', nombre: '', rfc: '', direccion: '', contacto: '' });
+      setForm(emptyWizardForm());
       setStep(1);
       setShowWizard(false);
     }
@@ -161,6 +192,9 @@ const Contratos = () => {
 
   const activos = contratosVisibles.filter((c: { estado: string }) => c.estado === 'Activo').length;
   const pendientesAlta = contratosVisibles.filter((c: { estado: string }) => c.estado === 'Pendiente de alta').length;
+  const pendientesCampo = contratosVisibles.filter(
+    (c: { estado: string }) => c.estado === 'Pendiente de toma' || c.estado === 'Pendiente de zona',
+  ).length;
   const suspendidos = contratosVisibles.filter((c: { estado: string }) => c.estado === 'Suspendido').length;
 
   return (
@@ -181,7 +215,7 @@ const Contratos = () => {
       />
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         <KpiCard
           label="Total contratos"
           value={contratosVisibles.length.toLocaleString()}
@@ -191,6 +225,7 @@ const Contratos = () => {
           footer={<div className="w-full h-1.5 bg-muted rounded-full overflow-hidden"><div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.min(100, (activos / Math.max(contratosVisibles.length, 1)) * 100)}%` }} /></div>}
         />
         <KpiCard label="Pendientes de alta" value={pendientesAlta} accent={pendientesAlta > 0 ? 'warning' : 'default'} />
+        <KpiCard label="Pendientes en campo" value={pendientesCampo} accent={pendientesCampo > 0 ? 'warning' : 'default'} />
         <KpiCard label="Suspendidos" value={suspendidos} accent={suspendidos > 0 ? 'danger' : 'default'} />
       </div>
 
@@ -287,6 +322,44 @@ const Contratos = () => {
               <Input placeholder="RFC" value={form.rfc} onChange={e => setForm({ ...form, rfc: e.target.value })} />
               <Input placeholder="Dirección" value={form.direccion} onChange={e => setForm({ ...form, direccion: e.target.value })} />
               <Input placeholder="Contacto (teléfono)" value={form.contacto} onChange={e => setForm({ ...form, contacto: e.target.value })} />
+              <Input placeholder="Razón social (opcional, moral)" value={form.razonSocial} onChange={e => setForm({ ...form, razonSocial: e.target.value })} />
+              <Input placeholder="Régimen fiscal (opcional)" value={form.regimenFiscal} onChange={e => setForm({ ...form, regimenFiscal: e.target.value })} />
+              <div className="space-y-2 pt-2 border-t border-border">
+                <label className="flex items-start gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={form.generarOrdenInstalacionToma}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        generarOrdenInstalacionToma: e.target.checked,
+                        generarOrdenInstalacionMedidor: e.target.checked ? false : form.generarOrdenInstalacionMedidor,
+                      })
+                    }
+                  />
+                  <span>Generar orden de instalación de toma (estado: Pendiente de toma)</span>
+                </label>
+                <label className="flex items-start gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    disabled={form.generarOrdenInstalacionToma}
+                    checked={form.generarOrdenInstalacionMedidor}
+                    onChange={(e) => setForm({ ...form, generarOrdenInstalacionMedidor: e.target.checked })}
+                  />
+                  <span>Generar orden de medidor sin toma previa (estado: Pendiente de zona)</span>
+                </label>
+                <label className="flex items-start gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={form.omitirRegistroPersonaTitular}
+                    onChange={(e) => setForm({ ...form, omitirRegistroPersonaTitular: e.target.checked })}
+                  />
+                  <span>Omitir registro de persona titular en directorio</span>
+                </label>
+              </div>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep(1)} className="flex-1">Atrás</Button>
                 <Button onClick={() => setStep(3)} disabled={!form.nombre || !form.rfc} className="flex-1">Siguiente</Button>
@@ -306,6 +379,17 @@ const Contratos = () => {
                   <div><span className="text-muted-foreground">RFC:</span> {form.rfc}</div>
                   <div><span className="text-muted-foreground">Dirección:</span> {form.direccion}</div>
                   <div><span className="text-muted-foreground">Contacto:</span> {form.contacto}</div>
+                  {(form.razonSocial || form.regimenFiscal) && (
+                    <>
+                      <div><span className="text-muted-foreground">Razón social:</span> {form.razonSocial || '—'}</div>
+                      <div><span className="text-muted-foreground">Régimen:</span> {form.regimenFiscal || '—'}</div>
+                    </>
+                  )}
+                  <div className="col-span-2 text-xs text-muted-foreground">
+                    {form.generarOrdenInstalacionToma && '• Orden de toma al crear'}
+                    {form.generarOrdenInstalacionMedidor && !form.generarOrdenInstalacionToma && '• Orden de medidor al crear'}
+                    {form.omitirRegistroPersonaTitular && ' • Sin persona en directorio'}
+                  </div>
                 </div>
               </div>
               <div className="flex gap-2">
