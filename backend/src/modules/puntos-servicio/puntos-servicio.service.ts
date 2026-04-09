@@ -6,6 +6,8 @@ interface CreatePuntoServicioDto {
   domicilioId?: string;
   tipoSuministroId?: string;
   estructuraTecnicaId?: string;
+  zonaFacturacionId?: string;
+  codigoRecorridoId?: string;
   diametroToma?: string;
   materialTuberia?: string;
   profundidadToma?: number;
@@ -22,6 +24,8 @@ interface UpdatePuntoServicioDto {
   domicilioId?: string;
   tipoSuministroId?: string;
   estructuraTecnicaId?: string;
+  zonaFacturacionId?: string;
+  codigoRecorridoId?: string;
   diametroToma?: string;
   materialTuberia?: string;
   profundidadToma?: number;
@@ -86,6 +90,8 @@ export class PuntosServicioService {
         },
         tipoSuministro: true,
         estructuraTecnica: true,
+        zonaFacturacion: true,
+        codigoRecorrido: true,
         puntoServicioPadre: { select: { id: true, codigo: true, estado: true } },
         puntosServicioHijos: {
           select: { id: true, codigo: true, estado: true, reparticionConsumo: true },
@@ -109,6 +115,8 @@ export class PuntosServicioService {
         domicilioId: dto.domicilioId ?? null,
         tipoSuministroId: dto.tipoSuministroId ?? null,
         estructuraTecnicaId: dto.estructuraTecnicaId ?? null,
+        zonaFacturacionId: dto.zonaFacturacionId ?? null,
+        codigoRecorridoId: dto.codigoRecorridoId ?? null,
         diametroToma: dto.diametroToma ?? null,
         materialTuberia: dto.materialTuberia ?? null,
         profundidadToma: dto.profundidadToma ?? null,
@@ -135,6 +143,8 @@ export class PuntosServicioService {
         ...(dto.domicilioId !== undefined && { domicilioId: dto.domicilioId }),
         ...(dto.tipoSuministroId !== undefined && { tipoSuministroId: dto.tipoSuministroId }),
         ...(dto.estructuraTecnicaId !== undefined && { estructuraTecnicaId: dto.estructuraTecnicaId }),
+        ...(dto.zonaFacturacionId !== undefined && { zonaFacturacionId: dto.zonaFacturacionId }),
+        ...(dto.codigoRecorridoId !== undefined && { codigoRecorridoId: dto.codigoRecorridoId }),
         ...(dto.diametroToma !== undefined && { diametroToma: dto.diametroToma }),
         ...(dto.materialTuberia !== undefined && { materialTuberia: dto.materialTuberia }),
         ...(dto.profundidadToma !== undefined && { profundidadToma: dto.profundidadToma }),
@@ -243,5 +253,33 @@ export class PuntosServicioService {
 
   async createEstructuraTecnica(dto: { codigo: string; descripcion: string; activo?: boolean }) {
     return this.prisma.catalogoEstructuraTecnica.create({ data: dto });
+  }
+
+  // --- Zonas de facturación ---
+
+  async findZonasFacturacion() {
+    return this.prisma.catalogoZonaFacturacion.findMany({ orderBy: { codigo: 'asc' } });
+  }
+
+  async createZonaFacturacion(dto: { codigo: string; descripcion: string; activo?: boolean }) {
+    return this.prisma.catalogoZonaFacturacion.create({ data: dto });
+  }
+
+  async updateZonaFacturacion(id: string, dto: Partial<{ descripcion: string; activo: boolean }>) {
+    return this.prisma.catalogoZonaFacturacion.update({ where: { id }, data: dto });
+  }
+
+  // --- Códigos de recorrido ---
+
+  async findCodigosRecorrido() {
+    return this.prisma.catalogoCodigoRecorrido.findMany({ orderBy: { codigo: 'asc' } });
+  }
+
+  async createCodigoRecorrido(dto: { codigo: string; descripcion: string; rutaId?: string; activo?: boolean }) {
+    return this.prisma.catalogoCodigoRecorrido.create({ data: dto });
+  }
+
+  async updateCodigoRecorrido(id: string, dto: Partial<{ descripcion: string; rutaId: string; activo: boolean }>) {
+    return this.prisma.catalogoCodigoRecorrido.update({ where: { id }, data: dto });
   }
 }
