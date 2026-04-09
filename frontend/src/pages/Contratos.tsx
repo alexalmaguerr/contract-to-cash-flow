@@ -1,7 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useData } from '@/context/DataContext';
-import { fetchContratos, createContrato, updateContrato, hasApi, type CreateContratoDto } from '@/api/contratos';
+import {
+  fetchContratos,
+  createContrato,
+  updateContrato,
+  fetchTextoContratoPreview,
+  hasApi,
+  type CreateContratoDto,
+} from '@/api/contratos';
+import { fetchTiposContratacion } from '@/api/tipos-contratacion';
+import { fetchPuntosServicio } from '@/api/puntos-servicio';
 import {
   fetchProcesos,
   crearProceso,
@@ -12,7 +21,7 @@ import {
 import StatusBadge from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Eye, ChevronRight, Hash, User, Droplets, FileText, SlidersHorizontal, Download, TrendingUp, GitBranch } from 'lucide-react';
+import { Plus, Eye, ChevronRight, Hash, User, Droplets, FileText, SlidersHorizontal, Download, TrendingUp, GitBranch, ScrollText } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
 import { KpiCard } from '@/components/KpiCard';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -69,6 +78,70 @@ function CeaNumInput({ contratoId, initial, onSaved }: { contratoId: string; ini
   );
 }
 
+function ContratoTextoPreviewPanel({
+  contratoId,
+  enabled,
+}: {
+  contratoId: string;
+  enabled: boolean;
+}) {
+  const { data, isLoading, error, refetch, isFetching } = useQuery({
+    queryKey: ['contrato-texto-preview', contratoId],
+    queryFn: () => fetchTextoContratoPreview(contratoId),
+    enabled: enabled && !!contratoId,
+  });
+
+  if (!enabled) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Activa la API (VITE_API_URL) para generar la vista previa desde la plantilla del proceso o las cláusulas del tipo de contratación.
+      </p>
+    );
+  }
+
+  if (isLoading) {
+    return <p className="text-sm text-muted-foreground">Cargando vista previa…</p>;
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-2">
+        <p className="text-sm text-destructive">No se pudo cargar la vista previa.</p>
+        <Button size="sm" variant="outline" type="button" onClick={() => refetch()}>
+          Reintentar
+        </Button>
+      </div>
+    );
+  }
+
+  const fuenteLabels: Record<string, string> = {
+    plantilla: 'Plantilla del proceso',
+    clausulas: 'Cláusulas del tipo',
+    'vacío': 'Sin contenido',
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="secondary">{fuenteLabels[data!.fuente] ?? data!.fuente}</Badge>
+        {isFetching ? <span className="text-xs text-muted-foreground">Actualizando…</span> : null}
+        <Button size="sm" variant="ghost" className="h-7 text-xs" type="button" onClick={() => refetch()}>
+          Actualizar
+        </Button>
+      </div>
+      <div className="rounded-md border bg-muted/30 p-4 max-h-[min(480px,55vh)] overflow-y-auto">
+        {data!.texto.trim() ? (
+          <pre className="text-sm whitespace-pre-wrap font-sans text-foreground leading-relaxed">{data!.texto}</pre>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            No hay plantilla en el proceso reciente ni cláusulas asociadas al tipo de contratación. Configura el tipo o crea un proceso con plantilla.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const Contratos = () => {
   const queryClient = useQueryClient();
   const useApi = hasApi();
@@ -83,6 +156,23 @@ const Contratos = () => {
     mutationFn: (dto: CreateContratoDto) => createContrato(dto),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['contratos'] }),
   });
+
+  const { data: tiposWizardResp } = useQuery({
+    queryKey: ['tipos-contratacion', 'wizard-list'],
+    queryFn: fetchTiposContratacion,
+    enabled: useApi && showWizard,
+  });
+  const tiposWizard = useMemo(
+    () => (tiposWizardResp?.data ?? []).filter((t) => t.activo),
+    [tiposWizardResp],
+  );
+
+  const { data: puntosWizardResp } = useQuery({
+    queryKey: ['puntos-servicio', 'wizard-list'],
+    queryFn: () => fetchPuntosServicio({ limit: 200 }),
+    enabled: useApi && showWizard,
+  });
+  const puntosWizard = puntosWizardResp?.data ?? [];
 
   const contratos = useApi
     ? (Array.isArray(apiContratos) ? apiContratos : [])
@@ -109,6 +199,8 @@ const Contratos = () => {
     generarOrdenInstalacionToma: false,
     generarOrdenInstalacionMedidor: false,
     omitirRegistroPersonaTitular: false,
+    tipoContratacionId: '',
+    puntoServicioId: '',
   });
 
   const [form, setForm] = useState(emptyWizardForm);
@@ -124,6 +216,8 @@ const Contratos = () => {
     const fecha = new Date().toISOString().split('T')[0];
     const payload: CreateContratoDto = {
       tomaId: form.tomaId || undefined,
+      tipoContratacionId: form.tipoContratacionId || undefined,
+      puntoServicioId: form.puntoServicioId || undefined,
       tipoContrato: form.tipoContrato,
       tipoServicio: form.tipoServicio,
       nombre: form.nombre,
@@ -271,7 +365,7 @@ const Contratos = () => {
 
       {/* Wizard */}
       <Dialog open={showWizard} onOpenChange={setShowWizard}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle>Alta de Contrato — Paso {step} de 3</DialogTitle>
             <DialogDescription>
@@ -296,7 +390,7 @@ const Contratos = () => {
                 <SelectTrigger><SelectValue placeholder="Seleccionar toma disponible" /></SelectTrigger>
                 <SelectContent>{disponibles.map(t => <SelectItem key={t.id} value={t.id}>{t.id} - {t.ubicacion} ({t.tipo})</SelectItem>)}</SelectContent>
               </Select>
-              <Select value={form.tipoContrato} onValueChange={v => setForm({ ...form, tipoContrato: v as any })}>
+              <Select value={form.tipoContrato} onValueChange={v => setForm({ ...form, tipoContrato: v as string })}>
                 <SelectTrigger><SelectValue placeholder="Tipo de contrato" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Agua">Agua</SelectItem>
@@ -304,7 +398,7 @@ const Contratos = () => {
                   <SelectItem value="Alcantarillado">Alcantarillado</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={form.tipoServicio} onValueChange={v => setForm({ ...form, tipoServicio: v as any })}>
+              <Select value={form.tipoServicio} onValueChange={v => setForm({ ...form, tipoServicio: v as string })}>
                 <SelectTrigger><SelectValue placeholder="Tipo de servicio" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Doméstico">Doméstico</SelectItem>
@@ -312,6 +406,55 @@ const Contratos = () => {
                   <SelectItem value="Industrial">Industrial</SelectItem>
                 </SelectContent>
               </Select>
+              {useApi && (
+                <>
+                  {tiposWizard.length > 0 ? (
+                    <Select
+                      value={form.tipoContratacionId || '__none__'}
+                      onValueChange={(v) =>
+                        setForm({ ...form, tipoContratacionId: v === '__none__' ? '' : v })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Tipo de contratación (catálogo, opcional)" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-60">
+                        <SelectItem value="__none__">Sin tipo (catálogo)</SelectItem>
+                        {tiposWizard.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.codigo} — {t.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">No hay tipos de contratación activos en catálogo.</p>
+                  )}
+                  {puntosWizard.length > 0 ? (
+                    <Select
+                      value={form.puntoServicioId || '__none__'}
+                      onValueChange={(v) =>
+                        setForm({ ...form, puntoServicioId: v === '__none__' ? '' : v })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Punto de servicio (opcional)" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-60">
+                        <SelectItem value="__none__">Sin punto de servicio</SelectItem>
+                        {puntosWizard.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.codigo}
+                            {p.domicilio?.calle ? ` · ${p.domicilio.calle}` : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">No hay puntos de servicio listados (revisa permisos o datos).</p>
+                  )}
+                </>
+              )}
               <Button onClick={() => setStep(2)} disabled={!form.tomaId || !form.tipoContrato || !form.tipoServicio} className="w-full">Siguiente</Button>
             </div>
           )}
@@ -385,6 +528,21 @@ const Contratos = () => {
                       <div><span className="text-muted-foreground">Régimen:</span> {form.regimenFiscal || '—'}</div>
                     </>
                   )}
+                  {useApi && form.tipoContratacionId ? (
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">Tipo contratación:</span>{' '}
+                      {(() => {
+                        const t = tiposWizard.find((x) => x.id === form.tipoContratacionId);
+                        return t ? `${t.codigo} — ${t.nombre}` : form.tipoContratacionId;
+                      })()}
+                    </div>
+                  ) : null}
+                  {useApi && form.puntoServicioId ? (
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">Punto de servicio:</span>{' '}
+                      {puntosWizard.find((p) => p.id === form.puntoServicioId)?.codigo ?? form.puntoServicioId}
+                    </div>
+                  ) : null}
                   <div className="col-span-2 text-xs text-muted-foreground">
                     {form.generarOrdenInstalacionToma && '• Orden de toma al crear'}
                     {form.generarOrdenInstalacionMedidor && !form.generarOrdenInstalacionToma && '• Orden de medidor al crear'}
@@ -536,6 +694,7 @@ const Contratos = () => {
                         { value: 'general',     icon: Hash,        label: 'General' },
                         { value: 'titular',     icon: User,        label: 'Titular' },
                         { value: 'servicio',    icon: Droplets,    label: 'Servicio' },
+                        { value: 'texto-contrato', icon: ScrollText, label: 'Texto contrato' },
                         { value: 'facturacion', icon: FileText,    label: 'Facturación' },
                         { value: 'historico',   icon: ChevronRight,label: 'Histórico' },
                         { value: 'procesos',    icon: GitBranch,   label: 'Procesos' },
@@ -628,6 +787,14 @@ const Contratos = () => {
                           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-0.5">Punto de servicio</h3>
                           <div className="rounded-lg border divide-y">
                             <Row label="Toma" value={<span className="font-mono">{selected.tomaId || '—'}</span>} />
+                            <Row
+                              label="Punto de servicio (id)"
+                              value={<span className="font-mono text-xs">{selected.puntoServicioId || '—'}</span>}
+                            />
+                            <Row
+                              label="Tipo contratación (id)"
+                              value={<span className="font-mono text-xs">{selected.tipoContratacionId || '—'}</span>}
+                            />
                             <Row label="Dirección" value={selected.direccion || '—'} />
                             <Row label="Zona" value={selected.zonaId || '—'} />
                             <Row label="Ruta" value={selected.rutaId || 'Sin asignar'} />
@@ -642,6 +809,19 @@ const Contratos = () => {
                             <Row label="Lectura inicial" value="—" />
                           </div>
                         </section>
+                      </div>
+                    </TabsContent>
+
+                    {/* ── Vista previa texto contractual ── */}
+                    <TabsContent value="texto-contrato" className="mt-0 space-y-3">
+                      <div>
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                          Vista previa (plantilla o cláusulas)
+                        </h3>
+                        <p className="text-sm text-muted-foreground mb-3">
+                          Texto generado con variables del contrato (nombre, RFC, dirección, etc.). No sustituye al PDF firmado.
+                        </p>
+                        <ContratoTextoPreviewPanel contratoId={selected.id} enabled={useApi} />
                       </div>
                     </TabsContent>
 

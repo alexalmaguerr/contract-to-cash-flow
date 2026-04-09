@@ -3,6 +3,8 @@ import { apiRequest, hasApi } from './client';
 export interface ContratoDto {
   id: string;
   tomaId?: string | null;
+  puntoServicioId?: string | null;
+  tipoContratacionId?: string | null;
   tipoContrato: string;
   tipoServicio: string;
   nombre: string;
@@ -17,12 +19,16 @@ export interface ContratoDto {
   domiciliado: boolean;
   fechaReconexionPrevista?: string | null;
   ceaNumContrato?: string | null;
+  razonSocial?: string | null;
+  regimenFiscal?: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface CreateContratoDto {
   tomaId?: string;
+  puntoServicioId?: string;
+  tipoContratacionId?: string;
   tipoContrato: string;
   tipoServicio: string;
   nombre: string;
