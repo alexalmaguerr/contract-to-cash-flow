@@ -21,6 +21,7 @@ import {
   Handshake,
   Activity,
   Database,
+  Settings2,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -193,6 +194,13 @@ export const APP_ROUTES: AppRouteConfig[] = [
     path: 'catalogos',
     label: 'Catálogos CIG2018',
     icon: Database,
+    allowedRoles: ['SUPER_ADMIN', 'ADMIN'],
+    group: 'Configuración',
+  },
+  {
+    path: 'tipos-contratacion',
+    label: 'Tipos de contratación',
+    icon: Settings2,
     allowedRoles: ['SUPER_ADMIN', 'ADMIN'],
     group: 'Configuración',
   },

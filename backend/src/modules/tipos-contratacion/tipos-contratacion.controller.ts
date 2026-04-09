@@ -55,6 +55,15 @@ export class TiposContratacionController {
       descripcion?: string;
       requiereMedidor?: boolean;
       activo?: boolean;
+      // P1/P6 configuración del proceso
+      claseProceso?: string | null;
+      esContratoFormal?: boolean;
+      requiereSolicitudPrevia?: boolean;
+      diasCaducidadSolicitud?: number | null;
+      organismoAprobacion?: string | null;
+      diasPlazoAprobacion?: number | null;
+      periodicidadesPermitidas?: string | null;
+      tiposClientePermitidos?: string | null;
     },
   ) {
     return this.service.update(id, body);
