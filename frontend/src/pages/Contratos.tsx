@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Plus, Eye, ChevronRight, Hash, User, Droplets, FileText, SlidersHorizontal, Download, TrendingUp, GitBranch } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
 import { KpiCard } from '@/components/KpiCard';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -84,7 +84,9 @@ const Contratos = () => {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['contratos'] }),
   });
 
-  const contratos = useApi ? apiContratos : contextContratos;
+  const contratos = useApi
+    ? (Array.isArray(apiContratos) ? apiContratos : [])
+    : contextContratos;
   const contratosVisibles = useMemo(() =>
     !allowedZonaIds ? contratos : contratos.filter((c: { zonaId?: string }) => c.zonaId && allowedZonaIds.includes(c.zonaId)),
     [contratos, allowedZonaIds]
@@ -235,7 +237,12 @@ const Contratos = () => {
       {/* Wizard */}
       <Dialog open={showWizard} onOpenChange={setShowWizard}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Alta de Contrato — Paso {step} de 3</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Alta de Contrato — Paso {step} de 3</DialogTitle>
+            <DialogDescription>
+              Asistente para registrar un nuevo contrato de servicio en tres pasos.
+            </DialogDescription>
+          </DialogHeader>
           
           {/* Step indicators */}
           <div className="flex items-center gap-2 mb-4">
@@ -318,6 +325,21 @@ const Contratos = () => {
       {/* Detail */}
       <Dialog open={!!detail} onOpenChange={() => setDetail(null)}>
         <DialogContent className="max-w-6xl w-[95vw] h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
+          <DialogHeader className="sr-only">
+            <DialogTitle>
+              {selected ? `Contrato ${selected.id}` : 'Detalle de contrato'}
+            </DialogTitle>
+            <DialogDescription>
+              {selected
+                ? 'Ficha del contrato con pestañas de información y procesos.'
+                : 'No hay contrato seleccionado o no está disponible en la lista actual.'}
+            </DialogDescription>
+          </DialogHeader>
+          {!selected && (
+            <div className="p-6 text-sm text-muted-foreground text-center">
+              No se encontró el contrato en la lista visible. Cierra el panel e inténtalo de nuevo.
+            </div>
+          )}
           {selected && (() => {
             // Mock data para validación con cliente (campos aún no en BD)
             const mock = {
@@ -630,21 +652,24 @@ const Contratos = () => {
 
 // ── ProcesosTab ─────────────────────────────────────────────────────────────
 
+/** Must match backend ETAPAS_FLUJO in procesos-contratacion.service.ts */
 const ETAPAS = [
   'solicitud',
-  'verificacion_tecnica',
-  'aprobacion',
-  'firma',
-  'activacion',
+  'factibilidad',
+  'contrato',
+  'instalacion_toma',
+  'instalacion_medidor',
+  'alta',
 ];
 
 function etapaLabel(e: string) {
   const labels: Record<string, string> = {
     solicitud: 'Solicitud',
-    verificacion_tecnica: 'Verificación técnica',
-    aprobacion: 'Aprobación',
-    firma: 'Firma',
-    activacion: 'Activación',
+    factibilidad: 'Factibilidad',
+    contrato: 'Contrato',
+    instalacion_toma: 'Instalación toma',
+    instalacion_medidor: 'Instalación medidor',
+    alta: 'Alta',
   };
   return labels[e] ?? e;
 }
@@ -683,14 +708,14 @@ function ProcesosTab({ contratoId, useApi }: { contratoId: string; useApi: boole
     id: 'proc-mock-1',
     contratoId,
     tipoContratacionId: null,
-    etapaActual: 'verificacion_tecnica',
+    etapaActual: 'factibilidad',
     estado: 'en_curso',
     creadoPor: 'SISTEMA',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     historial: [
       { id: 'h1', procesoId: 'proc-mock-1', etapa: 'solicitud', estado: 'completada', nota: 'Solicitud recibida', fechaInicio: new Date().toISOString(), fechaFin: new Date().toISOString() },
-      { id: 'h2', procesoId: 'proc-mock-1', etapa: 'verificacion_tecnica', estado: 'en_curso', nota: null, fechaInicio: new Date().toISOString(), fechaFin: null },
+      { id: 'h2', procesoId: 'proc-mock-1', etapa: 'factibilidad', estado: 'en_curso', nota: null, fechaInicio: new Date().toISOString(), fechaFin: null },
     ],
   };
 
