@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -1044,7 +1044,7 @@ async function seedSectoresClasesVariables() {
         nombre: tv.nombre,
         tipoDato: tv.tipoDato,
         unidad: tv.unidad ?? null,
-        valoresPosibles: tv.valoresPosibles ?? null,
+        valoresPosibles: tv.valoresPosibles ?? Prisma.DbNull,
       },
     });
   }
