@@ -109,3 +109,99 @@ export const fetchZonasFacturacion = () =>
 
 export const fetchCodigosRecorrido = () =>
   apiRequest<CatalogoCodigoRecorrido[]>('/catalogos/codigos-recorrido');
+
+// ── Catálogos Operativos (medidores, pagos, oficinas, contratación) ──────────
+
+export interface CatalogoMarcaMedidor {
+  id: string;
+  codigo: string;
+  nombre: string;
+  activo: boolean;
+}
+
+export interface CatalogoModeloMedidor {
+  id: string;
+  marcaId: string;
+  codigo: string;
+  nombre: string;
+  activo: boolean;
+  marca?: CatalogoMarcaMedidor;
+}
+
+export interface CatalogoCalibre {
+  id: string;
+  codigo: string;
+  descripcion: string;
+  diametroMm?: number | null;
+  activo: boolean;
+}
+
+export interface FormaPago {
+  id: string;
+  codigo: string;
+  nombre: string;
+  tipoRecaudacion: string;
+  aceptaEfectivo: boolean;
+  aceptaCheque: boolean;
+  aceptaTarjeta: boolean;
+  aceptaTransf: boolean;
+  requiereReferencia: boolean;
+  activo: boolean;
+}
+
+export interface SectorHidraulico {
+  id: string;
+  codigo: string;
+  nombre: string;
+  administracionId?: string | null;
+  activo: boolean;
+}
+
+export interface ClaseContrato {
+  id: string;
+  codigo: string;
+  descripcion: string;
+  activo: boolean;
+}
+
+export interface TipoVariable {
+  id: string;
+  codigo: string;
+  nombre: string;
+  tipoDato: string;
+  unidad?: string | null;
+  activo: boolean;
+}
+
+export const fetchMarcasMedidor = () =>
+  apiRequest<CatalogoMarcaMedidor[]>('/catalogos-operativos/marcas-medidor');
+
+export const fetchModelosMedidor = () =>
+  apiRequest<CatalogoModeloMedidor[]>('/catalogos-operativos/modelos-medidor');
+
+export const fetchCalibres = () =>
+  apiRequest<CatalogoCalibre[]>('/catalogos-operativos/calibres');
+
+export const fetchEmplazamientos = () =>
+  apiRequest<CatalogoCodigoDescripcion[]>('/catalogos-operativos/emplazamientos');
+
+export const fetchTiposContador = () =>
+  apiRequest<CatalogoCodigoDescripcion[]>('/catalogos-operativos/tipos-contador');
+
+export const fetchFormasPago = () =>
+  apiRequest<FormaPago[]>('/catalogos-operativos/formas-pago');
+
+export const fetchTiposOficina = () =>
+  apiRequest<CatalogoCodigoDescripcion[]>('/catalogos-operativos/tipos-oficina');
+
+export const fetchSectoresHidraulicos = () =>
+  apiRequest<SectorHidraulico[]>('/catalogos-operativos/sectores-hidraulicos');
+
+export const fetchClasesContrato = () =>
+  apiRequest<ClaseContrato[]>('/catalogos-operativos/clases-contrato');
+
+export const fetchTiposVia = () =>
+  apiRequest<CatalogoCodigoDescripcion[]>('/catalogos-operativos/tipos-via');
+
+export const fetchTiposVariable = () =>
+  apiRequest<TipoVariable[]>('/catalogos-operativos/tipos-variable');

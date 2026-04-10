@@ -18,6 +18,16 @@ import {
   fetchEstructurasTecnicas,
   fetchZonasFacturacion,
   fetchCodigosRecorrido,
+  fetchMarcasMedidor,
+  fetchCalibres,
+  fetchEmplazamientos,
+  fetchTiposContador,
+  fetchFormasPago,
+  fetchTiposOficina,
+  fetchSectoresHidraulicos,
+  fetchClasesContrato,
+  fetchTiposVia,
+  fetchTiposVariable,
   type CatalogoActividad,
   type CatalogoGrupoActividad,
   type CatalogoCategoria,
@@ -27,6 +37,12 @@ import {
   type CatalogoTipoCorte,
   type CatalogoCodigoDescripcion,
   type CatalogoCodigoRecorrido,
+  type CatalogoMarcaMedidor,
+  type CatalogoCalibre,
+  type FormaPago,
+  type SectorHidraulico,
+  type ClaseContrato,
+  type TipoVariable,
 } from '@/api/catalogos';
 import {
   fetchInegiResumen,
@@ -56,6 +72,13 @@ import {
   Landmark,
   MapPinned,
   Home,
+  Gauge,
+  Ruler,
+  CreditCard,
+  Droplets,
+  SquareStack,
+  Signpost,
+  Variable,
 } from 'lucide-react';
 
 // ── Static fallback data ──────────────────────────────────────────────────────
@@ -277,6 +300,68 @@ const Catalogos = () => {
     enabled: useApi && catalogTab === 'inegi-colonias',
   });
 
+  // ── Catálogos Operativos ───────────────────────────────────────────────────
+
+  const { data: marcasMedidor = [] } = useQuery<CatalogoMarcaMedidor[]>({
+    queryKey: ['catalogos-op', 'marcas-medidor'],
+    queryFn: fetchMarcasMedidor,
+    enabled: useApi,
+  });
+
+  const { data: calibres = [] } = useQuery<CatalogoCalibre[]>({
+    queryKey: ['catalogos-op', 'calibres'],
+    queryFn: fetchCalibres,
+    enabled: useApi,
+  });
+
+  const { data: emplazamientos = [] } = useQuery<CatalogoCodigoDescripcion[]>({
+    queryKey: ['catalogos-op', 'emplazamientos'],
+    queryFn: fetchEmplazamientos,
+    enabled: useApi,
+  });
+
+  const { data: tiposContador = [] } = useQuery<CatalogoCodigoDescripcion[]>({
+    queryKey: ['catalogos-op', 'tipos-contador'],
+    queryFn: fetchTiposContador,
+    enabled: useApi,
+  });
+
+  const { data: formasPago = [] } = useQuery<FormaPago[]>({
+    queryKey: ['catalogos-op', 'formas-pago'],
+    queryFn: fetchFormasPago,
+    enabled: useApi,
+  });
+
+  const { data: tiposOficina = [] } = useQuery<CatalogoCodigoDescripcion[]>({
+    queryKey: ['catalogos-op', 'tipos-oficina'],
+    queryFn: fetchTiposOficina,
+    enabled: useApi,
+  });
+
+  const { data: sectoresHidraulicos = [] } = useQuery<SectorHidraulico[]>({
+    queryKey: ['catalogos-op', 'sectores-hidraulicos'],
+    queryFn: fetchSectoresHidraulicos,
+    enabled: useApi,
+  });
+
+  const { data: clasesContrato = [] } = useQuery<ClaseContrato[]>({
+    queryKey: ['catalogos-op', 'clases-contrato'],
+    queryFn: fetchClasesContrato,
+    enabled: useApi,
+  });
+
+  const { data: tiposVia = [] } = useQuery<CatalogoCodigoDescripcion[]>({
+    queryKey: ['catalogos-op', 'tipos-via'],
+    queryFn: fetchTiposVia,
+    enabled: useApi,
+  });
+
+  const { data: tiposVariable = [] } = useQuery<TipoVariable[]>({
+    queryKey: ['catalogos-op', 'tipos-variable'],
+    queryFn: fetchTiposVariable,
+    enabled: useApi,
+  });
+
   const kpiItems = [
     { label: 'Conceptos cobro', value: conceptos.length, icon: Receipt, color: '#0d9488' },
     { label: 'Cláusulas', value: clausulas.length, icon: FileText, color: '#7c3aed' },
@@ -293,6 +378,13 @@ const Catalogos = () => {
     { label: 'INEGI Municipios', value: inegiCounts.municipios, icon: Landmark, color: '#115e59' },
     { label: 'INEGI Localidades', value: inegiCounts.localidades, icon: MapPinned, color: '#134e4a' },
     { label: 'INEGI Colonias', value: inegiCounts.colonias, icon: Home, color: '#042f2e' },
+    { label: 'Marcas medidor', value: marcasMedidor.length, icon: Gauge, color: '#6d28d9' },
+    { label: 'Calibres', value: calibres.length, icon: Ruler, color: '#a21caf' },
+    { label: 'Formas pago', value: formasPago.length, icon: CreditCard, color: '#0891b2' },
+    { label: 'Sectores hidráulicos', value: sectoresHidraulicos.length, icon: Droplets, color: '#2563eb' },
+    { label: 'Clases contrato', value: clasesContrato.length, icon: SquareStack, color: '#d97706' },
+    { label: 'Tipos vía', value: tiposVia.length, icon: Signpost, color: '#4f46e5' },
+    { label: 'Tipos variable', value: tiposVariable.length, icon: Variable, color: '#dc2626' },
   ];
 
   const tabDefs: { value: string; label: string }[] = [
@@ -310,13 +402,23 @@ const Catalogos = () => {
     { value: 'inegi-municipios', label: 'INEGI · Municipios' },
     { value: 'inegi-localidades', label: 'INEGI · Localidades' },
     { value: 'inegi-colonias', label: 'INEGI · Colonias' },
+    { value: 'marcas-medidor', label: 'Marcas medidor' },
+    { value: 'calibres', label: 'Calibres' },
+    { value: 'emplazamientos', label: 'Emplazamientos' },
+    { value: 'tipos-contador', label: 'Tipos contador' },
+    { value: 'formas-pago', label: 'Formas de pago' },
+    { value: 'tipos-oficina', label: 'Tipos oficina' },
+    { value: 'sectores-hidraulicos', label: 'Sectores hidráulicos' },
+    { value: 'clases-contrato', label: 'Clases contrato' },
+    { value: 'tipos-via', label: 'Tipos de vía' },
+    { value: 'tipos-variable', label: 'Tipos variable' },
   ];
 
   return (
     <div>
       <PageHeader
         title="Catálogos"
-        subtitle="Contratación, CIG2018, punto de servicio y catálogo territorial INEGI (estados, municipios, localidades, colonias). Solo consulta."
+        subtitle="Contratación, CIG2018, punto de servicio, medidores, pagos, operativos y catálogo territorial INEGI. Solo consulta."
         breadcrumbs={[{ label: 'Configuración', href: '#' }, { label: 'Catálogos' }]}
       />
 
@@ -854,6 +956,162 @@ const Catalogos = () => {
                 onPageChange={setColPage}
               />
             ) : null}
+          </div>
+        </TabsContent>
+
+        {/* ── Catálogos Operativos ──────────────────────────────────────────── */}
+
+        <TabsContent value="marcas-medidor" className="mt-0">
+          <div className="bg-white rounded-xl border border-border/50 shadow-sm overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-muted/40">
+                  {['Código', 'Nombre', 'Estado'].map(h => (
+                    <th key={h} className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-3">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {marcasMedidor.length === 0 ? (
+                  <tr><td colSpan={3} className="px-5 py-8 text-center text-muted-foreground text-sm">Sin marcas registradas</td></tr>
+                ) : marcasMedidor.map((r, i) => (
+                  <tr key={r.id} className={`${i > 0 ? 'border-t border-border/50' : ''} hover:bg-muted/20 transition-colors`}>
+                    <td className="px-5 py-3 font-mono text-xs text-[#007BFF] font-medium">{r.codigo}</td>
+                    <td className="px-5 py-3 font-medium">{r.nombre}</td>
+                    <td className="px-5 py-3"><StatusBadge status={r.activo ? 'Activo' : 'Inactivo'} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="calibres" className="mt-0">
+          <div className="bg-white rounded-xl border border-border/50 shadow-sm overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-muted/40">
+                  {['Código', 'Descripción', 'Diámetro (mm)', 'Estado'].map(h => (
+                    <th key={h} className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-3">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {calibres.length === 0 ? (
+                  <tr><td colSpan={4} className="px-5 py-8 text-center text-muted-foreground text-sm">Sin calibres registrados</td></tr>
+                ) : calibres.map((r, i) => (
+                  <tr key={r.id} className={`${i > 0 ? 'border-t border-border/50' : ''} hover:bg-muted/20 transition-colors`}>
+                    <td className="px-5 py-3 font-mono text-xs text-[#007BFF] font-medium">{r.codigo}</td>
+                    <td className="px-5 py-3 font-medium">{r.descripcion}</td>
+                    <td className="px-5 py-3 tabular-nums">{r.diametroMm ?? '—'}</td>
+                    <td className="px-5 py-3"><StatusBadge status={r.activo ? 'Activo' : 'Inactivo'} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="emplazamientos" className="mt-0">
+          <SimpleCodigoDescripcionTable rows={emplazamientos} emptyMessage="Sin emplazamientos registrados" />
+        </TabsContent>
+
+        <TabsContent value="tipos-contador" className="mt-0">
+          <SimpleCodigoDescripcionTable rows={tiposContador} emptyMessage="Sin tipos de contador registrados" />
+        </TabsContent>
+
+        <TabsContent value="formas-pago" className="mt-0">
+          <div className="bg-white rounded-xl border border-border/50 shadow-sm overflow-hidden overflow-x-auto">
+            <table className="w-full text-sm min-w-[820px]">
+              <thead>
+                <tr className="bg-muted/40">
+                  {['Código', 'Nombre', 'Tipo recaudación', 'Efectivo', 'Cheque', 'Tarjeta', 'Transf.', 'Ref.', 'Estado'].map(h => (
+                    <th key={h} className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-4 py-3">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {formasPago.length === 0 ? (
+                  <tr><td colSpan={9} className="px-5 py-8 text-center text-muted-foreground text-sm">Sin formas de pago registradas</td></tr>
+                ) : formasPago.map((r, i) => (
+                  <tr key={r.id} className={`${i > 0 ? 'border-t border-border/50' : ''} hover:bg-muted/20 transition-colors`}>
+                    <td className="px-4 py-3 font-mono text-xs text-[#007BFF] font-medium">{r.codigo}</td>
+                    <td className="px-4 py-3 font-medium">{r.nombre}</td>
+                    <td className="px-4 py-3"><Badge variant="secondary" className="text-xs">{r.tipoRecaudacion}</Badge></td>
+                    <td className="px-4 py-3 text-center">{r.aceptaEfectivo ? '✓' : '—'}</td>
+                    <td className="px-4 py-3 text-center">{r.aceptaCheque ? '✓' : '—'}</td>
+                    <td className="px-4 py-3 text-center">{r.aceptaTarjeta ? '✓' : '—'}</td>
+                    <td className="px-4 py-3 text-center">{r.aceptaTransf ? '✓' : '—'}</td>
+                    <td className="px-4 py-3 text-center">{r.requiereReferencia ? '✓' : '—'}</td>
+                    <td className="px-4 py-3"><StatusBadge status={r.activo ? 'Activo' : 'Inactivo'} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="tipos-oficina" className="mt-0">
+          <SimpleCodigoDescripcionTable rows={tiposOficina} emptyMessage="Sin tipos de oficina registrados" />
+        </TabsContent>
+
+        <TabsContent value="sectores-hidraulicos" className="mt-0">
+          <div className="bg-white rounded-xl border border-border/50 shadow-sm overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-muted/40">
+                  {['Código', 'Nombre', 'Estado'].map(h => (
+                    <th key={h} className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-3">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {sectoresHidraulicos.length === 0 ? (
+                  <tr><td colSpan={3} className="px-5 py-8 text-center text-muted-foreground text-sm">Sin sectores registrados</td></tr>
+                ) : sectoresHidraulicos.map((r, i) => (
+                  <tr key={r.id} className={`${i > 0 ? 'border-t border-border/50' : ''} hover:bg-muted/20 transition-colors`}>
+                    <td className="px-5 py-3 font-mono text-xs text-[#007BFF] font-medium">{r.codigo}</td>
+                    <td className="px-5 py-3 font-medium">{r.nombre}</td>
+                    <td className="px-5 py-3"><StatusBadge status={r.activo ? 'Activo' : 'Inactivo'} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="clases-contrato" className="mt-0">
+          <SimpleCodigoDescripcionTable rows={clasesContrato} emptyMessage="Sin clases de contrato registradas" />
+        </TabsContent>
+
+        <TabsContent value="tipos-via" className="mt-0">
+          <SimpleCodigoDescripcionTable rows={tiposVia} emptyMessage="Sin tipos de vía registrados" />
+        </TabsContent>
+
+        <TabsContent value="tipos-variable" className="mt-0">
+          <div className="bg-white rounded-xl border border-border/50 shadow-sm overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-muted/40">
+                  {['Código', 'Nombre', 'Tipo dato', 'Unidad', 'Estado'].map(h => (
+                    <th key={h} className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-3">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {tiposVariable.length === 0 ? (
+                  <tr><td colSpan={5} className="px-5 py-8 text-center text-muted-foreground text-sm">Sin tipos de variable registrados</td></tr>
+                ) : tiposVariable.map((r, i) => (
+                  <tr key={r.id} className={`${i > 0 ? 'border-t border-border/50' : ''} hover:bg-muted/20 transition-colors`}>
+                    <td className="px-5 py-3 font-mono text-xs text-[#007BFF] font-medium">{r.codigo}</td>
+                    <td className="px-5 py-3 font-medium">{r.nombre}</td>
+                    <td className="px-5 py-3"><Badge variant="secondary" className="text-xs">{r.tipoDato}</Badge></td>
+                    <td className="px-5 py-3 text-muted-foreground">{r.unidad ?? '—'}</td>
+                    <td className="px-5 py-3"><StatusBadge status={r.activo ? 'Activo' : 'Inactivo'} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </TabsContent>
       </Tabs>
