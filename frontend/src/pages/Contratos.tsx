@@ -706,7 +706,7 @@ function ProcesosTab({ contratoId, useApi }: { contratoId: string; useApi: boole
 
   const { data: procesos = [], isLoading, isError, error } = useQuery({
     queryKey: ['procesos', contratoId],
-    queryFn: () => fetchProcesos(contratoId),
+    queryFn: () => fetchProcesos({ contratoId }),
     enabled: useApi,
     retry: 1,
   });

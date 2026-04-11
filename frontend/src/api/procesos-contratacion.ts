@@ -10,6 +10,15 @@ export interface ProcesoContratacion {
   createdAt: string;
   updatedAt: string;
   historial?: EtapaHistorial[];
+  contrato?: {
+    id: string;
+    nombre: string;
+    rfc: string | null;
+    estado: string;
+    tipoServicio: string | null;
+    direccion: string | null;
+    fecha: string | null;
+  };
 }
 
 export interface PlantillaContrato {
@@ -47,6 +56,15 @@ interface ApiProcesoRow {
   createdAt: string;
   updatedAt: string;
   hitos?: ApiHitoRow[];
+  contrato?: {
+    id: string;
+    nombre: string;
+    rfc: string | null;
+    estado: string;
+    tipoServicio: string | null;
+    direccion: string | null;
+    fecha: string | null;
+  };
 }
 
 interface ApiHitoRow {
@@ -76,6 +94,7 @@ function normalizeProcesoFromApi(p: ApiProcesoRow): ProcesoContratacion {
     creadoPor: p.creadoPor,
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
+    contrato: p.contrato,
     historial: (p.hitos ?? []).map((h) => ({
       id: h.id,
       procesoId: h.procesoId,
@@ -93,10 +112,11 @@ function normalizeProcesoFromApi(p: ApiProcesoRow): ProcesoContratacion {
   };
 }
 
-export async function fetchProcesos(contratoId?: string): Promise<ProcesoContratacion[]> {
+export async function fetchProcesos(opts?: { contratoId?: string; etapa?: string; limit?: number }): Promise<ProcesoContratacion[]> {
   const params = new URLSearchParams();
-  if (contratoId) params.set('contratoId', contratoId);
-  params.set('limit', '100');
+  if (opts?.contratoId) params.set('contratoId', opts.contratoId);
+  if (opts?.etapa) params.set('etapa', opts.etapa);
+  params.set('limit', String(opts?.limit ?? 100));
   const path = `/procesos-contratacion?${params.toString()}`;
   const raw = await apiRequest<ProcesoContratacion[] | PaginatedProcesosResponse | unknown>(path);
 

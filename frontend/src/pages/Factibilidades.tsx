@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { useData, type FactibilidadEstado } from '@/context/DataContext';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Loader2, TrendingUp, AlertTriangle, MoreVertical } from 'lucide-react';
+import { fetchProcesos, avanzarEtapa, type ProcesoContratacion } from '@/api/procesos-contratacion';
 import { PageHeader } from '@/components/PageHeader';
 import { KpiCard } from '@/components/KpiCard';
 import StatusBadge from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
@@ -18,59 +18,74 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, SlidersHorizontal, Download, MoreVertical, TrendingUp, AlertTriangle } from 'lucide-react';
+
+// Maps backend etapa → factibilidad display status
+const ETAPA_TO_ESTADO: Record<string, string> = {
+  solicitud: 'Pre-factibilidad',
+  factibilidad: 'En comité',
+  contrato: 'Aprobada',
+  instalacion_toma: 'Aprobada',
+  instalacion_medidor: 'Aprobada',
+  alta: 'Aprobada',
+  cancelado: 'Rechazada',
+};
+
+function etapaToEstado(p: ProcesoContratacion): string {
+  if (p.estado === 'cancelado') return 'Rechazada';
+  return ETAPA_TO_ESTADO[p.etapaActual] ?? p.etapaActual;
+}
+
+// Only show procesos that are relevant to factibilidad flow (not yet past contrato stage or cancelled)
+function isRelevante(p: ProcesoContratacion): boolean {
+  return ['solicitud', 'factibilidad', 'contrato', 'cancelado'].includes(
+    p.estado === 'cancelado' ? 'cancelado' : p.etapaActual,
+  );
+}
 
 function AvatarInitials({ name }: { name: string }) {
   const parts = name.trim().split(' ');
-  const initials = parts
-    .slice(0, 2)
-    .map((p) => p[0])
-    .join('')
-    .toUpperCase();
-  // consistent color from name
+  const initials = parts.slice(0, 2).map((p) => p[0]).join('').toUpperCase();
   const colors = [
     'bg-violet-500', 'bg-blue-500', 'bg-emerald-500',
     'bg-amber-500', 'bg-rose-500', 'bg-indigo-500',
   ];
   const idx = name.charCodeAt(0) % colors.length;
   return (
-    <span
-      className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-white text-xs font-bold shrink-0 ${colors[idx]}`}
-    >
+    <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-white text-xs font-bold shrink-0 ${colors[idx]}`}>
       {initials}
     </span>
   );
 }
 
 const Factibilidades = () => {
-  const { factibilidades, addFactibilidad, updateFactibilidad } = useData();
-  const [searchParams] = useSearchParams();
-  const [showCreate, setShowCreate] = useState(false);
+  const queryClient = useQueryClient();
   const [detail, setDetail] = useState<string | null>(null);
-  const [form, setForm] = useState({ predio: '', solicitante: '', direccion: '', notas: '' });
 
-  useEffect(() => {
-    if (searchParams.get('new') === '1') setShowCreate(true);
-  }, [searchParams]);
+  const { data: procesos = [], isLoading, isError } = useQuery({
+    queryKey: ['procesos-factibilidades'],
+    queryFn: () => fetchProcesos({ limit: 200 }),
+  });
 
-  const handleCreate = () => {
-    addFactibilidad({
-      ...form,
-      estado: 'Pre-factibilidad',
-      fecha: new Date().toISOString().split('T')[0],
-    });
-    setForm({ predio: '', solicitante: '', direccion: '', notas: '' });
-    setShowCreate(false);
-  };
+  const avanzarMut = useMutation({
+    mutationFn: (id: string) => avanzarEtapa(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['procesos-factibilidades'] });
+      setDetail(null);
+    },
+  });
 
-  const selected = factibilidades.find((f) => f.id === detail);
+  const relevantes = procesos.filter(isRelevante);
 
-  // KPI counts
-  const total = factibilidades.length;
-  const enRevision = factibilidades.filter((f) => f.estado === 'En comité').length;
-  const aprobadas = factibilidades.filter((f) => f.estado === 'Aprobada').length;
-  const urgentes = factibilidades.filter((f) => f.estado === 'Pre-factibilidad').length;
+  const total = relevantes.length;
+  const enRevision = relevantes.filter((p) => p.etapaActual === 'factibilidad').length;
+  const aprobadas = relevantes.filter((p) =>
+    ['contrato', 'instalacion_toma', 'instalacion_medidor', 'alta'].includes(p.etapaActual) && p.estado !== 'cancelado'
+  ).length;
+  const urgentes = relevantes.filter((p) => p.etapaActual === 'solicitud' && p.estado !== 'cancelado').length;
   const pctEfectividad = total > 0 ? Math.round((aprobadas / total) * 100) : 0;
+
+  const selected = procesos.find((p) => p.id === detail);
+  const selectedEstado = selected ? etapaToEstado(selected) : '';
 
   return (
     <div>
@@ -78,15 +93,6 @@ const Factibilidades = () => {
         title="Factibilidades"
         subtitle="Gestión y seguimiento de solicitudes de infraestructura hidráulica."
         breadcrumbs={[{ label: 'Infraestructura', href: '#' }, { label: 'Factibilidades' }]}
-        actions={
-          <Button
-            onClick={() => setShowCreate(true)}
-            className="bg-[#007BFF] hover:bg-blue-600 text-white"
-          >
-            <Plus className="w-4 h-4 mr-1.5" />
-            Nueva pre-factibilidad
-          </Button>
-        }
       />
 
       {/* KPI cards */}
@@ -96,7 +102,7 @@ const Factibilidades = () => {
           value={total.toLocaleString()}
           sub={
             <span className="flex items-center gap-1 text-emerald-600">
-              <TrendingUp className="w-3 h-3" /> +12% este mes
+              <TrendingUp className="w-3 h-3" /> Procesos activos
             </span>
           }
         />
@@ -122,231 +128,175 @@ const Factibilidades = () => {
           }
         />
         <KpiCard
-          label="Urgentes"
+          label="Pre-factibilidad"
           value={urgentes}
           accent={urgentes > 0 ? 'danger' : 'default'}
           sub={
             urgentes > 0 ? (
               <span className="flex items-center gap-1 text-red-600">
-                <AlertTriangle className="w-3 h-3" /> Requieren atención
+                <AlertTriangle className="w-3 h-3" /> Pendientes de enviar
               </span>
             ) : (
-              'Sin urgentes'
+              'Sin pendientes'
             )
           }
         />
       </div>
 
-      {/* Toolbar */}
-      <div className="flex items-center gap-2 mb-4">
-        <Button variant="outline" size="sm" className="text-sm">
-          <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5" />
-          Filtrar
-        </Button>
-        <Button variant="ghost" size="sm" className="text-sm text-muted-foreground">
-          <Download className="w-3.5 h-3.5 mr-1.5" />
-          Exportar CSV
-        </Button>
-        <span className="ml-auto text-xs text-muted-foreground font-medium tracking-wide uppercase">
-          Mostrando 1–{Math.min(factibilidades.length, 10)} de {factibilidades.length}
-        </span>
-      </div>
-
       {/* Table */}
       <div className="bg-white rounded-xl border border-border/50 overflow-hidden shadow-sm">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-muted/40">
-              {[
-                'ID Expediente',
-                'Predio / Ubicación',
-                'Solicitante',
-                'Estado',
-                'Fecha Registro',
-                'Acciones',
-              ].map((h) => (
-                <th
-                  key={h}
-                  className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-4 py-3"
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {factibilidades.map((f) => (
-              <tr
-                key={f.id}
-                className="border-t border-border/50 hover:bg-muted/30 transition-colors"
-              >
-                <td className="px-4 py-3.5">
-                  <button
-                    onClick={() => setDetail(f.id)}
-                    className="font-medium text-[#007BFF] hover:underline"
-                  >
-                    {f.id}
-                  </button>
-                </td>
-                <td className="px-4 py-3.5">
-                  <p className="font-medium text-foreground">{f.predio}</p>
-                  <p className="text-xs text-muted-foreground">{f.direccion}</p>
-                </td>
-                <td className="px-4 py-3.5">
-                  <div className="flex items-center gap-2">
-                    <AvatarInitials name={f.solicitante} />
-                    <span>{f.solicitante}</span>
-                  </div>
-                </td>
-                <td className="px-4 py-3.5">
-                  <StatusBadge status={f.estado} />
-                </td>
-                <td className="px-4 py-3.5 text-muted-foreground">{f.fecha}</td>
-                <td className="px-4 py-3.5">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                        <MoreVertical className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => setDetail(f.id)}>
-                        Ver detalle
-                      </DropdownMenuItem>
-                      {f.estado === 'Pre-factibilidad' && (
-                        <DropdownMenuItem
-                          onClick={() => updateFactibilidad(f.id, { estado: 'En comité' as FactibilidadEstado })}
-                        >
-                          Enviar a comité
-                        </DropdownMenuItem>
-                      )}
-                      {f.estado === 'En comité' && (
-                        <>
-                          <DropdownMenuItem
-                            onClick={() => updateFactibilidad(f.id, { estado: 'Aprobada' as FactibilidadEstado })}
-                          >
-                            Aprobar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-destructive"
-                            onClick={() => updateFactibilidad(f.id, { estado: 'Rechazada' as FactibilidadEstado })}
-                          >
-                            Rechazar
-                          </DropdownMenuItem>
-                        </>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </td>
-              </tr>
-            ))}
-            {factibilidades.length === 0 && (
-              <tr>
-                <td colSpan={6} className="text-center text-muted-foreground py-12">
-                  No hay solicitudes registradas
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Create dialog */}
-      <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Nueva Pre-factibilidad</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 mt-2">
-            <Input
-              placeholder="Nombre del predio"
-              value={form.predio}
-              onChange={(e) => setForm({ ...form, predio: e.target.value })}
-            />
-            <Input
-              placeholder="Solicitante"
-              value={form.solicitante}
-              onChange={(e) => setForm({ ...form, solicitante: e.target.value })}
-            />
-            <Input
-              placeholder="Dirección"
-              value={form.direccion}
-              onChange={(e) => setForm({ ...form, direccion: e.target.value })}
-            />
-            <Input
-              placeholder="Notas"
-              value={form.notas}
-              onChange={(e) => setForm({ ...form, notas: e.target.value })}
-            />
-            <Button
-              onClick={handleCreate}
-              disabled={!form.predio || !form.solicitante}
-              className="w-full bg-[#007BFF] hover:bg-blue-600 text-white"
-            >
-              Crear pre-factibilidad
-            </Button>
+        {isLoading && (
+          <div className="flex items-center justify-center gap-3 py-16 text-muted-foreground">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <p className="text-sm">Cargando procesos…</p>
           </div>
-        </DialogContent>
-      </Dialog>
+        )}
+        {isError && (
+          <div className="text-center text-sm text-destructive py-12">
+            Error al cargar los procesos de contratación.
+          </div>
+        )}
+        {!isLoading && !isError && (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-muted/40">
+                {['Expediente', 'Contrato / Solicitante', 'Dirección', 'Estado', 'Fecha', 'Acciones'].map((h) => (
+                  <th
+                    key={h}
+                    className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-4 py-3"
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {relevantes.map((p) => {
+                const estadoDisplay = etapaToEstado(p);
+                const nombre = p.contrato?.nombre ?? p.contratoId ?? p.id;
+                const rfc = p.contrato?.rfc ?? '';
+                const direccion = p.contrato?.direccion ?? '—';
+                const fecha = p.contrato?.fecha
+                  ? new Date(p.contrato.fecha).toLocaleDateString('es-MX')
+                  : new Date(p.createdAt).toLocaleDateString('es-MX');
+
+                return (
+                  <tr key={p.id} className="border-t border-border/50 hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-3.5">
+                      <button
+                        onClick={() => setDetail(p.id)}
+                        className="font-mono text-xs font-medium text-[#007BFF] hover:underline"
+                      >
+                        {p.id.slice(0, 8).toUpperCase()}
+                      </button>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-2">
+                        <AvatarInitials name={nombre} />
+                        <div>
+                          <p className="font-medium text-foreground">{nombre}</p>
+                          {rfc && <p className="text-xs text-muted-foreground">{rfc}</p>}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5 text-muted-foreground text-xs">{direccion}</td>
+                    <td className="px-4 py-3.5">
+                      <StatusBadge status={estadoDisplay} />
+                    </td>
+                    <td className="px-4 py-3.5 text-muted-foreground">{fecha}</td>
+                    <td className="px-4 py-3.5">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <MoreVertical className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setDetail(p.id)}>
+                            Ver detalle
+                          </DropdownMenuItem>
+                          {p.etapaActual === 'solicitud' && p.estado !== 'cancelado' && (
+                            <DropdownMenuItem onClick={() => avanzarMut.mutate(p.id)}>
+                              Enviar a comité
+                            </DropdownMenuItem>
+                          )}
+                          {p.etapaActual === 'factibilidad' && p.estado !== 'cancelado' && (
+                            <DropdownMenuItem onClick={() => avanzarMut.mutate(p.id)}>
+                              Aprobar → Contrato
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </td>
+                  </tr>
+                );
+              })}
+              {relevantes.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="text-center text-muted-foreground py-12">
+                    No hay procesos de contratación registrados
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )}
+      </div>
 
       {/* Detail dialog */}
       <Dialog open={!!detail} onOpenChange={() => setDetail(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Factibilidad {selected?.id}</DialogTitle>
+            <DialogTitle>Proceso {selected?.id.slice(0, 8).toUpperCase()}</DialogTitle>
           </DialogHeader>
           {selected && (
             <div className="space-y-4 mt-2">
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-0.5">Predio</p>
-                  <p className="font-medium">{selected.predio}</p>
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-0.5">Contrato</p>
+                  <p className="font-medium">{selected.contrato?.nombre ?? selected.contratoId}</p>
                 </div>
                 <div>
-                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-0.5">Solicitante</p>
-                  <p className="font-medium">{selected.solicitante}</p>
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-0.5">RFC</p>
+                  <p className="font-medium">{selected.contrato?.rfc ?? '—'}</p>
                 </div>
                 <div>
                   <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-0.5">Dirección</p>
-                  <p>{selected.direccion}</p>
+                  <p>{selected.contrato?.direccion ?? '—'}</p>
                 </div>
                 <div>
-                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-0.5">Fecha</p>
-                  <p>{selected.fecha}</p>
-                </div>
-                <div className="col-span-2">
-                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-0.5">Notas</p>
-                  <p className="text-muted-foreground">{selected.notas || 'Sin notas'}</p>
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-0.5">Etapa actual</p>
+                  <p className="font-mono text-xs">{selected.etapaActual}</p>
                 </div>
               </div>
-              <StatusBadge status={selected.estado} />
+              <StatusBadge status={selectedEstado} />
+              {avanzarMut.isError && (
+                <p className="text-sm text-destructive">
+                  {(avanzarMut.error as Error)?.message ?? 'Error al avanzar etapa'}
+                </p>
+              )}
               <div className="flex gap-2 pt-1">
-                {selected.estado === 'Pre-factibilidad' && (
+                {selected.etapaActual === 'solicitud' && selected.estado !== 'cancelado' && (
                   <Button
                     size="sm"
                     className="bg-[#007BFF] hover:bg-blue-600 text-white"
-                    onClick={() => updateFactibilidad(selected.id, { estado: 'En comité' as FactibilidadEstado })}
+                    disabled={avanzarMut.isPending}
+                    onClick={() => avanzarMut.mutate(selected.id)}
                   >
+                    {avanzarMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
                     Enviar a comité
                   </Button>
                 )}
-                {selected.estado === 'En comité' && (
-                  <>
-                    <Button
-                      size="sm"
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                      onClick={() => updateFactibilidad(selected.id, { estado: 'Aprobada' as FactibilidadEstado })}
-                    >
-                      Aprobar
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => updateFactibilidad(selected.id, { estado: 'Rechazada' as FactibilidadEstado })}
-                    >
-                      Rechazar
-                    </Button>
-                  </>
+                {selected.etapaActual === 'factibilidad' && selected.estado !== 'cancelado' && (
+                  <Button
+                    size="sm"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                    disabled={avanzarMut.isPending}
+                    onClick={() => avanzarMut.mutate(selected.id)}
+                  >
+                    {avanzarMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
+                    Aprobar → Contrato
+                  </Button>
                 )}
               </div>
             </div>
