@@ -30,6 +30,8 @@ import { TiposContratacionModule } from './modules/tipos-contratacion/tipos-cont
 import { TarifasModule } from './modules/tarifas/tarifas.module';
 import { ProcesosContratacionModule } from './modules/procesos-contratacion/procesos-contratacion.module';
 import { CatalogosOperativosModule } from './modules/catalogos-operativos/catalogos-operativos.module';
+import { RutasModule } from './modules/rutas/rutas.module';
+import { MedidoresModule } from './modules/medidores/medidores.module';
 
 @Module({
   imports: [
@@ -62,6 +64,8 @@ import { CatalogosOperativosModule } from './modules/catalogos-operativos/catalo
     TarifasModule,
     ProcesosContratacionModule,
     CatalogosOperativosModule,
+    RutasModule,
+    MedidoresModule,
   ],
   controllers: [AppController],
   providers: [AppService],

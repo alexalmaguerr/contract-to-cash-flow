@@ -1,5 +1,8 @@
 import { useState, useCallback, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useData } from '@/context/DataContext';
+import { fetchRutas, hasApi } from '@/api/rutas';
+import { fetchContratos } from '@/api/contratos';
 import { PageHeader } from '@/components/PageHeader';
 import { KpiCard } from '@/components/KpiCard';
 import { Button } from '@/components/ui/button';
@@ -11,21 +14,39 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 const CONTRATO_DRAG_TYPE = 'application/x-contrato-id';
 const DROP_TARGET_SIN_RUTA = 'sin-ruta';
 
+const useApi = hasApi();
+
 const Rutas = () => {
-  const { rutas, addRuta, contratos, zonas, moveContratoToRuta, allowedZonaIds } = useData();
+  const { rutas: contextRutas, addRuta, contratos: contextContratos, zonas, moveContratoToRuta, allowedZonaIds } = useData();
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ zonaId: '', sector: '', libreta: '', lecturista: '', contratoIds: [] as string[] });
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+
+  const { data: apiRutas = [] } = useQuery({
+    queryKey: ['rutas'],
+    queryFn: () => fetchRutas(),
+    enabled: useApi,
+    staleTime: 60_000,
+  });
+  const { data: apiContratos = [] } = useQuery({
+    queryKey: ['contratos'],
+    queryFn: fetchContratos,
+    enabled: useApi,
+    staleTime: 60_000,
+  });
+
+  const rutas = useApi ? apiRutas : contextRutas;
+  const contratos = useApi ? apiContratos : contextContratos;
 
   const rutasVisibles = useMemo(() =>
     !allowedZonaIds ? rutas : rutas.filter(r => r.zonaId && allowedZonaIds.includes(r.zonaId)),
     [rutas, allowedZonaIds]
   );
   const contratosVisibles = useMemo(() =>
-    !allowedZonaIds ? contratos : contratos.filter(c => c.zonaId && allowedZonaIds.includes(c.zonaId)),
+    !allowedZonaIds ? contratos : contratos.filter((c: { zonaId?: string | null }) => c.zonaId && allowedZonaIds!.includes(c.zonaId)),
     [contratos, allowedZonaIds]
   );
-  const activos = contratosVisibles.filter(c => c.estado === 'Activo' && !c.rutaId);
+  const activos = contratosVisibles.filter((c: { estado: string; rutaId?: string | null }) => c.estado === 'Activo' && !c.rutaId);
 
   const handleCreate = () => {
     addRuta(form);
@@ -146,7 +167,7 @@ const Rutas = () => {
             >
               <div className="flex justify-between items-start mb-2">
                 <div>
-                  <h3 className="font-semibold">{getZonaNombre(r.zonaId)} – {r.sector}</h3>
+                  <h3 className="font-semibold">{('zona' in r && r.zona?.nombre) ? r.zona.nombre : getZonaNombre(r.zonaId)} – {r.sector}</h3>
                   <p className="text-xs text-muted-foreground">Libreta: {r.libreta} · Lecturista: {r.lecturista}</p>
                 </div>
                 <span className="status-badge status-info">{r.contratoIds.length} contratos</span>

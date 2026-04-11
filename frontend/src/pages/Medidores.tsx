@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useData } from '@/context/DataContext';
+import { fetchMedidores, fetchMedidoresBodega, hasApi } from '@/api/medidores';
 import StatusBadge from '@/components/StatusBadge';
 import { PageHeader } from '@/components/PageHeader';
 import { KpiCard } from '@/components/KpiCard';
@@ -12,10 +14,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
+const useApi = hasApi();
+
 const Medidores = () => {
   const {
-    medidores,
-    medidoresBodega,
+    medidores: contextMedidores,
+    medidoresBodega: contextBodega,
     contratos,
     zonas,
     addMedidor,
@@ -25,6 +29,23 @@ const Medidores = () => {
     assignMedidorFromBodega,
     allowedZonaIds,
   } = useData();
+
+  const { data: apiMedidores = [] } = useQuery({
+    queryKey: ['medidores'],
+    queryFn: () => fetchMedidores(),
+    enabled: useApi,
+    staleTime: 60_000,
+  });
+  const { data: apiBodega = [] } = useQuery({
+    queryKey: ['medidores-bodega'],
+    queryFn: () => fetchMedidoresBodega(),
+    enabled: useApi,
+    staleTime: 60_000,
+  });
+
+  const medidores = useApi ? apiMedidores : contextMedidores;
+  const medidoresBodega = useApi ? apiBodega : contextBodega;
+
   const contratosVisibles = useMemo(() =>
     !allowedZonaIds ? contratos : contratos.filter(c => c.zonaId && allowedZonaIds.includes(c.zonaId)),
     [contratos, allowedZonaIds]

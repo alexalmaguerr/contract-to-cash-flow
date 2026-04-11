@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useData } from '@/context/DataContext';
 import { fetchLecturas, hasApi } from '@/api/lecturas';
+import { fetchRutas, type RutaDto } from '@/api/rutas';
 import StatusBadge from '@/components/StatusBadge';
 import { PageHeader } from '@/components/PageHeader';
 import { KpiCard } from '@/components/KpiCard';
@@ -26,15 +27,22 @@ const RANGO_MAX = 200;
 
 const Lecturas = () => {
   const useApi = hasApi();
-  const { lecturas: contextLecturas, addLectura, rutas, contratos, medidores, zonas, allowedZonaIds } = useData();
+  const { lecturas: contextLecturas, addLectura, rutas: contextRutas, contratos, medidores, zonas, allowedZonaIds } = useData();
   const { data: apiLecturas = [] } = useQuery({
     queryKey: ['lecturas'],
     queryFn: fetchLecturas,
     enabled: useApi,
   });
+  const { data: apiRutas = [] } = useQuery({
+    queryKey: ['rutas'],
+    queryFn: () => fetchRutas(),
+    enabled: useApi,
+    staleTime: 5 * 60_000,
+  });
   const lecturas = useApi ? apiLecturas : contextLecturas;
   const getZonaNombre = (zonaId: string) => zonas.find(z => z.id === zonaId)?.nombre ?? zonaId;
 
+  const rutas: (typeof contextRutas[0] | RutaDto)[] = useApi ? apiRutas : contextRutas;
   const rutasVisibles = useMemo(() =>
     !allowedZonaIds ? rutas : rutas.filter(r => r.zonaId && allowedZonaIds.includes(r.zonaId)),
     [rutas, allowedZonaIds]
