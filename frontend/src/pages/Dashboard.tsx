@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
   FileText,
   Plus,
@@ -6,8 +7,14 @@ import {
   Stamp,
   TrendingUp,
   ArrowRight,
+  Loader2,
 } from 'lucide-react';
-import { useData } from '@/context/DataContext';
+import { fetchContratos, hasApi } from '@/api/contratos';
+import { fetchProcesos } from '@/api/procesos-contratacion';
+import { fetchLecturas } from '@/api/lecturas';
+import { fetchTimbrados } from '@/api/recibos';
+import { fetchPagos } from '@/api/pagos';
+import { fetchPreFacturas } from '@/api/prefacturacion';
 import { PageHeader } from '@/components/PageHeader';
 import { KpiCard } from '@/components/KpiCard';
 import StatusBadge from '@/components/StatusBadge';
@@ -20,16 +27,65 @@ const QUICK_ACTIONS = [
   { label: 'Monitor timbrado', icon: Stamp, to: '/app/timbrado' },
 ];
 
-const Dashboard = () => {
-  const { factibilidades, contratos, lecturas, timbrados, pagos, preFacturas } = useData();
+const useApi = hasApi();
 
-  const factPendientes = factibilidades.filter(
-    (f) => f.estado === 'Pre-factibilidad' || f.estado === 'En comité',
+const Dashboard = () => {
+  const { data: contratos = [] } = useQuery({
+    queryKey: ['contratos-dashboard'],
+    queryFn: fetchContratos,
+    enabled: useApi,
+    staleTime: 60_000,
+  });
+
+  const { data: procesos = [] } = useQuery({
+    queryKey: ['procesos-dashboard'],
+    queryFn: () => fetchProcesos({ limit: 200 }),
+    enabled: useApi,
+    staleTime: 60_000,
+  });
+
+  const { data: lecturas = [] } = useQuery({
+    queryKey: ['lecturas-dashboard'],
+    queryFn: fetchLecturas,
+    enabled: useApi,
+    staleTime: 60_000,
+  });
+
+  const { data: timbrados = [] } = useQuery({
+    queryKey: ['timbrados-dashboard'],
+    queryFn: fetchTimbrados,
+    enabled: useApi,
+    staleTime: 60_000,
+  });
+
+  const { data: pagos = [] } = useQuery({
+    queryKey: ['pagos-dashboard'],
+    queryFn: fetchPagos,
+    enabled: useApi,
+    staleTime: 60_000,
+  });
+
+  const { data: preFacturas = [] } = useQuery({
+    queryKey: ['prefacturas-dashboard'],
+    queryFn: fetchPreFacturas,
+    enabled: useApi,
+    staleTime: 60_000,
+  });
+
+  // KPI derivations
+  const factPendientes = procesos.filter(
+    (p) => (p.etapaActual === 'solicitud' || p.etapaActual === 'factibilidad') && p.estado !== 'cancelado',
   ).length;
-  const contratosPendientes = contratos.filter((c) => c.estado === 'Pendiente de alta').length;
+  const contratosPendientes = contratos.filter(
+    (c) => c.estado !== 'Activo' && c.estado !== 'Inactivo' && c.estado !== 'Cancelado',
+  ).length;
   const lecturasPendientes = lecturas.filter((l) => l.estado === 'Pendiente').length;
   const erroresTimbrado = timbrados.filter((t) => t.estado === 'Error PAC').length;
   const totalActivos = contratos.filter((c) => c.estado === 'Activo').length;
+
+  const contratosRecientes = [...contratos]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 5);
 
   return (
     <div>
@@ -37,10 +93,10 @@ const Dashboard = () => {
         title="Dashboard"
         subtitle="Vista general del sistema CEA Querétaro."
         actions={
-          <Link to="/app/factibilidades?new=1">
+          <Link to="/app/contratos?new=1">
             <Button className="bg-[#007BFF] hover:bg-blue-600 text-white">
               <Plus className="w-4 h-4 mr-1.5" />
-              Nueva factibilidad
+              Nuevo contrato
             </Button>
           </Link>
         }
@@ -49,11 +105,11 @@ const Dashboard = () => {
       {/* KPI cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <KpiCard
-          label="Factibilidades pendientes"
+          label="Procesos activos"
           value={factPendientes}
           sub={
             <span className="flex items-center gap-1 text-emerald-600">
-              <TrendingUp className="w-3 h-3" /> Activas en revisión
+              <TrendingUp className="w-3 h-3" /> En solicitud / comité
             </span>
           }
         />
@@ -66,7 +122,7 @@ const Dashboard = () => {
               <div
                 className="h-full bg-amber-400 rounded-full"
                 style={{
-                  width: `${Math.min(100, (contratosPendientes / Math.max(contratos.length, 1)) * 100)}%`,
+                  width: `${Math.min(100, (contratosPendientes / Math.max(contratos.length, 1)) * 100 * 2)}%`,
                 }}
               />
             </div>
@@ -75,7 +131,7 @@ const Dashboard = () => {
         <KpiCard
           label="Lecturas pendientes"
           value={lecturasPendientes}
-          sub={`${lecturas.length} totales este periodo`}
+          sub={`${lecturas.length} totales`}
         />
         <KpiCard
           label="Errores de timbrado"
@@ -149,47 +205,56 @@ const Dashboard = () => {
           </Link>
         </div>
         <div className="bg-white rounded-xl border border-border/50 overflow-hidden shadow-sm">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-muted/40">
-                {['ID', 'Titular', 'Tipo', 'Estado', 'Fecha'].map((h) => (
-                  <th
-                    key={h}
-                    className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-4 py-3"
+          {contratosRecientes.length === 0 && useApi ? (
+            <div className="flex items-center justify-center gap-2 py-10 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-sm">Cargando contratos…</span>
+            </div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-muted/40">
+                  {['ID', 'Titular', 'Tipo', 'Estado', 'Fecha'].map((h) => (
+                    <th
+                      key={h}
+                      className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-4 py-3"
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {contratosRecientes.map((c) => (
+                  <tr
+                    key={c.id}
+                    className="border-t border-border/50 hover:bg-muted/30 transition-colors"
                   >
-                    {h}
-                  </th>
+                    <td className="px-4 py-3.5 font-mono text-xs text-[#007BFF] font-medium">
+                      {c.id.slice(0, 8).toUpperCase()}
+                    </td>
+                    <td className="px-4 py-3.5 font-medium">{c.nombre}</td>
+                    <td className="px-4 py-3.5 text-muted-foreground">
+                      {c.tipoContrato} / {c.tipoServicio}
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <StatusBadge status={c.estado} />
+                    </td>
+                    <td className="px-4 py-3.5 text-muted-foreground">
+                      {c.fecha ? new Date(c.fecha).toLocaleDateString('es-MX') : '—'}
+                    </td>
+                  </tr>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {contratos.slice(0, 5).map((c) => (
-                <tr
-                  key={c.id}
-                  className="border-t border-border/50 hover:bg-muted/30 transition-colors"
-                >
-                  <td className="px-4 py-3.5 font-mono text-xs text-[#007BFF] font-medium">
-                    {c.id}
-                  </td>
-                  <td className="px-4 py-3.5 font-medium">{c.nombre}</td>
-                  <td className="px-4 py-3.5 text-muted-foreground">
-                    {c.tipoContrato} / {c.tipoServicio}
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <StatusBadge status={c.estado} />
-                  </td>
-                  <td className="px-4 py-3.5 text-muted-foreground">{c.fecha}</td>
-                </tr>
-              ))}
-              {contratos.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="text-center text-muted-foreground py-10">
-                    No hay contratos registrados
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                {contratosRecientes.length === 0 && !useApi && (
+                  <tr>
+                    <td colSpan={5} className="text-center text-muted-foreground py-10">
+                      No hay contratos registrados
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>
