@@ -164,6 +164,18 @@ export default function PasoResumen({ data, config }: StepProps) {
               <dt className="text-muted-foreground">Tipo de contratación</dt>
               <dd>{tipoNombre}</dd>
             </div>
+            {data.claseContratacion ? (
+              <div>
+                <dt className="text-muted-foreground">Clase de contratación</dt>
+                <dd className="font-mono text-xs">{data.claseContratacion}</dd>
+              </div>
+            ) : null}
+            {data.tipoPuntoServicio ? (
+              <div>
+                <dt className="text-muted-foreground">Tipo de punto de servicio</dt>
+                <dd className="font-mono text-xs">{data.tipoPuntoServicio}</dd>
+              </div>
+            ) : null}
             {data.referenciaContratoAnterior ? (
               <div className="sm:col-span-2">
                 <dt className="text-muted-foreground">Referencia contrato anterior</dt>

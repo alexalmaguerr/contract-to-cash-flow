@@ -30,6 +30,51 @@ import {
 import { cn } from '@/lib/utils';
 import type { StepProps } from '../hooks/useWizardState';
 
+const CLASES_CONTRATACION: { cod: string; descripcion: string }[] = [
+  { cod: 'AN', descripcion: 'Alta Nueva' },
+  { cod: 'CN', descripcion: 'Cambio Nombre' },
+  { cod: 'PB', descripcion: 'Alta Procede de Baja' },
+  { cod: 'BJ', descripcion: 'Baja' },
+];
+
+const TIPOS_PUNTO_SERVICIO: { id: string; descripcion: string }[] = [
+  { id: '1', descripcion: 'DOMESTICO APOYO SOCIAL' },
+  { id: '2', descripcion: 'COMERCIAL' },
+  { id: '3', descripcion: 'OBRAS' },
+  { id: '4', descripcion: 'COMUNIDAD PROPIETARIOS' },
+  { id: '5', descripcion: 'CONTRAINCENDIOS' },
+  { id: '6', descripcion: 'RIEGO/BALDEO' },
+  { id: '7', descripcion: 'VIVIENDA P.O.' },
+  { id: '8', descripcion: 'SUMINISTRO BUQUES' },
+  { id: '9', descripcion: 'DESCALCIFICADOR' },
+  { id: '10', descripcion: 'FUENTES' },
+  { id: '11', descripcion: 'INDUSTRIAL' },
+  { id: '12', descripcion: 'AGUA EN ALTA' },
+  { id: '13', descripcion: 'GENERAL' },
+  { id: '14', descripcion: 'PISCINAS' },
+  { id: '15', descripcion: 'FREATICA' },
+  { id: '16', descripcion: 'AGRICOLA' },
+  { id: '17', descripcion: 'GANADERO' },
+  { id: '18', descripcion: 'SIN SUMINISTRO (USO DOMESTICO)' },
+  { id: '19', descripcion: 'SIN SUMINISTRO (INDUSTRIAL)' },
+  { id: '20', descripcion: 'CUBAS' },
+  { id: '21', descripcion: 'COMPLEJO TURÍSTICO' },
+  { id: '60', descripcion: 'ZONAS COMUNES' },
+  { id: '80', descripcion: 'HUERTO' },
+  { id: '100', descripcion: 'PIME' },
+  { id: '101', descripcion: 'EVENTUAL' },
+  { id: '102', descripcion: 'PUBLICO OFICIAL' },
+  { id: '103', descripcion: 'PUBLICO CONCESIONADO' },
+  { id: '104', descripcion: 'HIDRANTE' },
+  { id: '105', descripcion: 'INST. DE BENEFICIENCIA' },
+  { id: '122', descripcion: 'DOMÉSTICO ECONÓMICO' },
+  { id: '123', descripcion: 'DOMÉSTICO MEDIO' },
+  { id: '124', descripcion: 'DOMÉSTICO ALTO' },
+  { id: '125', descripcion: 'DOMÉSTICO ZONA RURAL' },
+  { id: '126', descripcion: 'DOMÉSTICO CABECERA ECONÓMICA' },
+  { id: '127', descripcion: 'DOMÉSTICO CABECERA MEDIA' },
+];
+
 const ADMINISTRACIONES: Record<string, string> = {
   '1': 'QUERÉTARO',
   '2': 'SANTA ROSA JÁUREGUI',
@@ -211,6 +256,50 @@ export default function PasoConfigContrato({ data, updateData }: StepProps) {
               </SelectContent>
             </Select>
           )}
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        {/* ── Clase de contratación ───────────────────────────────────── */}
+        <div className="space-y-2">
+          <Label htmlFor="wizard-clase">Clase de contratación</Label>
+          <Select
+            value={data.claseContratacion ?? ''}
+            onValueChange={(v) => updateData({ claseContratacion: v })}
+          >
+            <SelectTrigger id="wizard-clase">
+              <SelectValue placeholder="Seleccione clase…" />
+            </SelectTrigger>
+            <SelectContent>
+              {CLASES_CONTRATACION.map((c) => (
+                <SelectItem key={c.cod} value={c.cod}>
+                  <span className="font-mono text-xs text-muted-foreground">{c.cod}</span>
+                  <span className="ml-2">{c.descripcion}</span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* ── Tipo de punto de servicio ────────────────────────────────── */}
+        <div className="space-y-2">
+          <Label htmlFor="wizard-tps">Tipo de punto de servicio</Label>
+          <Select
+            value={data.tipoPuntoServicio ?? ''}
+            onValueChange={(v) => updateData({ tipoPuntoServicio: v })}
+          >
+            <SelectTrigger id="wizard-tps">
+              <SelectValue placeholder="Seleccione tipo…" />
+            </SelectTrigger>
+            <SelectContent>
+              {TIPOS_PUNTO_SERVICIO.map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  <span className="font-mono text-xs text-muted-foreground">{t.id}</span>
+                  <span className="ml-2">{t.descripcion}</span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

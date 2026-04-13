@@ -48,6 +48,8 @@ export interface WizardData {
   personaContacto?: PersonaWizard;
   actividadId?: string;
   tipoContratacionId?: string;
+  claseContratacion?: string;
+  tipoPuntoServicio?: string;
   referenciaContratoAnterior?: string;
   variablesCapturadas: Record<string, string | number | boolean>;
   documentosRecibidos: string[];
