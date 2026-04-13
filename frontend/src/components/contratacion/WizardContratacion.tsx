@@ -69,8 +69,8 @@ function buildCreateContratoDto(data: WizardData): CreateContratoDto {
 
   const pc = data.personaContacto;
   const pcNombre = [pc?.paterno, pc?.nombre].filter(Boolean).join(' ').trim();
-  // Contacto es opcional — enviamos solo si tiene al menos nombre o personaId (sin requerir rfc)
-  if (pc && (pc.personaId || pcNombre)) {
+  // Contacto es opcional — solo enviamos si tiene personaId o (nombre + rfc)
+  if (pc && (pc.personaId || (pcNombre && pc.rfc?.trim()))) {
     dto.personaContacto = {
       personaId: pc.personaId,
       nombre: pcNombre || undefined,
