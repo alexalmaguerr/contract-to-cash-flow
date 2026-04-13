@@ -44,7 +44,26 @@ export function fetchPuntosServicio(params?: { page?: number; limit?: number; es
 export interface CreatePuntoServicioDto {
   codigo: string;
   domicilioId?: string;
+  administracion?: string;
+  estructuraTecnicaId?: string;
+  sectorHidraulicoId?: string;
+  calibreId?: string;
   tipoSuministroId?: string;
+  zonaFacturacionId?: string;
+  codigoRecorridoId?: string;
+  tipoCorteId?: string;
+  estadoSuministro?: string;
+  fechaInstalacion?: string;
+  fechaCorte?: string;
+  coordenadaLat?: number;
+  coordenadaLon?: number;
+  libreta?: string;
+  claveCatastral?: string;
+  folioExpediente?: string;
+  cortePosible?: boolean;
+  noAccesible?: boolean;
+  deshabitado?: boolean;
+  posibilidadFraude?: boolean;
   estado?: string;
 }
 

@@ -21,7 +21,6 @@ import PortalLogin from '@/pages/portal/PortalLogin';
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
 const Factibilidades = lazy(() => import('@/pages/Factibilidades'));
 const Construcciones = lazy(() => import('@/pages/Construcciones'));
-const Tomas = lazy(() => import('@/pages/Tomas'));
 const PuntosServicio = lazy(() => import('@/pages/PuntosServicio'));
 const Contratos = lazy(() => import('@/pages/Contratos'));
 const Medidores = lazy(() => import('@/pages/Medidores'));
@@ -92,8 +91,7 @@ const App = () => (
                     <Route path="/app/dashboard" element={<Dashboard />} />
                     <Route path="/app/factibilidades" element={<Factibilidades />} />
                     <Route path="/app/construcciones" element={<Construcciones />} />
-                    <Route path="/app/tomas" element={<Tomas />} />
-                    <Route path="/app/puntos-servicio" element={<PuntosServicio />} />
+<Route path="/app/puntos-servicio" element={<PuntosServicio />} />
                     <Route path="/app/contratos" element={<Contratos />} />
                     <Route path="/app/medidores" element={<Medidores />} />
                     <Route path="/app/rutas" element={<Rutas />} />
