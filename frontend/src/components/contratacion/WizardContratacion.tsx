@@ -51,12 +51,15 @@ function buildCreateContratoDto(data: WizardData): CreateContratoDto {
     conceptosOverride: data.conceptosOverride?.length ? data.conceptosOverride : undefined,
   };
 
+  // Backend requiere personaId O (nombre + rfc) — solo enviamos si tenemos ambos o personaId
   const pf = data.personaFiscal;
-  if (pf && (pf.nombre?.trim() || pf.rfc?.trim() || pf.personaId)) {
+  const pfNombre = [pf?.paterno, pf?.materno, pf?.nombre].filter(Boolean).join(' ').trim();
+  const pfRfc = pf?.rfc?.trim();
+  if (pf && (pf.personaId || (pfNombre && pfRfc))) {
     dto.personaFiscal = {
       personaId: pf.personaId,
-      nombre: [pf.paterno, pf.materno, pf.nombre].filter(Boolean).join(' ').trim() || undefined,
-      rfc: pf.rfc?.trim() || undefined,
+      nombre: pfNombre || undefined,
+      rfc: pfRfc || undefined,
       email: pf.email?.trim() || undefined,
       telefono: pf.telefonos?.trim() || undefined,
       razonSocial: pf.razonSocial?.trim() || undefined,
@@ -65,14 +68,14 @@ function buildCreateContratoDto(data: WizardData): CreateContratoDto {
   }
 
   const pc = data.personaContacto;
-  if (pc && (pc.nombre?.trim() || pc.paterno?.trim() || pc.personaId)) {
+  const pcNombre = [pc?.paterno, pc?.nombre].filter(Boolean).join(' ').trim();
+  // Contacto es opcional — enviamos solo si tiene al menos nombre o personaId (sin requerir rfc)
+  if (pc && (pc.personaId || pcNombre)) {
     dto.personaContacto = {
       personaId: pc.personaId,
-      nombre: [pc.paterno, pc.nombre].filter(Boolean).join(' ').trim() || undefined,
+      nombre: pcNombre || undefined,
       email: pc.email?.trim() || undefined,
       telefono: pc.telefonos?.trim() || undefined,
-      razonSocial: pc.razonSocial?.trim() || undefined,
-      regimenFiscal: pc.regimenFiscal?.trim() || undefined,
     };
   }
 
@@ -144,9 +147,18 @@ export function WizardContratacion({ onComplete, onCancel }: WizardContratacionP
   const handlePrimary = useCallback(() => {
     if (isLastStep) {
       if (!canCreateContract(data)) {
-        toast.error('Datos incompletos', {
-          description: 'Complete punto de servicio, personas y tipo de contratación antes de crear el contrato.',
-        });
+        const prop = data.propietario;
+        const fiscal = data.personaFiscal;
+        const missingProp = !(prop?.nombre?.trim() || prop?.paterno?.trim() || prop?.personaId);
+        const missingFiscalRfc = !!(fiscal?.personaId == null && !(fiscal?.rfc?.trim()));
+        const desc = !data.puntoServicioId
+          ? 'Seleccione un punto de servicio.'
+          : missingProp
+          ? 'Complete el nombre del propietario/titular.'
+          : missingFiscalRfc
+          ? 'La persona fiscal requiere nombre y RFC.'
+          : 'Complete los datos obligatorios antes de continuar.';
+        toast.error('Datos incompletos', { description: desc });
         return;
       }
       createMutation.mutate(buildCreateContratoDto(data));
