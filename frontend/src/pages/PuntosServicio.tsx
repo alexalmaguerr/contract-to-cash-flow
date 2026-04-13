@@ -66,6 +66,31 @@ const ESTADOS_SUMINISTRO = [
   'Cortado baja temporal',
 ];
 
+
+const DISTRITOS = [
+  { id: '1', nombre: '01-DISTRITO NORORIENTE' },
+  { id: '2', nombre: '02-DISTRITO NORPONIENTE' },
+  { id: '3', nombre: '03-ZONA SURORIENTE' },
+  { id: '4', nombre: '04-ZONA SURPONIENTE' },
+];
+
+const TIPOS_PUNTO_SERVICIO = [
+  { id: '1', nombre: 'DOMESTICO APOYO SOCIAL' },
+  { id: '2', nombre: 'COMERCIAL' },
+  { id: '3', nombre: 'INDUSTRIAL' },
+  { id: '4', nombre: 'GANADERO' },
+  { id: '5', nombre: 'PUBLICO OFICIAL' },
+  { id: '6', nombre: 'PUBLICO CONCESIONADO' },
+  { id: '7', nombre: 'HIDRANTE' },
+  { id: '8', nombre: 'INST. DE BENEFICIENCIA' },
+  { id: '9', nombre: 'DOMÉSTICO ECONÓMICO' },
+  { id: '10', nombre: 'DOMÉSTICO MEDIO' },
+  { id: '11', nombre: 'DOMÉSTICO ALTO' },
+  { id: '12', nombre: 'DOMÉSTICO ZONA RURAL' },
+  { id: '13', nombre: 'DOMÉSTICO CABECERA ECONÓMICA' },
+  { id: '14', nombre: 'DOMÉSTICO CABECERA MEDIA' },
+];
+
 interface FormState {
   codigo: string;
   claveCatastral: string;
@@ -74,8 +99,10 @@ interface FormState {
   estructuraTecnicaId: string;
   sectorHidraulicoId: string;
   calibreId: string;
+  tipoPuntoServicio: string;
   tipoSuministroId: string;
   zonaFacturacionId: string;
+  distritoId: string;
   codigoRecorridoId: string;
   tipoCorteId: string;
   estadoSuministro: string;
@@ -98,8 +125,10 @@ const INITIAL_FORM: FormState = {
   estructuraTecnicaId: '',
   sectorHidraulicoId: '',
   calibreId: '',
+  tipoPuntoServicio: '',
   tipoSuministroId: '',
   zonaFacturacionId: '',
+  distritoId: '',
   codigoRecorridoId: '',
   tipoCorteId: '',
   estadoSuministro: '',
@@ -132,6 +161,15 @@ export default function PuntosServicio() {
     (val: string | boolean) =>
       setForm((prev) => ({ ...prev, [field]: val }));
 
+  const onAdminChange = (adminId: string) => {
+    setForm((prev) => ({
+      ...prev,
+      administracion: adminId,
+      // Reset sector si ya no pertenece a la nueva administración
+      sectorHidraulicoId: '',
+    }));
+  };
+
   const closeDialog = () => {
     setOpen(false);
     setForm(INITIAL_FORM);
@@ -154,10 +192,12 @@ export default function PuntosServicio() {
     queryKey: ['calibres'],
     queryFn: fetchCalibres,
   });
-  const { data: tiposSuministro = [] } = useQuery({
+  const { data: tiposSuministroRaw = [] } = useQuery({
     queryKey: ['tipos-suministro'],
     queryFn: fetchTiposSuministro,
   });
+  const tiposSuministro = tiposSuministroRaw.filter((t) => t.codigo !== 'MIXTO');
+
   const { data: zonas = [] } = useQuery({
     queryKey: ['zonas-facturacion'],
     queryFn: fetchZonasFacturacion,
@@ -171,6 +211,10 @@ export default function PuntosServicio() {
     queryFn: fetchTiposCorte,
   });
 
+  const sectoresFiltrados = form.administracion
+    ? sectores.filter((s) => s.administracionId === form.administracion)
+    : sectores;
+
   const rows = data?.data ?? [];
 
   const createMut = useMutation({
@@ -178,11 +222,13 @@ export default function PuntosServicio() {
       createPuntoServicio({
         codigo: form.codigo.trim(),
         administracion: form.administracion || undefined,
+        tipoPuntoServicio: form.tipoPuntoServicio || undefined,
         estructuraTecnicaId: form.estructuraTecnicaId || undefined,
         sectorHidraulicoId: form.sectorHidraulicoId || undefined,
         calibreId: form.calibreId || undefined,
         tipoSuministroId: form.tipoSuministroId || undefined,
         zonaFacturacionId: form.zonaFacturacionId || undefined,
+        distritoId: form.distritoId || undefined,
         codigoRecorridoId: form.codigoRecorridoId || undefined,
         tipoCorteId: form.tipoCorteId || undefined,
         estadoSuministro: form.estadoSuministro || undefined,
@@ -301,7 +347,7 @@ export default function PuntosServicio() {
                     id="ps-codigo"
                     value={form.codigo}
                     onChange={(e) => set('codigo')(e.target.value)}
-                    placeholder="Código único"
+                    placeholder="Ej: PS-10001"
                     className="font-mono"
                     autoComplete="off"
                   />
@@ -339,7 +385,7 @@ export default function PuntosServicio() {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
                   <Label>Administración</Label>
-                  <Select value={form.administracion} onValueChange={set('administracion')}>
+                  <Select value={form.administracion} onValueChange={onAdminChange}>
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar administración" />
                     </SelectTrigger>
@@ -384,11 +430,17 @@ export default function PuntosServicio() {
                 </div>
                 <div className="space-y-1">
                   <Label>Tipo de punto de servicio</Label>
-                  <Select disabled>
+                  <Select value={form.tipoPuntoServicio} onValueChange={set('tipoPuntoServicio')}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Catálogo pendiente" />
+                      <SelectValue placeholder="Seleccionar tipo" />
                     </SelectTrigger>
-                    <SelectContent />
+                    <SelectContent>
+                      {TIPOS_PUNTO_SERVICIO.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.id} – {t.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
                   </Select>
                 </div>
               </div>
@@ -406,10 +458,10 @@ export default function PuntosServicio() {
                   <Label>Sector hidráulico</Label>
                   <Select value={form.sectorHidraulicoId} onValueChange={set('sectorHidraulicoId')}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar sector" />
+                      <SelectValue placeholder={form.administracion ? 'Seleccionar sector' : 'Seleccione administración primero'} />
                     </SelectTrigger>
                     <SelectContent>
-                      {sectores.map((s) => (
+                      {sectoresFiltrados.map((s) => (
                         <SelectItem key={s.id} value={s.id}>
                           {s.codigo} – {s.nombre}
                         </SelectItem>
@@ -507,11 +559,17 @@ export default function PuntosServicio() {
                 </div>
                 <div className="space-y-1">
                   <Label>Distrito de atención de órdenes</Label>
-                  <Select disabled>
+                  <Select value={form.distritoId} onValueChange={set('distritoId')}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Catálogo pendiente" />
+                      <SelectValue placeholder="Seleccionar distrito" />
                     </SelectTrigger>
-                    <SelectContent />
+                    <SelectContent>
+                      {DISTRITOS.map((d) => (
+                        <SelectItem key={d.id} value={d.id}>
+                          {d.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
                   </Select>
                 </div>
               </div>

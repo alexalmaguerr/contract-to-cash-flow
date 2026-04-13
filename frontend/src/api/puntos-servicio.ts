@@ -45,11 +45,14 @@ export interface CreatePuntoServicioDto {
   codigo: string;
   domicilioId?: string;
   administracion?: string;
+  tipoPuntoServicio?: string;
   estructuraTecnicaId?: string;
   sectorHidraulicoId?: string;
   calibreId?: string;
+  tipoSuministro?: string;
   tipoSuministroId?: string;
   zonaFacturacionId?: string;
+  distritoId?: string;
   codigoRecorridoId?: string;
   tipoCorteId?: string;
   estadoSuministro?: string;
