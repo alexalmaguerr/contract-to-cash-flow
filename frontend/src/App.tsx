@@ -40,6 +40,8 @@ const AtencionClientes = lazy(() => import('@/pages/AtencionClientes'));
 const Monitoreo = lazy(() => import('@/pages/Monitoreo'));
 const Catalogos = lazy(() => import('@/pages/Catalogos'));
 const TiposContratacion = lazy(() => import('@/pages/TiposContratacion'));
+const SolicitudServicio = lazy(() => import('@/pages/SolicitudServicio'));
+const Solicitudes = lazy(() => import('@/pages/Solicitudes'));
 
 // Portal + public pages (lazy)
 const PortalCliente = lazy(() => import('@/pages/PortalCliente'));
@@ -92,6 +94,9 @@ const App = () => (
                     <Route path="/app/factibilidades" element={<Factibilidades />} />
                     <Route path="/app/construcciones" element={<Construcciones />} />
 <Route path="/app/puntos-servicio" element={<PuntosServicio />} />
+                    <Route path="/app/solicitudes" element={<Solicitudes />} />
+                    <Route path="/app/solicitudes/nueva" element={<SolicitudServicio />} />
+                    <Route path="/app/solicitudes/:id/editar" element={<SolicitudServicio />} />
                     <Route path="/app/contratos" element={<Contratos />} />
                     <Route path="/app/medidores" element={<Medidores />} />
                     <Route path="/app/rutas" element={<Rutas />} />

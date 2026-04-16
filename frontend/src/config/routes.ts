@@ -22,6 +22,7 @@ import {
   Activity,
   Database,
   Settings2,
+  ClipboardPlus,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -66,6 +67,13 @@ export const APP_ROUTES: AppRouteConfig[] = [
     group: 'Infraestructura',
   },
   // Servicios
+  {
+    path: 'solicitudes',
+    label: 'Solicitudes',
+    icon: ClipboardPlus,
+    allowedRoles: ['SUPER_ADMIN', 'ADMIN', 'OPERADOR', 'ATENCION_CLIENTES'],
+    group: 'Servicios',
+  },
   {
     path: 'contratos',
     label: 'Contratos',
