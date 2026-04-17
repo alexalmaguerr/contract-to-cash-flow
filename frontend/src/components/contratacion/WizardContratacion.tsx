@@ -48,7 +48,7 @@ function buildCreateContratoDto(data: WizardData): CreateContratoDto {
     tipoServicio,
     nombre: nombreCompleto,
     rfc: prop?.rfc?.trim() ?? '',
-    direccion: '',
+    direccion: data.puntoServicioDireccion ?? '',
     contacto: prop?.telefonos?.trim() || prop?.email?.trim() || '',
     estado: 'Pendiente de alta',
     fecha,

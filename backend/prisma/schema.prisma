@@ -101,6 +101,7 @@ model Toma {
 // ---- Contratos y medidores ----
 model Contrato {
   id                      String                @id @default(cuid())
+  numeroContrato          Int                   @default(autoincrement()) @unique @map("numero_contrato")
   tomaId                  String?               @map("toma_id")
   puntoServicioId         String?               @map("punto_servicio_id")
   domicilioId             String?               @map("domicilio_id")

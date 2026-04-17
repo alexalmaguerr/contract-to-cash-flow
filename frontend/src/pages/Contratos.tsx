@@ -475,6 +475,7 @@ const Contratos = () => {
             {filteredContratos.map(
               (c: {
                 id: string;
+                numeroContrato?: number | null;
                 nombre: string;
                 estado: string;
                 createdAt?: string;
@@ -494,7 +495,9 @@ const Contratos = () => {
                 : null;
               return (
                 <tr key={c.id} className="border-t border-border/50 hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3.5 font-mono text-xs text-[#007BFF] font-medium">{c.id}</td>
+                  <td className="px-4 py-3.5 font-medium text-[#007BFF]">
+                    {c.numeroContrato ?? <span className="font-mono text-xs">{c.id.slice(0, 8)}…</span>}
+                  </td>
                   <td className="px-4 py-3.5 text-muted-foreground tabular-nums">
                     <span className="block text-xs">{creado}</span>
                     {modificado && (
@@ -848,6 +851,12 @@ const Contratos = () => {
                         <section className="space-y-2">
                           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-0.5">Configuración</h3>
                           <div className="rounded-lg border divide-y">
+                            {selected.direccion && (
+                              <div className="px-4 py-3 bg-blue-50/50 dark:bg-blue-950/20">
+                                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-0.5">Dirección del predio</p>
+                                <p className="text-sm font-medium">{selected.direccion}</p>
+                              </div>
+                            )}
                             <Row label="Administración" value={getAdminNombreForTipo(selected.tipoContratacionId)} />
                             <Row label="Zona" value={selected.zonaId || '—'} />
                             <Row label="Punto de servicio" value={<span className="font-mono text-xs">{selected.puntoServicioId || '—'}</span>} />

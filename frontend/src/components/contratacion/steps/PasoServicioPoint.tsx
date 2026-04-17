@@ -58,9 +58,11 @@ export default function PasoServicioPoint({ data, updateData }: StepProps) {
 
   const handleSelect = (ps: PuntoServicioListItem) => {
     const codigo = ps.codigo?.trim() || `PS-${ps.id.slice(0, 8)}`;
+    const direccion = formatDomicilio(ps);
     updateData({
       puntoServicioId: ps.id,
       puntoServicioCodigo: codigo,
+      puntoServicioDireccion: direccion !== '—' ? direccion : undefined,
       administracion: ps.administracion ?? undefined,
     });
   };
@@ -84,7 +86,13 @@ export default function PasoServicioPoint({ data, updateData }: StepProps) {
     },
     onSuccess: (ps) => {
       queryClient.invalidateQueries({ queryKey: ['puntos-servicio'] });
-      updateData({ puntoServicioId: ps.id, puntoServicioCodigo: ps.codigo?.trim() || ps.id });
+      const partes = [domicilioForm.calle, domicilioForm.numExterior, domicilioForm.codigoPostal].filter(Boolean);
+      const direccion = partes.length ? partes.join(', ') : undefined;
+      updateData({
+        puntoServicioId: ps.id,
+        puntoServicioCodigo: ps.codigo?.trim() || ps.id,
+        puntoServicioDireccion: direccion,
+      });
       setShowCreate(false);
       setDomicilioForm(DOMICILIO_FORM_EMPTY);
       setCodigoPS('');

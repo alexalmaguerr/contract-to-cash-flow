@@ -2,6 +2,7 @@ import { apiRequest, apiRequestText, hasApi } from './client';
 
 export interface ContratoDto {
   id: string;
+  numeroContrato?: number | null;
   tomaId?: string | null;
   puntoServicioId?: string | null;
   domicilioId?: string | null;
