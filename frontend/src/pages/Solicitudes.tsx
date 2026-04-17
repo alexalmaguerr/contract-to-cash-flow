@@ -1,5 +1,14 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  fetchSolicitudes,
+  upsertInspeccion as apiUpsertInspeccion,
+  aceptarSolicitud as apiAceptarSolicitud,
+  rechazarSolicitud as apiRechazarSolicitud,
+  type SolicitudDto,
+  type SolicitudInspeccionDto,
+} from '@/api/solicitudes';
 import {
   ClipboardPlus,
   ClipboardList,
@@ -14,6 +23,7 @@ import {
   ArrowRight,
   Receipt,
   CalendarClock,
+  Wand2,
 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -44,9 +54,54 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
-import { createContrato } from '@/api/contratos';
-import { useSolicitudesStore } from '@/hooks/useSolicitudesStore';
 import type { SolicitudRecord, OrdenInspeccionData, SolicitudEstado } from '@/types/solicitudes';
+
+// ── DTO → local record mappers ────────────────────────────────────────────────
+
+function inspDtoToOrden(insp: SolicitudInspeccionDto): OrdenInspeccionData {
+  return {
+    estado: insp.estado as OrdenInspeccionData['estado'],
+    inspector: insp.inspector ?? undefined,
+    fechaInspeccion: insp.fechaInspeccion ?? undefined,
+    materialCalle: (insp.materialCalle as OrdenInspeccionData['materialCalle']) ?? undefined,
+    materialBanqueta: (insp.materialBanqueta as OrdenInspeccionData['materialBanqueta']) ?? undefined,
+    metrosRupturaCalle: insp.metrosRupturaCalle ?? undefined,
+    metrosRupturaBanqueta: insp.metrosRupturaBanqueta ?? undefined,
+    existeRed: (insp.existeRed as 'si' | 'no' | '') ?? '',
+    distanciaRed: insp.distanciaRed ?? undefined,
+    presionRed: insp.presionRed ?? undefined,
+    tipoMaterialRed: insp.tipoMaterialRed ?? undefined,
+    profundidadRed: insp.profundidadRed ?? undefined,
+    diametroToma: insp.diametroToma ?? undefined,
+    tomaExistente: (insp.tomaExistente as 'si' | 'no' | '') ?? '',
+    diametroTomaExistente: insp.diametroTomaExistente ?? undefined,
+    estadoTomaExistente: insp.estadoTomaExistente ?? undefined,
+    medidorExistente: (insp.medidorExistente as 'si' | 'no' | '') ?? '',
+    numMedidorExistente: insp.numMedidorExistente ?? undefined,
+    observaciones: insp.observaciones ?? undefined,
+  };
+}
+
+function dtoToRecord(dto: SolicitudDto): SolicitudRecord {
+  const fd = dto.formData as any;
+  return {
+    id: dto.id,
+    folio: dto.folio,
+    fechaSolicitud: new Date(dto.fechaSolicitud).toLocaleDateString('es-MX', {
+      year: 'numeric', month: '2-digit', day: '2-digit',
+    }),
+    propNombreCompleto: dto.propNombreCompleto,
+    propTelefono: dto.propTelefono ?? '—',
+    predioResumen: dto.predioResumen,
+    adminId: fd?.adminId ?? '',
+    tipoContratacionId: dto.tipoContratacionId ?? '',
+    usoDomestico: (fd?.usoDomestico as 'si' | 'no' | '') ?? '',
+    estado: dto.estado as SolicitudEstado,
+    ordenInspeccion: dto.inspeccion ? inspDtoToOrden(dto.inspeccion) : undefined,
+    formData: dto.formData,
+    createdAt: dto.createdAt,
+  };
+}
 
 // ── Catalogues for inspection form ───────────────────────────────────────────
 
@@ -179,6 +234,30 @@ function YesNo({
   );
 }
 
+// ── Inspection mock data ──────────────────────────────────────────────────────
+
+const MOCK_INSPECCION: OrdenInspeccionData = {
+  estado: 'completada',
+  inspector: 'Carlos Mendoza',
+  fechaInspeccion: '2026-04-16',
+  materialCalle: 'concreto_asfaltico',
+  materialBanqueta: 'tierra',
+  metrosRupturaCalle: '0.29',
+  metrosRupturaBanqueta: '0.15',
+  existeRed: 'si',
+  distanciaRed: '2.5',
+  presionRed: '1.8',
+  tipoMaterialRed: 'PVC',
+  profundidadRed: '1.2',
+  diametroToma: '1"',
+  tomaExistente: 'no',
+  diametroTomaExistente: '',
+  estadoTomaExistente: '',
+  medidorExistente: 'no',
+  numMedidorExistente: '',
+  observaciones: 'Acceso sin restricciones. Terreno apto para instalación.',
+};
+
 // ── Inspection Sheet ──────────────────────────────────────────────────────────
 
 function OrdenInspeccionSheet({
@@ -212,6 +291,10 @@ function OrdenInspeccionSheet({
     if (!record) return;
     onSave(record.id, draft as OrdenInspeccionData);
     setEditing(false);
+  }
+
+  function handlePrellenar() {
+    setDraft(MOCK_INSPECCION);
   }
 
   if (!record) return null;
@@ -340,7 +423,19 @@ function OrdenInspeccionSheet({
           {/* Edit / create form */}
           {editing && (
             <div className="space-y-5">
-              <p className="text-sm font-semibold">Registrar resultados de inspección</p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold">Registrar resultados de inspección</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 gap-1.5 border-dashed text-muted-foreground hover:text-foreground"
+                  onClick={handlePrellenar}
+                >
+                  <Wand2 className="h-3 w-3" />
+                  Prellenar demo
+                </Button>
+              </div>
 
               {/* Estado */}
               <div className="space-y-1.5">
@@ -651,20 +746,10 @@ function CotizacionModal({
   async function handleAceptar() {
     setAceptando(true);
     try {
-      await createContrato({
-        tipoContrato: 'NORMAL',
-        tipoServicio: 'AGUA_POTABLE',
-        nombre: record!.propNombreCompleto,
-        rfc: record!.formData.propRfc || 'XAXX010101000',
-        direccion: record!.predioResumen,   // ← siempre la ubicación del predio
-        contacto: record!.propTelefono,
-        estado: 'ACTIVO',
-        fecha: new Date().toISOString().split('T')[0],
-        tipoContratacionId: record!.tipoContratacionId || undefined,
-        domiciliado: false,
-      });
+      // Backend /aceptar creates the Contrato and links it to this Solicitud
+      await apiAceptarSolicitud(record!.id);
     } catch {
-      // API may not be connected; continue with local state update
+      // API unavailable; continue to update local state only
     }
     onAceptar(record!.id);
   }
@@ -750,49 +835,71 @@ function CotizacionModal({
 
 export default function Solicitudes() {
   const navigate = useNavigate();
-  const store = useSolicitudesStore();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [inspRecord, setInspRecord] = useState<SolicitudRecord | null>(null);
   const [cotizandoRecord, setCotizandoRecord] = useState<SolicitudRecord | null>(null);
 
+  // ── Data fetching ─────────────────────────────────────────────────────
+  const { data: solicitudesData } = useQuery({
+    queryKey: ['solicitudes'],
+    queryFn: () => fetchSolicitudes({ limit: 200 }),
+  });
+  const records = useMemo(
+    () => (solicitudesData?.data ?? []).map(dtoToRecord),
+    [solicitudesData],
+  );
+
+  // ── Mutations ─────────────────────────────────────────────────────────
+  const upsertInspeccionMutation = useMutation({
+    mutationFn: ({ id, orden }: { id: string; orden: OrdenInspeccionData }) =>
+      apiUpsertInspeccion(id, orden),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['solicitudes'] }),
+  });
+
+  const rechazarMutation = useMutation({
+    mutationFn: (id: string) => apiRechazarSolicitud(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['solicitudes'] }),
+  });
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return store.records;
-    return store.records.filter(
+    if (!q) return records;
+    return records.filter(
       (r) =>
         r.folio.toLowerCase().includes(q) ||
         r.propNombreCompleto.toLowerCase().includes(q) ||
         r.predioResumen.toLowerCase().includes(q),
     );
-  }, [store.records, search]);
+  }, [records, search]);
 
   // KPI counts (3-state model)
-  const total = store.records.length;
-  const pendientesInsp = store.records.filter((r) =>
+  const total = records.length;
+  const pendientesInsp = records.filter((r) =>
     ['borrador', 'inspeccion_pendiente', 'inspeccion_en_proceso'].includes(r.estado),
   ).length;
-  const enCotizacion = store.records.filter((r) =>
+  const enCotizacion = records.filter((r) =>
     ['inspeccion_completada', 'en_cotizacion', 'cotizado'].includes(r.estado),
   ).length;
-  const aceptadas = store.records.filter((r) => r.estado === 'aceptada' || r.estado === 'contratado').length;
-  const rechazadas = store.records.filter((r) => r.estado === 'rechazada').length;
+  const aceptadas = records.filter((r) => r.estado === 'aceptada' || r.estado === 'contratado').length;
+  const rechazadas = records.filter((r) => r.estado === 'rechazada').length;
 
   function handleSaveOrden(id: string, orden: OrdenInspeccionData) {
-    store.setOrdenInspeccion(id, orden);
+    upsertInspeccionMutation.mutate({ id, orden });
     const nextEstado = orden.estado === 'completada' ? 'en_cotizacion' as const : 'inspeccion_en_proceso' as const;
     setInspRecord((prev) => (prev?.id === id ? { ...prev, ordenInspeccion: orden, estado: nextEstado } : prev));
   }
 
   // Opens the cotización modal instead of navigating immediately
   function handleContinuarCuantificacion(id: string) {
-    const r = store.records.find((r) => r.id === id) ?? inspRecord;
+    const r = records.find((r) => r.id === id) ?? inspRecord;
     setCotizandoRecord(r ?? null);
     setInspRecord(null);
   }
 
-  // Called from CotizacionModal when client accepts
-  function handleConfirmarCotizacion(id: string) {
-    store.aceptarSolicitud(id);
+  // Called from CotizacionModal when client accepts (API call is inside the modal)
+  function handleConfirmarCotizacion(_id: string) {
+    queryClient.invalidateQueries({ queryKey: ['solicitudes'] });
     setCotizandoRecord(null);
     toast.success('Cotización aceptada — proceso de contratación iniciado');
     navigate('/app/contratos');
@@ -800,7 +907,7 @@ export default function Solicitudes() {
 
   // Called from CotizacionModal or sheet footer to reject
   function handleRechazar(id: string) {
-    store.rechazarSolicitud(id);
+    rechazarMutation.mutate(id);
     setInspRecord(null);
     setCotizandoRecord(null);
     toast.info('Solicitud rechazada');
@@ -877,15 +984,15 @@ export default function Solicitudes() {
           </div>
           <div>
             <p className="font-medium">
-              {store.records.length === 0 ? 'No hay solicitudes registradas' : 'Sin resultados para este filtro'}
+              {records.length === 0 ? 'No hay solicitudes registradas' : 'Sin resultados para este filtro'}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              {store.records.length === 0
+              {records.length === 0
                 ? 'Cuando llegue un cliente a ventanilla, usa el botón "Nueva solicitud" para empezar.'
                 : 'Ajusta la búsqueda para encontrar solicitudes.'}
             </p>
           </div>
-          {store.records.length === 0 && (
+          {records.length === 0 && (
             <Button type="button" onClick={() => navigate('/app/solicitudes/nueva')} className="bg-[#007BFF] hover:bg-blue-600 text-white">
               <ClipboardPlus className="mr-2 h-4 w-4" />
               Nueva solicitud

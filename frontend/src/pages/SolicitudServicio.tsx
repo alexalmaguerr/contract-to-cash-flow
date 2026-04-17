@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { createSolicitud, updateSolicitud, fetchSolicitud } from '@/api/solicitudes';
 import type { CatalogoEstadoINEGI, CatalogoMunicipioINEGIRow, PaginatedInegi } from '@/api/domicilios-inegi';
 import { ArrowLeft, Check, FileText, MapPin, User, HelpCircle, Settings, Receipt, ClipboardCheck, Wand2 } from 'lucide-react';
 
@@ -23,7 +24,7 @@ import { TIPOS_CONTRATACION_BY_ADMIN } from '@/config/tipos-contratacion';
 import { cn } from '@/lib/utils';
 import type { SolicitudState } from '@/types/solicitudes';
 import { SOLICITUD_STATE_EMPTY } from '@/types/solicitudes';
-import { useSolicitudesStore } from '@/hooks/useSolicitudesStore';
+import { useSolicitudesStore, deriveName, derivePredioResumen } from '@/hooks/useSolicitudesStore';
 
 // ── Catalogues ───────────────────────────────────────────────────────────────
 
@@ -840,10 +841,54 @@ export default function SolicitudServicio() {
   const queryClient = useQueryClient();
 
   const isEditMode = !!id;
-  const existingRecord = isEditMode ? store.getById(id) : undefined;
 
-  const [form, setForm] = useState<SolicitudState>(existingRecord?.formData ?? SOLICITUD_STATE_EMPTY);
+  // Try local store first; if not found (API-created record), fetch from API
+  const localRecord = isEditMode ? store.getById(id) : undefined;
+  const { data: apiSolicitud } = useQuery({
+    queryKey: ['solicitud', id],
+    queryFn: () => fetchSolicitud(id!),
+    enabled: isEditMode && !!id && !localRecord,
+    staleTime: 30_000,
+  });
+
+  const [form, setForm] = useState<SolicitudState>(localRecord?.formData ?? SOLICITUD_STATE_EMPTY);
   const [currentStep, setCurrentStep] = useState(0);
+
+  // Populate form when API data arrives (only when there's no local record)
+  useEffect(() => {
+    if (!localRecord && apiSolicitud?.formData) {
+      setForm(apiSolicitud.formData as SolicitudState);
+    }
+  }, [apiSolicitud?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const existingRecord = localRecord ?? (apiSolicitud ? {
+    id: apiSolicitud.id,
+    folio: apiSolicitud.folio,
+    fechaSolicitud: apiSolicitud.fechaSolicitud,
+    propNombreCompleto: apiSolicitud.propNombreCompleto,
+    propTelefono: apiSolicitud.propTelefono ?? '—',
+    predioResumen: apiSolicitud.predioResumen,
+    adminId: '',
+    tipoContratacionId: apiSolicitud.tipoContratacionId ?? '',
+    usoDomestico: '' as const,
+    estado: apiSolicitud.estado as any,
+    formData: apiSolicitud.formData as SolicitudState,
+    createdAt: apiSolicitud.createdAt,
+  } : undefined);
+
+  const createMutation = useMutation({
+    mutationFn: (dto: Parameters<typeof createSolicitud>[0]) => createSolicitud(dto),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['solicitudes'] }),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ sid, dto }: { sid: string; dto: Parameters<typeof updateSolicitud>[1] }) =>
+      updateSolicitud(sid, dto),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['solicitudes'] });
+      queryClient.invalidateQueries({ queryKey: ['solicitud', id] });
+    },
+  });
 
   function set(patch: Partial<SolicitudState>) {
     setForm((prev) => ({ ...prev, ...patch }));
@@ -917,13 +962,51 @@ export default function SolicitudServicio() {
     }
   }
 
-  function handleGuardar() {
+  async function handleGuardar() {
+    const propNombreCompleto = deriveName(form);
+    const predioResumen = derivePredioResumen(form);
+
     if (isEditMode && id) {
-      store.updateFormData(id, form);
+      try {
+        await updateMutation.mutateAsync({
+          sid: id,
+          dto: {
+            propNombreCompleto,
+            propRfc: form.propRfc || undefined,
+            propCorreo: form.propCorreo || undefined,
+            propTelefono: form.propTelefono || undefined,
+            predioResumen,
+            claveCatastral: form.claveCatastral || undefined,
+            adminId: form.adminId || undefined,
+            tipoContratacionId: form.tipoContratacionId || undefined,
+            formData: form,
+          },
+        });
+      } catch {
+        store.updateFormData(id, form); // fallback to localStorage
+      }
       toast.success('Solicitud actualizada');
     } else {
-      const record = store.create(form);
-      toast.success(`Solicitud ${record.folio} guardada`);
+      try {
+        const dto = await createMutation.mutateAsync({
+          propTipoPersona: form.propTipoPersona || 'fisica',
+          propNombreCompleto,
+          propRfc: form.propRfc || undefined,
+          propCorreo: form.propCorreo || undefined,
+          propTelefono: form.propTelefono || undefined,
+          predioResumen,
+          claveCatastral: form.claveCatastral || undefined,
+          adminId: form.adminId || undefined,
+          tipoContratacionId: form.tipoContratacionId || undefined,
+          formData: form,
+        });
+        toast.success(`Solicitud ${dto.folio} guardada`);
+      } catch {
+        const record = store.create(form); // fallback to localStorage
+        toast.success(`Solicitud ${record.folio} guardada`);
+        navigate('/app/solicitudes');
+        return;
+      }
     }
     navigate('/app/solicitudes');
   }
