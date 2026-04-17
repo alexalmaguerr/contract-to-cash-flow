@@ -150,5 +150,6 @@ export interface SolicitudRecord {
   estado: SolicitudEstado;
   ordenInspeccion?: OrdenInspeccionData;
   formData: SolicitudState;
+  contratoId?: string;
   createdAt: string;
 }

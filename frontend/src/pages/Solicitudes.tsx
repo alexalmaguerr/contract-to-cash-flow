@@ -99,6 +99,7 @@ function dtoToRecord(dto: SolicitudDto): SolicitudRecord {
     estado: dto.estado as SolicitudEstado,
     ordenInspeccion: dto.inspeccion ? inspDtoToOrden(dto.inspeccion) : undefined,
     formData: dto.formData,
+    contratoId: dto.contratoId ?? undefined,
     createdAt: dto.createdAt,
   };
 }
@@ -732,7 +733,7 @@ function CotizacionModal({
   record: SolicitudRecord | null;
   open: boolean;
   onClose: () => void;
-  onAceptar: (id: string) => void;
+  onAceptar: (id: string, contratoId?: string) => void;
   onRechazar: (id: string) => void;
 }) {
   const [aceptando, setAceptando] = useState(false);
@@ -747,8 +748,8 @@ function CotizacionModal({
     setAceptando(true);
     try {
       // Backend /aceptar creates the Contrato and links it to this Solicitud
-      await apiAceptarSolicitud(record!.id);
-      onAceptar(record!.id);
+      const res = await apiAceptarSolicitud(record!.id);
+      onAceptar(record!.id, res.contratoId);
     } catch (err) {
       setAceptando(false);
       toast.error('Error al aceptar', { description: err instanceof Error ? err.message : 'No se pudo crear el contrato. Verifica la conexión con el servidor.' });
@@ -899,12 +900,12 @@ export default function Solicitudes() {
   }
 
   // Called from CotizacionModal when client accepts (API call is inside the modal)
-  function handleConfirmarCotizacion(_id: string) {
+  function handleConfirmarCotizacion(_id: string, contratoId?: string) {
     queryClient.invalidateQueries({ queryKey: ['solicitudes'] });
     queryClient.invalidateQueries({ queryKey: ['contratos'] });
     setCotizandoRecord(null);
     toast.success('Cotización aceptada — proceso de contratación iniciado');
-    navigate('/app/contratos');
+    navigate(contratoId ? `/app/contratos?detail=${contratoId}` : '/app/contratos');
   }
 
   // Called from CotizacionModal or sheet footer to reject
@@ -1051,7 +1052,7 @@ export default function Solicitudes() {
                           variant="outline"
                           size="sm"
                           className="h-8 gap-1.5 border-emerald-500 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
-                          onClick={() => navigate('/app/contratos')}
+                          onClick={() => navigate(r.contratoId ? `/app/contratos?detail=${r.contratoId}` : '/app/contratos')}
                         >
                           <ArrowRight className="h-3.5 w-3.5" />
                           Ver contrato
@@ -1101,7 +1102,7 @@ export default function Solicitudes() {
         record={cotizandoRecord}
         open={!!cotizandoRecord}
         onClose={() => setCotizandoRecord(null)}
-        onAceptar={handleConfirmarCotizacion}
+        onAceptar={(id, contratoId) => handleConfirmarCotizacion(id, contratoId)}
         onRechazar={handleRechazar}
       />
     </div>

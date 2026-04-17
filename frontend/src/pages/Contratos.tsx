@@ -309,6 +309,13 @@ const Contratos = () => {
 
   useEffect(() => {
     if (searchParams.get('new') === '1' || searchParams.get('procesoId')) setShowWizard(true);
+    const detailId = searchParams.get('detail');
+    if (detailId) {
+      setDetail(detailId);
+      const next = new URLSearchParams(searchParams);
+      next.delete('detail');
+      setSearchParams(next, { replace: true });
+    }
   }, [searchParams]);
 
   const resumeContratacionWizard = useCallback(

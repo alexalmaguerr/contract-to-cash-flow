@@ -1023,24 +1023,32 @@ export default function SolicitudServicio() {
           queryKey: ['catalogos-operativos', 'administraciones'],
           queryFn: fetchAdministraciones,
         });
-        const firstAdmin = administraciones[0];
-        if (!firstAdmin) {
+        if (!administraciones.length) {
           toast.error('No hay administraciones en el catálogo');
           return;
         }
-        const { data: tipos } = await fetchTiposContratacion({
-          administracionId: firstAdmin.id,
-          activo: true,
-          page: 1,
-          limit: 200,
-        });
-        const firstTipo = tipos.find((t) => t.activo) ?? tipos[0];
-        const tipoId = firstTipo?.id ?? '';
-        if (!tipoId) {
-          toast.error('No hay tipos de contratación para la primera administración');
+        // Find first admin that actually has tipos de contratación
+        let chosenAdmin = null;
+        let chosenTipo = null;
+        for (const admin of administraciones) {
+          const { data: tipos } = await fetchTiposContratacion({
+            administracionId: admin.id,
+            activo: true,
+            page: 1,
+            limit: 10,
+          });
+          const tipo = tipos.find((t) => t.activo) ?? tipos[0];
+          if (tipo) {
+            chosenAdmin = admin;
+            chosenTipo = tipo;
+            break;
+          }
+        }
+        if (!chosenAdmin || !chosenTipo) {
+          toast.error('No se encontraron tipos de contratación en ninguna administración');
           return;
         }
-        patch = { ...patch, adminId: firstAdmin.id, tipoContratacionId: tipoId };
+        patch = { ...patch, adminId: chosenAdmin.id, tipoContratacionId: chosenTipo.id };
       }
 
       if (currentStep === 0 && patch.predioDir) {
