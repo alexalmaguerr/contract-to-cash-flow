@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createSolicitud, fetchSolicitud, updateSolicitud } from '@/api/solicitudes';
 import type { CatalogoEstadoINEGI, CatalogoMunicipioINEGIRow, PaginatedInegi } from '@/api/domicilios-inegi';
+import { fetchInegiMunicipiosCatalogo, fetchInegiLocalidadesCatalogo, fetchInegiColoniasCatalogo } from '@/api/domicilios-inegi';
 import { ArrowLeft, Check, FileText, MapPin, User, HelpCircle, Settings, Receipt, ClipboardCheck, Wand2 } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -978,16 +979,23 @@ export default function SolicitudServicio() {
   const isLastStep = currentStep === STEPS.length - 1;
   const canNext = canAdvance(currentStep, form);
 
-  function resolveDir(dir: DomicilioFormValue | undefined): DomicilioFormValue | undefined {
+  async function resolveDir(dir: DomicilioFormValue | undefined): Promise<DomicilioFormValue | undefined> {
     if (!dir) return dir;
+
+    // Resolve estado (from cache only — already loaded by component)
     const estados = queryClient.getQueryData<CatalogoEstadoINEGI[]>(['inegi-estados']) ?? [];
     const estado = estados.find((e) => e.claveINEGI === dir.estadoINEGIId || e.id === dir.estadoINEGIId);
     const estadoId = estado?.id ?? '';
 
-    const mpioCache = queryClient.getQueryData<PaginatedInegi<CatalogoMunicipioINEGIRow>>(
-      ['inegi-municipios', estadoId],
-    );
-    const municipios = mpioCache?.data ?? [];
+    if (!estadoId) return { ...dir, estadoINEGIId: '', municipioINEGIId: '', localidadINEGIId: '', coloniaINEGIId: '' };
+
+    // Resolve municipio (fetch if not in cache)
+    const mpioRes = await queryClient.fetchQuery({
+      queryKey: ['inegi-municipios', estadoId],
+      queryFn: () => fetchInegiMunicipiosCatalogo({ estadoId, limit: 200 }),
+      staleTime: 10 * 60 * 1000,
+    });
+    const municipios = mpioRes?.data ?? [];
     const mpio = municipios.find(
       (m) =>
         m.claveINEGI === dir.municipioINEGIId?.slice(-3) ||
@@ -996,7 +1004,33 @@ export default function SolicitudServicio() {
     );
     const municipioId = mpio?.id ?? '';
 
-    return { ...dir, estadoINEGIId: estadoId, municipioINEGIId: municipioId };
+    if (!municipioId) return { ...dir, estadoINEGIId: estadoId, municipioINEGIId: '', localidadINEGIId: '', coloniaINEGIId: '' };
+
+    // Resolve localidad — use provided id or pick first available
+    let localidadId = dir.localidadINEGIId;
+    if (!localidadId) {
+      const locRes = await queryClient.fetchQuery({
+        queryKey: ['inegi-localidades', municipioId],
+        queryFn: () => fetchInegiLocalidadesCatalogo({ municipioId, limit: 200 }),
+        staleTime: 10 * 60 * 1000,
+      });
+      localidadId = locRes?.data?.[0]?.id ?? '';
+    }
+
+    // Resolve colonia — prefer one matching the CP, else first available
+    let coloniaId = dir.coloniaINEGIId;
+    if (!coloniaId) {
+      const colRes = await queryClient.fetchQuery({
+        queryKey: ['inegi-colonias', municipioId],
+        queryFn: () => fetchInegiColoniasCatalogo({ municipioId, limit: 500 }),
+        staleTime: 10 * 60 * 1000,
+      });
+      const colonias = colRes?.data ?? [];
+      const byCP = dir.codigoPostal ? colonias.find((c) => c.codigoPostal === dir.codigoPostal) : null;
+      coloniaId = byCP?.id ?? colonias[0]?.id ?? '';
+    }
+
+    return { ...dir, estadoINEGIId: estadoId, municipioINEGIId: municipioId, localidadINEGIId: localidadId, coloniaINEGIId: coloniaId };
   }
 
   async function handlePrellenar() {
@@ -1052,13 +1086,13 @@ export default function SolicitudServicio() {
       }
 
       if (currentStep === 0 && patch.predioDir) {
-        patch = { ...patch, predioDir: resolveDir(patch.predioDir) };
+        patch = { ...patch, predioDir: await resolveDir(patch.predioDir) };
       }
       if (currentStep === 1 && patch.propDir) {
-        patch = { ...patch, propDir: resolveDir(patch.propDir) };
+        patch = { ...patch, propDir: await resolveDir(patch.propDir) };
       }
       if (currentStep === 4 && patch.fiscalDir) {
-        patch = { ...patch, fiscalDir: resolveDir(patch.fiscalDir) };
+        patch = { ...patch, fiscalDir: await resolveDir(patch.fiscalDir) };
       }
 
       setForm((prev) => ({ ...prev, ...patch }));
