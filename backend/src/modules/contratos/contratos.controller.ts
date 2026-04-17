@@ -15,41 +15,9 @@ import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ContratosService } from './contratos.service';
 import { CreateContratoDto } from './dto/create-contrato.dto';
+import { UpdateContratoDto } from './dto/update-contrato.dto';
 import { TiposContratacionService } from '../tipos-contratacion/tipos-contratacion.service';
 import { BillingEngineService } from './billing-engine.service';
-
-class UpdateContratoDto {
-  ceaNumContrato?: string | null;
-  estado?: string;
-  domiciliado?: boolean;
-  fechaReconexionPrevista?: string | null;
-  bloqueadoJuridico?: boolean;
-  razonSocial?: string | null;
-  regimenFiscal?: string | null;
-  constanciaFiscalUrl?: string | null;
-  domicilioId?: string | null;
-  puntoServicioId?: string | null;
-  tipoContratacionId?: string | null;
-  zonaId?: string | null;
-  rutaId?: string | null;
-  fechaBaja?: string | null;
-  actividadId?: string | null;
-  categoriaId?: string | null;
-  referenciaContratoAnterior?: string | null;
-  observaciones?: string | null;
-  tipoEnvioFactura?: string | null;
-  indicadorEmisionRecibo?: boolean;
-  indicadorExentarFacturacion?: boolean;
-  indicadorContactoCorreo?: boolean;
-  cicloFacturacion?: string | null;
-  superficiePredio?: number | null;
-  superficieConstruida?: number | null;
-  mesesAdeudo?: number | null;
-  unidadesServidas?: number | null;
-  personasHabitanVivienda?: number | null;
-  /** Regeneración / ajuste del HTML almacenado para impresión (opcional). */
-  textoContratoSnapshot?: string | null;
-}
 
 @Controller('contratos')
 @UseGuards(JwtAuthGuard)
