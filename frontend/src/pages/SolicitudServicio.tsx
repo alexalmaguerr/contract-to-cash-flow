@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { createSolicitud, fetchSolicitud, updateSolicitud } from '@/api/solicitudes';
 import type { CatalogoEstadoINEGI, CatalogoMunicipioINEGIRow, PaginatedInegi } from '@/api/domicilios-inegi';
 import { ArrowLeft, Check, FileText, MapPin, User, HelpCircle, Settings, Receipt, ClipboardCheck, Wand2 } from 'lucide-react';
 
@@ -23,9 +24,9 @@ import { fetchAdministraciones } from '@/api/catalogos';
 import { fetchTiposContratacion, type TipoContratacion } from '@/api/tipos-contratacion';
 import { hasApi } from '@/api/contratos';
 import { cn } from '@/lib/utils';
-import type { SolicitudState } from '@/types/solicitudes';
+import type { DomicilioFormValue, SolicitudRecord, SolicitudState } from '@/types/solicitudes';
 import { SOLICITUD_STATE_EMPTY } from '@/types/solicitudes';
-import { useSolicitudesStore } from '@/hooks/useSolicitudesStore';
+import { deriveName, derivePredioResumen, useSolicitudesStore } from '@/hooks/useSolicitudesStore';
 
 // ── Catalogues ───────────────────────────────────────────────────────────────
 
@@ -129,7 +130,7 @@ const MOCK_DATA: SolicitudState = {
   fiscalUsoCfdi: 'G03',
 };
 
-// Data split per wizard step so "Prellenar demo" can fill the current step (with API + resolveDir)
+// Por paso del asistente: claves INEGI en direcciones; handlePrellenar + resolveDir las sustituyen por UUIDs si hay caché
 const MOCK_STEP_DATA: Partial<SolicitudState>[] = [
   {
     claveCatastral: '22001-045-012',
@@ -903,10 +904,58 @@ export default function SolicitudServicio() {
   const store = useSolicitudesStore();
 
   const isEditMode = !!id;
-  const existingRecord = isEditMode ? store.getById(id) : undefined;
+  const localRecord = isEditMode && id ? store.getById(id) : undefined;
 
-  const [form, setForm] = useState<SolicitudState>(existingRecord?.formData ?? SOLICITUD_STATE_EMPTY);
+  const { data: apiSolicitud } = useQuery({
+    queryKey: ['solicitud', id],
+    queryFn: () => fetchSolicitud(id!),
+    enabled: isEditMode && !!id && !localRecord,
+    staleTime: 30_000,
+  });
+
+  const [form, setForm] = useState<SolicitudState>(localRecord?.formData ?? SOLICITUD_STATE_EMPTY);
   const [currentStep, setCurrentStep] = useState(0);
+
+  useEffect(() => {
+    if (!localRecord && apiSolicitud?.formData) {
+      setForm(apiSolicitud.formData);
+    }
+  }, [localRecord, apiSolicitud?.id, apiSolicitud?.formData]);
+
+  const existingRecord: SolicitudRecord | undefined =
+    localRecord ??
+    (apiSolicitud
+      ? {
+          id: apiSolicitud.id,
+          folio: apiSolicitud.folio,
+          fechaSolicitud: apiSolicitud.fechaSolicitud,
+          propNombreCompleto: apiSolicitud.propNombreCompleto,
+          propTelefono: apiSolicitud.propTelefono ?? '—',
+          predioResumen: apiSolicitud.predioResumen,
+          adminId: apiSolicitud.adminId ?? '',
+          tipoContratacionId: apiSolicitud.tipoContratacionId ?? '',
+          usoDomestico: apiSolicitud.formData.usoDomestico,
+          estado: apiSolicitud.estado,
+          formData: apiSolicitud.formData,
+          createdAt: apiSolicitud.createdAt,
+        }
+      : undefined);
+
+  const createMutation = useMutation({
+    mutationFn: createSolicitud,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['solicitudes'] });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ sid, dto }: { sid: string; dto: Parameters<typeof updateSolicitud>[1] }) =>
+      updateSolicitud(sid, dto),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['solicitudes'] });
+      void queryClient.invalidateQueries({ queryKey: ['solicitud', id] });
+    },
+  });
 
   function set(patch: Partial<SolicitudState>) {
     setForm((prev) => ({ ...prev, ...patch }));
@@ -925,9 +974,7 @@ export default function SolicitudServicio() {
   const isLastStep = currentStep === STEPS.length - 1;
   const canNext = canAdvance(currentStep, form);
 
-  type DirForResolve = { estadoINEGIId: string; municipioINEGIId: string; [key: string]: string };
-
-  function resolveDir(dir: DirForResolve | undefined) {
+  function resolveDir(dir: DomicilioFormValue | undefined): DomicilioFormValue | undefined {
     if (!dir) return dir;
     const estados = queryClient.getQueryData<CatalogoEstadoINEGI[]>(['inegi-estados']) ?? [];
     const estado = estados.find((e) => e.claveINEGI === dir.estadoINEGIId || e.id === dir.estadoINEGIId);
@@ -993,13 +1040,13 @@ export default function SolicitudServicio() {
       }
 
       if (currentStep === 0 && patch.predioDir) {
-        patch = { ...patch, predioDir: resolveDir(patch.predioDir as DirForResolve) };
+        patch = { ...patch, predioDir: resolveDir(patch.predioDir) };
       }
       if (currentStep === 1 && patch.propDir) {
-        patch = { ...patch, propDir: resolveDir(patch.propDir as DirForResolve) };
+        patch = { ...patch, propDir: resolveDir(patch.propDir) };
       }
       if (currentStep === 4 && patch.fiscalDir) {
-        patch = { ...patch, fiscalDir: resolveDir(patch.fiscalDir as DirForResolve) };
+        patch = { ...patch, fiscalDir: resolveDir(patch.fiscalDir) };
       }
 
       setForm((prev) => ({ ...prev, ...patch }));
@@ -1010,22 +1057,60 @@ export default function SolicitudServicio() {
     }
   }
 
-  function handleNext() {
+  async function handleNext() {
     if (!canNext) return;
     if (isLastStep) {
-      handleGuardar();
+      await handleGuardar();
     } else {
       setCurrentStep((s) => s + 1);
     }
   }
 
-  function handleGuardar() {
+  async function handleGuardar() {
+    const propNombreCompleto = deriveName(form);
+    const predioResumen = derivePredioResumen(form);
+
     if (isEditMode && id) {
-      store.updateFormData(id, form);
+      try {
+        await updateMutation.mutateAsync({
+          sid: id,
+          dto: {
+            propNombreCompleto,
+            propRfc: form.propRfc || undefined,
+            propCorreo: form.propCorreo || undefined,
+            propTelefono: form.propTelefono || undefined,
+            predioResumen,
+            claveCatastral: form.claveCatastral || undefined,
+            adminId: form.adminId || undefined,
+            tipoContratacionId: form.tipoContratacionId || undefined,
+            formData: form,
+          },
+        });
+      } catch {
+        store.updateFormData(id, form);
+      }
       toast.success('Solicitud actualizada');
     } else {
-      const record = store.create(form);
-      toast.success(`Solicitud ${record.folio} guardada`);
+      try {
+        const dto = await createMutation.mutateAsync({
+          propTipoPersona: form.propTipoPersona === 'moral' ? 'moral' : 'fisica',
+          propNombreCompleto,
+          propRfc: form.propRfc || undefined,
+          propCorreo: form.propCorreo || undefined,
+          propTelefono: form.propTelefono || undefined,
+          predioResumen,
+          claveCatastral: form.claveCatastral || undefined,
+          adminId: form.adminId || undefined,
+          tipoContratacionId: form.tipoContratacionId || undefined,
+          formData: form,
+        });
+        toast.success(`Solicitud ${dto.folio} guardada`);
+      } catch {
+        const record = store.create(form);
+        toast.success(`Solicitud ${record.folio} guardada`);
+        navigate('/app/solicitudes');
+        return;
+      }
     }
     navigate('/app/solicitudes');
   }
