@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
+import type { CatalogoEstadoINEGI, CatalogoMunicipioINEGIRow, PaginatedInegi } from '@/api/domicilios-inegi';
 import { ArrowLeft, Check, FileText, MapPin, User, HelpCircle, Settings, Receipt, ClipboardCheck, Wand2 } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -127,6 +128,93 @@ const MOCK_DATA: SolicitudState = {
   fiscalRegimenFiscal: '616',
   fiscalUsoCfdi: 'G03',
 };
+
+// Data split per wizard step so "Prellenar demo" can fill the current step (with API + resolveDir)
+const MOCK_STEP_DATA: Partial<SolicitudState>[] = [
+  {
+    claveCatastral: '22001-045-012',
+    folioExpediente: '',
+    predioDir: {
+      estadoINEGIId: '22',
+      municipioINEGIId: '014',
+      localidadINEGIId: '',
+      coloniaINEGIId: '',
+      codigoPostal: '76030',
+      calle: 'Av. Constituyentes',
+      numExterior: '425',
+      numInterior: '',
+      referencia: 'Entre Av. 5 de Febrero y calle Hidalgo',
+    },
+    predioManzana: '12',
+    predioLote: '04',
+    superficieTotal: '180',
+    superficieConstruida: '120',
+  },
+  {
+    propTipoPersona: 'fisica',
+    propPaterno: 'García',
+    propMaterno: 'Ramírez',
+    propNombre: 'María Elena',
+    propRazonSocial: '',
+    propRfc: 'GARM850312AB3',
+    propCorreo: 'mgarcia@correo.com',
+    propTelefono: '4421234567',
+    propDir: {
+      estadoINEGIId: '22',
+      municipioINEGIId: '014',
+      localidadINEGIId: '',
+      coloniaINEGIId: '',
+      codigoPostal: '76030',
+      calle: 'Calle Independencia',
+      numExterior: '88',
+      numInterior: 'Int. 3',
+      referencia: '',
+    },
+    propManzana: '',
+    propLote: '',
+  },
+  {
+    usoDomestico: 'si',
+    hayTuberias: 'si',
+    hayInfraCEA: 'si',
+    esCondominio: 'no',
+    condoViviendas: '',
+    condoUbicacionTomas: '',
+    condoTieneMedidorMacro: '',
+    condoNumMedidor: '',
+    condoAreasComunes: '',
+    condoNumAreas: '',
+    condoAgrupacion: '',
+    condoNombreAgrupacion: '',
+    personasVivienda: '4',
+    tieneCertConexion: 'si',
+  },
+  {
+    adminId: '1',
+    contratoPadre: '',
+  },
+  {
+    requiereFactura: 'si',
+    mismosDatosProp: 'si',
+    fiscalTipoPersona: 'fisica',
+    fiscalRazonSocial: '',
+    fiscalRfc: 'GARM850312AB3',
+    fiscalCorreo: 'mgarcia@correo.com',
+    fiscalDir: {
+      estadoINEGIId: '22',
+      municipioINEGIId: '014',
+      localidadINEGIId: '',
+      coloniaINEGIId: '',
+      codigoPostal: '76030',
+      calle: 'Calle Independencia',
+      numExterior: '88',
+      numInterior: 'Int. 3',
+      referencia: '',
+    },
+    fiscalRegimenFiscal: '616',
+    fiscalUsoCfdi: 'G03',
+  },
+];
 
 // ── Wizard steps definition ───────────────────────────────────────────────────
 
@@ -837,38 +925,85 @@ export default function SolicitudServicio() {
   const isLastStep = currentStep === STEPS.length - 1;
   const canNext = canAdvance(currentStep, form);
 
+  type DirForResolve = { estadoINEGIId: string; municipioINEGIId: string; [key: string]: string };
+
+  function resolveDir(dir: DirForResolve | undefined) {
+    if (!dir) return dir;
+    const estados = queryClient.getQueryData<CatalogoEstadoINEGI[]>(['inegi-estados']) ?? [];
+    const estado = estados.find((e) => e.claveINEGI === dir.estadoINEGIId || e.id === dir.estadoINEGIId);
+    const estadoId = estado?.id ?? '';
+
+    const mpioCache = queryClient.getQueryData<PaginatedInegi<CatalogoMunicipioINEGIRow>>(
+      ['inegi-municipios', estadoId],
+    );
+    const municipios = mpioCache?.data ?? [];
+    const mpio = municipios.find(
+      (m) =>
+        m.claveINEGI === dir.municipioINEGIId?.slice(-3) ||
+        m.claveINEGI === dir.municipioINEGIId ||
+        m.id === dir.municipioINEGIId,
+    );
+    const municipioId = mpio?.id ?? '';
+
+    return { ...dir, estadoINEGIId: estadoId, municipioINEGIId: municipioId };
+  }
+
   async function handlePrellenar() {
     if (!hasApi()) {
       setForm({ ...MOCK_DATA });
       setCurrentStep(0);
-      toast.success('Datos de demo cargados', { description: 'Defina administración y tipo desde el catálogo en el paso de contratación.' });
+      toast.success('Datos de demo cargados', {
+        description: 'Defina administración y tipo desde el catálogo en el paso de contratación.',
+      });
       return;
     }
+
+    const stepData = MOCK_STEP_DATA[currentStep];
+    if (!stepData) {
+      toast.info('No hay datos de demo para este paso');
+      return;
+    }
+
     try {
-      const administraciones = await queryClient.fetchQuery({
-        queryKey: ['catalogos-operativos', 'administraciones'],
-        queryFn: fetchAdministraciones,
-      });
-      const firstAdmin = administraciones[0];
-      if (!firstAdmin) {
-        toast.error('No hay administraciones en el catálogo');
-        return;
+      let patch: Partial<SolicitudState> = { ...stepData };
+
+      if (currentStep === 3) {
+        const administraciones = await queryClient.fetchQuery({
+          queryKey: ['catalogos-operativos', 'administraciones'],
+          queryFn: fetchAdministraciones,
+        });
+        const firstAdmin = administraciones[0];
+        if (!firstAdmin) {
+          toast.error('No hay administraciones en el catálogo');
+          return;
+        }
+        const { data: tipos } = await fetchTiposContratacion({
+          administracionId: firstAdmin.id,
+          activo: true,
+          page: 1,
+          limit: 200,
+        });
+        const firstTipo = tipos.find((t) => t.activo) ?? tipos[0];
+        const tipoId = firstTipo?.id ?? '';
+        if (!tipoId) {
+          toast.error('No hay tipos de contratación para la primera administración');
+          return;
+        }
+        patch = { ...patch, adminId: firstAdmin.id, tipoContratacionId: tipoId };
       }
-      const { data: tipos } = await fetchTiposContratacion({
-        administracionId: firstAdmin.id,
-        activo: true,
-        page: 1,
-        limit: 200,
-      });
-      const firstTipo = tipos.find((t) => t.activo) ?? tipos[0];
-      const tipoId = firstTipo?.id ?? '';
-      if (!tipoId) {
-        toast.error('No hay tipos de contratación para la primera administración');
-        return;
+
+      if (currentStep === 0 && patch.predioDir) {
+        patch = { ...patch, predioDir: resolveDir(patch.predioDir as DirForResolve) };
       }
-      setForm({ ...MOCK_DATA, adminId: firstAdmin.id, tipoContratacionId: tipoId });
-      setCurrentStep(0);
-      toast.success('Datos de demo cargados');
+      if (currentStep === 1 && patch.propDir) {
+        patch = { ...patch, propDir: resolveDir(patch.propDir as DirForResolve) };
+      }
+      if (currentStep === 4 && patch.fiscalDir) {
+        patch = { ...patch, fiscalDir: resolveDir(patch.fiscalDir as DirForResolve) };
+      }
+
+      setForm((prev) => ({ ...prev, ...patch }));
+      toast.success('Datos de demo del paso actual');
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Error al cargar catálogos';
       toast.error('No se pudo prellenar', { description: message });
