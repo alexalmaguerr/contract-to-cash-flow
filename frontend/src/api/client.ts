@@ -53,4 +53,37 @@ export async function apiRequest<T>(
   return JSON.parse(text) as T;
 }
 
+/**
+ * Authenticated GET/POST that returns raw text (e.g. HTML). Use when the response is not JSON.
+ * Sends the same Bearer token as {@link apiRequest} but does not set Content-Type: application/json.
+ */
+export async function apiRequestText(path: string, options: RequestInit = {}): Promise<string> {
+  const base = getBaseUrl() ?? normalizeApiBase('http://localhost:3001');
+  const url = path.startsWith('http') ? path : `${base.replace(/\/$/, '')}${path.startsWith('/') ? path : `/${path}`}`;
+  const headers: Record<string, string> = {};
+  const token = localStorage.getItem('ctcf_access_token');
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  if (options.headers) {
+    Object.assign(headers, options.headers as Record<string, string>);
+  }
+  const res = await fetch(url, {
+    ...options,
+    headers,
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    let message = body;
+    try {
+      const j = JSON.parse(body);
+      if (j.message) message = j.message;
+    } catch {
+      // use body as message
+    }
+    throw new Error(message || `HTTP ${res.status}`);
+  }
+  return res.text();
+}
+
 export { getBaseUrl };

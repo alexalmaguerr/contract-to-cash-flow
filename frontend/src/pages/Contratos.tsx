@@ -6,7 +6,7 @@ import {
   fetchContratos,
   updateContrato,
   fetchTextoContratoPreview,
-  getContratoPdfUrl,
+  fetchContratoPdfHtml,
   crearFacturaContratacion,
   cancelarContrato,
   hasApi,
@@ -185,6 +185,7 @@ const Contratos = () => {
   const [detail, setDetail] = useState<string | null>(null);
   const [resumingContratoId, setResumingContratoId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [openingPdfId, setOpeningPdfId] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
@@ -934,12 +935,29 @@ const Contratos = () => {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => {
-                                const url = getContratoPdfUrl(selected.id);
-                                window.open(url, '_blank');
+                              disabled={openingPdfId === selected.id}
+                              onClick={async () => {
+                                setOpeningPdfId(selected.id);
+                                try {
+                                  const html = await fetchContratoPdfHtml(selected.id);
+                                  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                                  const blobUrl = URL.createObjectURL(blob);
+                                  const w = window.open(blobUrl, '_blank');
+                                  if (!w) {
+                                    toast.error('Permite ventanas emergentes para imprimir o guardar PDF.');
+                                  }
+                                  setTimeout(() => URL.revokeObjectURL(blobUrl), 120_000);
+                                } catch (err: unknown) {
+                                  toast.error(
+                                    err instanceof Error ? err.message : 'No se pudo abrir la vista de impresión.',
+                                  );
+                                } finally {
+                                  setOpeningPdfId(null);
+                                }
                               }}
                             >
-                              <Download className="h-3.5 w-3.5 mr-1" /> Imprimir / PDF
+                              <Download className="h-3.5 w-3.5 mr-1" />{' '}
+                              {openingPdfId === selected.id ? 'Abriendo…' : 'Imprimir / PDF'}
                             </Button>
                           </div>
                         </div>

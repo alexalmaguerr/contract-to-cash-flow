@@ -1,4 +1,4 @@
-import { apiRequest, hasApi } from './client';
+import { apiRequest, apiRequestText, hasApi } from './client';
 
 export interface ContratoDto {
   id: string;
@@ -186,9 +186,15 @@ export async function fetchTextoContratoPreview(id: string): Promise<TextoContra
   return apiRequest<TextoContratoPreviewDto>(`/contratos/${id}/texto-contrato`);
 }
 
+/** Solo para depuración: abrir esta URL en el navegador sin token devuelve 401 (JWT). Usar {@link fetchContratoPdfHtml}. */
 export function getContratoPdfUrl(id: string): string {
   const base = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001';
   return `${base}/contratos/${id}/contrato-pdf`;
+}
+
+/** HTML imprimible; requiere sesión (mismo token que el resto de la API). */
+export function fetchContratoPdfHtml(id: string): Promise<string> {
+  return apiRequestText(`/contratos/${id}/contrato-pdf`);
 }
 
 export interface FacturaContratacionDto {
