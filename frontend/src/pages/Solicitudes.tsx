@@ -6,10 +6,12 @@ import {
   Pencil,
   Search,
   ClipboardCheck,
-  Loader2,
   Clock,
   CheckCircle2,
   AlertCircle,
+  XCircle,
+  FileText,
+  ArrowRight,
 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -17,7 +19,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
   Select,
   SelectContent,
@@ -59,34 +60,49 @@ const DIAMETROS_TOMA = ['1/2"', '3/4"', '1"', '1.5"', '2"', '3"', '4"'];
 
 const ESTADO_CONFIG: Record<SolicitudEstado, { label: string; icon: React.ElementType; className: string }> = {
   borrador: {
-    label: 'Borrador',
+    label: 'Pendiente de inspección',
     icon: Clock,
     className: 'border-slate-300 bg-slate-50 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300',
   },
   inspeccion_pendiente: {
-    label: 'Inspección pendiente',
-    icon: AlertCircle,
+    label: 'Pendiente de inspección',
+    icon: Clock,
     className: 'border-amber-400/60 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
   },
   inspeccion_en_proceso: {
-    label: 'En inspección',
-    icon: Loader2,
-    className: 'border-blue-400/60 bg-blue-50 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300',
+    label: 'Pendiente de inspección',
+    icon: AlertCircle,
+    className: 'border-amber-400/60 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
   },
   inspeccion_completada: {
-    label: 'Insp. completada',
+    label: 'En cotización',
+    icon: FileText,
+    className: 'border-blue-400/60 bg-blue-50 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300',
+  },
+  en_cotizacion: {
+    label: 'En cotización',
+    icon: FileText,
+    className: 'border-blue-400/60 bg-blue-50 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300',
+  },
+  aceptada: {
+    label: 'Aceptada',
     icon: CheckCircle2,
-    className: 'border-emerald-400/60 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300',
+    className: 'border-emerald-500/60 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300',
+  },
+  rechazada: {
+    label: 'Rechazada',
+    icon: XCircle,
+    className: 'border-red-400/60 bg-red-50 text-red-800 dark:bg-red-950/40 dark:text-red-300',
   },
   cotizado: {
-    label: 'Cotizado',
+    label: 'En cotización',
     icon: ClipboardCheck,
-    className: 'border-purple-400/60 bg-purple-50 text-purple-800 dark:bg-purple-950/40 dark:text-purple-300',
+    className: 'border-blue-400/60 bg-blue-50 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300',
   },
   contratado: {
-    label: 'Contratado',
+    label: 'Aceptada',
     icon: CheckCircle2,
-    className: 'border-emerald-600/60 bg-emerald-100 text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-200',
+    className: 'border-emerald-500/60 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300',
   },
 };
 
@@ -124,33 +140,31 @@ function DetailRow({ label, value }: { label: string; value?: string | null }) {
 // ── YesNo pill ────────────────────────────────────────────────────────────────
 
 function YesNo({
-  id,
   value,
   onChange,
 }: {
-  id: string;
   value: 'si' | 'no' | '';
   onChange: (v: 'si' | 'no') => void;
 }) {
   return (
-    <RadioGroup id={id} value={value} onValueChange={(v) => onChange(v as 'si' | 'no')} className="flex flex-row gap-0">
+    <div className="flex flex-row">
       {(['si', 'no'] as const).map((opt) => (
-        <Label
+        <button
           key={opt}
-          htmlFor={`${id}-${opt}`}
+          type="button"
+          onClick={() => onChange(opt)}
           className={cn(
-            'flex cursor-pointer items-center gap-1 border px-3 py-1.5 text-sm font-medium transition-colors select-none',
+            'border px-3 py-1.5 text-sm font-medium transition-colors select-none',
             opt === 'si' ? 'rounded-l-md border-r-0' : 'rounded-r-md',
             value === opt
               ? 'bg-primary text-primary-foreground border-primary'
               : 'bg-background border-input hover:bg-accent',
           )}
         >
-          <RadioGroupItem id={`${id}-${opt}`} value={opt} className="sr-only" />
           {opt === 'si' ? 'Sí' : 'No'}
-        </Label>
+        </button>
       ))}
-    </RadioGroup>
+    </div>
   );
 }
 
@@ -161,11 +175,15 @@ function OrdenInspeccionSheet({
   open,
   onClose,
   onSave,
+  onAceptar,
+  onRechazar,
 }: {
   record: SolicitudRecord | null;
   open: boolean;
   onClose: () => void;
   onSave: (id: string, orden: OrdenInspeccionData) => void;
+  onAceptar: (id: string) => void;
+  onRechazar: (id: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Partial<OrdenInspeccionData>>({});
@@ -231,13 +249,16 @@ function OrdenInspeccionSheet({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   {orden.estado === 'completada' ? (
-                    <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                    <>
+                      <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                      <span className="font-medium">Inspección completada</span>
+                    </>
                   ) : (
-                    <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
+                    <Badge variant="secondary" className="gap-1.5">
+                      <Clock className="h-3.5 w-3.5" />
+                      En proceso
+                    </Badge>
                   )}
-                  <span className="font-medium">
-                    {orden.estado === 'completada' ? 'Inspección completada' : 'Inspección en proceso'}
-                  </span>
                 </div>
                 <Button type="button" variant="outline" size="sm" onClick={startEdit}>
                   <Pencil className="mr-1.5 h-3.5 w-3.5" /> Editar
@@ -313,26 +334,22 @@ function OrdenInspeccionSheet({
               {/* Estado */}
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Estado de la inspección</Label>
-                <RadioGroup
-                  value={draft.estado ?? 'en_proceso'}
-                  onValueChange={(v) => set({ estado: v as 'en_proceso' | 'completada' })}
-                  className="flex flex-row gap-0"
-                >
+                <div className="flex flex-row">
                   {([['en_proceso', 'En proceso'], ['completada', 'Completada']] as const).map(([val, lbl]) => (
-                    <Label
+                    <button
                       key={val}
-                      htmlFor={`insp-estado-${val}`}
+                      type="button"
+                      onClick={() => set({ estado: val })}
                       className={cn(
-                        'flex cursor-pointer items-center border px-3.5 py-1.5 text-sm font-medium transition-colors select-none',
+                        'border px-3.5 py-1.5 text-sm font-medium transition-colors select-none',
                         val === 'en_proceso' ? 'rounded-l-md border-r-0' : 'rounded-r-md',
-                        draft.estado === val ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent',
+                        (draft.estado ?? 'en_proceso') === val ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent',
                       )}
                     >
-                      <RadioGroupItem id={`insp-estado-${val}`} value={val} className="sr-only" />
                       {lbl}
-                    </Label>
+                    </button>
                   ))}
-                </RadioGroup>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -384,7 +401,7 @@ function OrdenInspeccionSheet({
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2 space-y-1.5">
                   <Label className="text-sm">¿Existe red en frente del predio?</Label>
-                  <YesNo id="insp-existe-red" value={draft.existeRed ?? ''} onChange={(v) => set({ existeRed: v })} />
+                  <YesNo value={draft.existeRed ?? ''} onChange={(v) => set({ existeRed: v })} />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-sm">Distancia de la red al predio (m)</Label>
@@ -419,7 +436,7 @@ function OrdenInspeccionSheet({
                 </div>
                 <div className="col-span-2 space-y-1.5">
                   <Label className="text-sm">¿Existe toma actualmente?</Label>
-                  <YesNo id="insp-toma-existe" value={draft.tomaExistente ?? ''} onChange={(v) => set({ tomaExistente: v })} />
+                  <YesNo value={draft.tomaExistente ?? ''} onChange={(v) => set({ tomaExistente: v })} />
                 </div>
                 {draft.tomaExistente === 'si' && (
                   <>
@@ -451,7 +468,7 @@ function OrdenInspeccionSheet({
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2 space-y-1.5">
                   <Label className="text-sm">¿Existe medidor actualmente?</Label>
-                  <YesNo id="insp-medidor-existe" value={draft.medidorExistente ?? ''} onChange={(v) => set({ medidorExistente: v })} />
+                  <YesNo value={draft.medidorExistente ?? ''} onChange={(v) => set({ medidorExistente: v })} />
                 </div>
                 {draft.medidorExistente === 'si' && (
                   <div className="space-y-1">
@@ -475,13 +492,55 @@ function OrdenInspeccionSheet({
           )}
         </div>
 
-        {/* Footer actions */}
+        {/* Footer actions — edit mode */}
         {editing && (
           <div className="flex items-center justify-end gap-2 border-t px-6 py-4">
             <Button type="button" variant="outline" onClick={() => setEditing(false)}>Cancelar</Button>
             <Button type="button" onClick={handleSave} className="bg-[#007BFF] hover:bg-blue-600 text-white">
               Guardar inspección
             </Button>
+          </div>
+        )}
+
+        {/* Footer actions — view mode after inspection is completed */}
+        {!editing && orden?.estado === 'completada' && record && (
+          <div className="border-t px-6 py-4 space-y-3">
+            {(record.estado === 'en_cotizacion' || record.estado === 'inspeccion_completada') && (
+              <>
+                <p className="text-xs text-muted-foreground">La inspección fue completada. Puedes avanzar a cuantificación o rechazar la solicitud.</p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1 border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
+                    onClick={() => onRechazar(record.id)}
+                  >
+                    <XCircle className="mr-1.5 h-4 w-4" />
+                    Rechazar
+                  </Button>
+                  <Button
+                    type="button"
+                    className="flex-1 bg-blue-600 text-white hover:bg-blue-700"
+                    onClick={() => onAceptar(record.id)}
+                  >
+                    <ArrowRight className="mr-1.5 h-4 w-4" />
+                    Continuar con cuantificación
+                  </Button>
+                </div>
+              </>
+            )}
+            {(record.estado === 'aceptada' || record.estado === 'contratado') && (
+              <div className="flex items-center gap-2 text-emerald-700">
+                <CheckCircle2 className="h-4 w-4" />
+                <span className="text-sm font-medium">Solicitud aceptada — proceso de contratación iniciado</span>
+              </div>
+            )}
+            {record.estado === 'rechazada' && (
+              <div className="flex items-center gap-2 text-red-700">
+                <XCircle className="h-4 w-4" />
+                <span className="text-sm font-medium">Solicitud rechazada</span>
+              </div>
+            )}
           </div>
         )}
       </SheetContent>
@@ -508,15 +567,32 @@ export default function Solicitudes() {
     );
   }, [store.records, search]);
 
-  // KPI counts
+  // KPI counts (3-state model)
   const total = store.records.length;
-  const pendientes = store.records.filter((r) => r.estado === 'borrador' || r.estado === 'inspeccion_pendiente').length;
-  const enProceso = store.records.filter((r) => r.estado === 'inspeccion_en_proceso').length;
-  const completadas = store.records.filter((r) => r.estado === 'inspeccion_completada' || r.estado === 'cotizado' || r.estado === 'contratado').length;
+  const pendientesInsp = store.records.filter((r) =>
+    ['borrador', 'inspeccion_pendiente', 'inspeccion_en_proceso'].includes(r.estado),
+  ).length;
+  const enCotizacion = store.records.filter((r) =>
+    ['inspeccion_completada', 'en_cotizacion', 'cotizado'].includes(r.estado),
+  ).length;
+  const aceptadas = store.records.filter((r) => r.estado === 'aceptada' || r.estado === 'contratado').length;
+  const rechazadas = store.records.filter((r) => r.estado === 'rechazada').length;
 
   function handleSaveOrden(id: string, orden: OrdenInspeccionData) {
     store.setOrdenInspeccion(id, orden);
-    setInspRecord((prev) => (prev?.id === id ? { ...prev, ordenInspeccion: orden } : prev));
+    const nextEstado = orden.estado === 'completada' ? 'en_cotizacion' as const : 'inspeccion_en_proceso' as const;
+    setInspRecord((prev) => (prev?.id === id ? { ...prev, ordenInspeccion: orden, estado: nextEstado } : prev));
+  }
+
+  function handleAceptar(id: string) {
+    store.aceptarSolicitud(id);
+    setInspRecord(null);
+    navigate('/app/contratos');
+  }
+
+  function handleRechazar(id: string) {
+    store.rechazarSolicitud(id);
+    setInspRecord(null);
   }
 
   return (
@@ -539,7 +615,7 @@ export default function Solicitudes() {
 
       {/* ── Flow indicator ───────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-1.5 rounded-lg border bg-muted/30 px-4 py-2.5 text-xs text-muted-foreground">
-        <span className="font-medium text-foreground">Flujo:</span>
+        <span>Flujo:</span>
         {[
           'Solicitud CEA-FUS01',
           'Inspección en campo',
@@ -547,8 +623,8 @@ export default function Solicitudes() {
           'Contratación',
         ].map((step, i, arr) => (
           <span key={step} className="flex items-center gap-1.5">
-            <span className={i === 0 ? 'font-medium text-primary' : ''}>{step}</span>
-            {i < arr.length - 1 && <span className="text-muted-foreground/50">→</span>}
+            <span>{step}</span>
+            {i < arr.length - 1 && <ArrowRight className="h-3 w-3 text-muted-foreground/40" />}
           </span>
         ))}
       </div>
@@ -557,9 +633,9 @@ export default function Solicitudes() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
           { label: 'Total solicitudes', value: total, className: '' },
-          { label: 'Pendientes de inspección', value: pendientes, className: 'text-amber-600' },
-          { label: 'En inspección', value: enProceso, className: 'text-blue-600' },
-          { label: 'Insp. completadas', value: completadas, className: 'text-emerald-600' },
+          { label: 'Pendientes de inspección', value: pendientesInsp, className: 'text-amber-600' },
+          { label: 'En cotización', value: enCotizacion, className: 'text-blue-600' },
+          { label: 'Aceptadas', value: aceptadas + rechazadas, className: 'text-emerald-600' },
         ].map((kpi) => (
           <Card key={kpi.label}>
             <CardContent className="pt-4 pb-4">
@@ -649,23 +725,39 @@ export default function Solicitudes() {
                         <Pencil className="h-3.5 w-3.5" />
                         Editar
                       </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className={cn(
-                          'h-8 gap-1.5',
-                          r.ordenInspeccion?.estado === 'completada'
-                            ? 'border-emerald-500/50 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400'
-                            : r.ordenInspeccion?.estado === 'en_proceso'
-                            ? 'border-blue-400/50 text-blue-700 hover:bg-blue-50 dark:text-blue-400'
-                            : '',
-                        )}
-                        onClick={() => setInspRecord(r)}
-                      >
-                        <ClipboardList className="h-3.5 w-3.5" />
-                        Inspección
-                      </Button>
+                      {(r.estado === 'aceptada' || r.estado === 'contratado') ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 gap-1.5 border-emerald-500 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                          onClick={() => navigate('/app/contratos')}
+                        >
+                          <ArrowRight className="h-3.5 w-3.5" />
+                          Ver contrato
+                        </Button>
+                      ) : (r.estado === 'en_cotizacion' || r.estado === 'inspeccion_completada' || r.estado === 'cotizado') ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="h-8 gap-1.5 bg-blue-600 text-white hover:bg-blue-700"
+                          onClick={() => setInspRecord(r)}
+                        >
+                          <FileText className="h-3.5 w-3.5" />
+                          Cuantificación
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 gap-1.5 border-slate-300 text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                          onClick={() => setInspRecord(r)}
+                        >
+                          <ClipboardList className="h-3.5 w-3.5" />
+                          Inspección
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -681,6 +773,8 @@ export default function Solicitudes() {
         open={!!inspRecord}
         onClose={() => setInspRecord(null)}
         onSave={handleSaveOrden}
+        onAceptar={handleAceptar}
+        onRechazar={handleRechazar}
       />
     </div>
   );

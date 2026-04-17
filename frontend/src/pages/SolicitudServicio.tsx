@@ -64,6 +64,98 @@ const USOS_CFDI = [
 
 // ── Mock data for demos ───────────────────────────────────────────────────────
 
+// Data split per wizard step so prellenar can fill them one by one
+const MOCK_STEP_DATA: Partial<SolicitudState>[] = [
+  // 0 – Predio
+  {
+    claveCatastral: '22001-045-012',
+    folioExpediente: '',
+    predioDir: {
+      estadoINEGIId: '22',
+      municipioINEGIId: '22014',
+      localidadINEGIId: '',
+      coloniaINEGIId: '',
+      codigoPostal: '76030',
+      calle: 'Av. Constituyentes',
+      numExterior: '425',
+      numInterior: '',
+      referencia: 'Entre Av. 5 de Febrero y calle Hidalgo',
+    },
+    predioManzana: '12',
+    predioLote: '04',
+    superficieTotal: '180',
+    superficieConstruida: '120',
+  },
+  // 1 – Propietario
+  {
+    propTipoPersona: 'fisica',
+    propPaterno: 'García',
+    propMaterno: 'Ramírez',
+    propNombre: 'María Elena',
+    propRazonSocial: '',
+    propRfc: 'GARM850312AB3',
+    propCorreo: 'mgarcia@correo.com',
+    propTelefono: '4421234567',
+    propDir: {
+      estadoINEGIId: '22',
+      municipioINEGIId: '22014',
+      localidadINEGIId: '',
+      coloniaINEGIId: '',
+      codigoPostal: '76030',
+      calle: 'Calle Independencia',
+      numExterior: '88',
+      numInterior: 'Int. 3',
+      referencia: '',
+    },
+    propManzana: '',
+    propLote: '',
+  },
+  // 2 – Solicitud
+  {
+    usoDomestico: 'si',
+    hayTuberias: 'si',
+    hayInfraCEA: 'si',
+    esCondominio: 'no',
+    condoViviendas: '',
+    condoUbicacionTomas: '',
+    condoTieneMedidorMacro: '',
+    condoNumMedidor: '',
+    condoAreasComunes: '',
+    condoNumAreas: '',
+    condoAgrupacion: '',
+    condoNombreAgrupacion: '',
+    personasVivienda: '4',
+    tieneCertConexion: 'si',
+  },
+  // 3 – Contratación
+  {
+    adminId: '1',
+    contratoPadre: '',
+  },
+  // 4 – Fiscal
+  {
+    requiereFactura: 'si',
+    mismosDatosProp: 'si',
+    fiscalTipoPersona: 'fisica',
+    fiscalRazonSocial: '',
+    fiscalRfc: 'GARM850312AB3',
+    fiscalCorreo: 'mgarcia@correo.com',
+    fiscalDir: {
+      estadoINEGIId: '22',
+      municipioINEGIId: '22014',
+      localidadINEGIId: '',
+      coloniaINEGIId: '',
+      codigoPostal: '76030',
+      calle: 'Calle Independencia',
+      numExterior: '88',
+      numInterior: 'Int. 3',
+      referencia: '',
+    },
+    fiscalRegimenFiscal: '616',
+    fiscalUsoCfdi: 'G03',
+  },
+];
+
 const MOCK_DATA: SolicitudState = {
   claveCatastral: '22001-045-012',
   folioExpediente: '',
@@ -749,6 +841,7 @@ export default function SolicitudServicio() {
 
   const [form, setForm] = useState<SolicitudState>(existingRecord?.formData ?? SOLICITUD_STATE_EMPTY);
   const [currentStep, setCurrentStep] = useState(0);
+  const [isPrellenando, setIsPrellenando] = useState(false);
 
   function set(patch: Partial<SolicitudState>) {
     setForm((prev) => ({ ...prev, ...patch }));
@@ -768,12 +861,33 @@ export default function SolicitudServicio() {
   const canNext = canAdvance(currentStep, form);
 
   function handlePrellenar() {
-    // Pick a valid tipoContratacionId from admin '1'
+    if (isPrellenando) return;
     const tipos = TIPOS_CONTRATACION_BY_ADMIN['1'] ?? [];
     const tipoId = tipos[0]?.id ?? '';
-    setForm({ ...MOCK_DATA, tipoContratacionId: tipoId });
+    setIsPrellenando(true);
+    setForm(SOLICITUD_STATE_EMPTY);
     setCurrentStep(0);
-    toast.success('Datos de demo cargados');
+
+    const DELAY = 700;
+
+    function fillStep(step: number) {
+      if (step >= MOCK_STEP_DATA.length) {
+        setIsPrellenando(false);
+        toast.success('Datos de demo cargados');
+        return;
+      }
+      const patch = step === 3
+        ? { ...MOCK_STEP_DATA[step], tipoContratacionId: tipoId }
+        : MOCK_STEP_DATA[step];
+      setForm((prev) => ({ ...prev, ...patch }));
+      setCurrentStep(step);
+      setTimeout(() => {
+        setCurrentStep(step + 1);
+        setTimeout(() => fillStep(step + 1), 150);
+      }, DELAY);
+    }
+
+    setTimeout(() => fillStep(0), 100);
   }
 
   function handleNext() {
@@ -832,11 +946,12 @@ export default function SolicitudServicio() {
             type="button"
             variant="outline"
             size="sm"
+            disabled={isPrellenando}
             className="gap-1.5 border-dashed text-muted-foreground hover:text-foreground"
             onClick={handlePrellenar}
           >
-            <Wand2 className="h-3.5 w-3.5" />
-            Prellenar demo
+            <Wand2 className={cn('h-3.5 w-3.5', isPrellenando && 'animate-spin')} />
+            {isPrellenando ? `Cargando ${STEPS[Math.min(currentStep, STEPS.length - 2)]?.label}…` : 'Prellenar demo'}
           </Button>
         )}
       </div>
