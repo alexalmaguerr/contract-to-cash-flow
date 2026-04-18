@@ -67,7 +67,9 @@ export interface SolicitudState {
   actividadId: string;
   contratoPadre: string;
   variablesCapturadas: Record<string, string>;
+  variablesTexto: string;
   documentosRecibidos: string[];
+  documentosTexto: string;
   requiereFactura: 'si' | 'no' | '';
   mismosDatosProp: 'si' | 'no' | '';
   fiscalTipoPersona: 'fisica' | 'moral' | '';
@@ -131,7 +133,9 @@ export const SOLICITUD_STATE_EMPTY: SolicitudState = {
   actividadId: '',
   contratoPadre: '',
   variablesCapturadas: {},
+  variablesTexto: '',
   documentosRecibidos: [],
+  documentosTexto: '',
   requiereFactura: '',
   mismosDatosProp: '',
   fiscalTipoPersona: '',

@@ -906,85 +906,91 @@ function StepContratacion({ form, set }: { form: SolicitudState; set: (p: Partia
       )}
 
       {/* Variables de Contratación */}
-      {form.tipoContratacionId && (
-        <div className="space-y-3">
-          <p className="text-sm font-medium">Variables de Contratación:</p>
-          <div className="rounded-md border bg-background p-4">
-            {configLoading ? (
-              <p className="text-xs text-muted-foreground">Cargando variables…</p>
-            ) : variables.length === 0 ? (
-              <p className="text-xs text-muted-foreground">Sin variables configuradas para este tipo.</p>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {variables
-                  .slice()
-                  .sort((a, b) => a.orden - b.orden)
-                  .map((v) => (
-                    <Field
-                      key={v.id}
-                      label={`${v.tipoVariable.nombre}${v.tipoVariable.unidad ? ` (${v.tipoVariable.unidad})` : ''}`}
-                      required={v.obligatorio}
-                    >
-                      <Input
-                        className="h-9"
-                        placeholder={v.valorDefecto ?? ''}
-                        value={(form.variablesCapturadas[v.tipoVariable.codigo] as string) ?? ''}
-                        onChange={(e) =>
-                          set({
-                            variablesCapturadas: {
-                              ...form.variablesCapturadas,
-                              [v.tipoVariable.codigo]: e.target.value,
-                            },
-                          })
-                        }
-                      />
-                    </Field>
-                  ))}
-              </div>
-            )}
-          </div>
+      <div className="space-y-3">
+        <p className="text-sm font-medium">Variables de Contratación:</p>
+        <div className="rounded-md border bg-background p-4">
+          {configLoading ? (
+            <p className="text-xs text-muted-foreground">Cargando variables…</p>
+          ) : variables.length > 0 ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {variables
+                .slice()
+                .sort((a, b) => a.orden - b.orden)
+                .map((v) => (
+                  <Field
+                    key={v.id}
+                    label={`${v.tipoVariable.nombre}${v.tipoVariable.unidad ? ` (${v.tipoVariable.unidad})` : ''}`}
+                    required={v.obligatorio}
+                  >
+                    <Input
+                      className="h-9"
+                      placeholder={v.valorDefecto ?? ''}
+                      value={(form.variablesCapturadas[v.tipoVariable.codigo] as string) ?? ''}
+                      onChange={(e) =>
+                        set({
+                          variablesCapturadas: {
+                            ...form.variablesCapturadas,
+                            [v.tipoVariable.codigo]: e.target.value,
+                          },
+                        })
+                      }
+                    />
+                  </Field>
+                ))}
+            </div>
+          ) : (
+            <textarea
+              className="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
+              placeholder="Anota aquí las variables de contratación…"
+              value={form.variablesTexto}
+              onChange={(e) => set({ variablesTexto: e.target.value })}
+            />
+          )}
         </div>
-      )}
+      </div>
 
       {/* Documentos Presentados */}
-      {form.tipoContratacionId && (
-        <div className="space-y-3">
-          <p className="text-sm font-medium">Documentos Presentados:</p>
-          <div className="rounded-md border bg-background p-4">
-            {configLoading ? (
-              <p className="text-xs text-muted-foreground">Cargando documentos…</p>
-            ) : documentos.length === 0 ? (
-              <p className="text-xs text-muted-foreground">Sin documentos requeridos configurados.</p>
-            ) : (
-              <div className="space-y-2">
-                {documentos.map((doc) => {
-                  const checked = form.documentosRecibidos.includes(doc.id);
-                  return (
-                    <label key={doc.id} className="flex cursor-pointer items-center gap-2.5 text-sm">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-input accent-primary"
-                        checked={checked}
-                        onChange={(e) =>
-                          set({
-                            documentosRecibidos: e.target.checked
-                              ? [...form.documentosRecibidos, doc.id]
-                              : form.documentosRecibidos.filter((id) => id !== doc.id),
-                          })
-                        }
-                      />
-                      <span className={doc.obligatorio ? 'font-medium' : ''}>
-                        {doc.nombreDocumento.toUpperCase()}
-                        {doc.obligatorio && <span className="ml-1 text-destructive">*</span>}
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+      <div className="space-y-3">
+        <p className="text-sm font-medium">Documentos Presentados:</p>
+        <div className="rounded-md border bg-background p-4">
+          {configLoading ? (
+            <p className="text-xs text-muted-foreground">Cargando documentos…</p>
+          ) : documentos.length > 0 ? (
+            <div className="space-y-2">
+              {documentos.map((doc) => {
+                const checked = form.documentosRecibidos.includes(doc.id);
+                return (
+                  <label key={doc.id} className="flex cursor-pointer items-center gap-2.5 text-sm">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-input accent-primary"
+                      checked={checked}
+                      onChange={(e) =>
+                        set({
+                          documentosRecibidos: e.target.checked
+                            ? [...form.documentosRecibidos, doc.id]
+                            : form.documentosRecibidos.filter((id) => id !== doc.id),
+                        })
+                      }
+                    />
+                    <span className={doc.obligatorio ? 'font-medium' : ''}>
+                      {doc.nombreDocumento.toUpperCase()}
+                      {doc.obligatorio && <span className="ml-1 text-destructive">*</span>}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          ) : (
+            <textarea
+              className="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
+              placeholder="Lista los documentos presentados…"
+              value={form.documentosTexto}
+              onChange={(e) => set({ documentosTexto: e.target.value })}
+            />
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
