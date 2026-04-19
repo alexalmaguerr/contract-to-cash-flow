@@ -36,9 +36,40 @@ export interface SolicitudState {
   condoNombreAgrupacion: string;
   personasVivienda: string;
   tieneCertConexion: 'si' | 'no' | '';
+  // ── No Doméstico ──────────────────────────────────────────────────────────
+  noDomHayInfra: 'si' | 'no' | '';
+  // Con infraestructura — giros específicos
+  noDomRestComensales: string;
+  noDomRestMesas: string;
+  noDomRestSanitarios: string;
+  noDomLavNumLavadoras: string;
+  noDomLavCapKg: string;
+  noDomLavKgDia: string;
+  noDomAutoAutosDia: string;
+  noDomTortKgDia: string;
+  noDomOficM2Oficinas: string;
+  noDomOficM2Estac: string;
+  noDomOtroGiro: string;
+  // Sin infraestructura — requerimiento de agua
+  noDomReqDomUnidades: string;
+  noDomReqDomGiro: string;
+  noDomReqComUnidades: string;
+  noDomReqComGiro: string;
+  noDomReqIndUnidades: string;
+  noDomReqIndGiro: string;
+  noDomReqOtroUnidades: string;
+  noDomReqOtroGiro: string;
+  noDomReqTotalUnidades: string;
   adminId: string;
   tipoContratacionId: string;
+  distritoId: string;
+  grupoActividadId: string;
+  actividadId: string;
   contratoPadre: string;
+  variablesCapturadas: Record<string, string>;
+  variablesTexto: string;
+  documentosRecibidos: string[];
+  documentosTexto: string;
   requiereFactura: 'si' | 'no' | '';
   mismosDatosProp: 'si' | 'no' | '';
   fiscalTipoPersona: 'fisica' | 'moral' | '';
@@ -83,9 +114,28 @@ export const SOLICITUD_STATE_EMPTY: SolicitudState = {
   condoNombreAgrupacion: '',
   personasVivienda: '',
   tieneCertConexion: '',
+  noDomHayInfra: '',
+  noDomRestComensales: '', noDomRestMesas: '', noDomRestSanitarios: '',
+  noDomLavNumLavadoras: '', noDomLavCapKg: '', noDomLavKgDia: '',
+  noDomAutoAutosDia: '',
+  noDomTortKgDia: '',
+  noDomOficM2Oficinas: '', noDomOficM2Estac: '',
+  noDomOtroGiro: '',
+  noDomReqDomUnidades: '', noDomReqDomGiro: '',
+  noDomReqComUnidades: '', noDomReqComGiro: '',
+  noDomReqIndUnidades: '', noDomReqIndGiro: '',
+  noDomReqOtroUnidades: '', noDomReqOtroGiro: '',
+  noDomReqTotalUnidades: '',
   adminId: '',
   tipoContratacionId: '',
+  distritoId: '',
+  grupoActividadId: '',
+  actividadId: '',
   contratoPadre: '',
+  variablesCapturadas: {},
+  variablesTexto: '',
+  documentosRecibidos: [],
+  documentosTexto: '',
   requiereFactura: '',
   mismosDatosProp: '',
   fiscalTipoPersona: '',
@@ -101,27 +151,56 @@ export const SOLICITUD_STATE_EMPTY: SolicitudState = {
 
 export interface OrdenInspeccionData {
   estado: 'en_proceso' | 'completada';
+  // General
   fechaInspeccion?: string;
-  inspector?: string;
-  // Physical survey data
-  materialCalle?: 'concreto_hidraulico' | 'concreto_asfaltico' | 'tierra' | 'adoquin' | 'otro';
-  materialBanqueta?: 'concreto_hidraulico' | 'tierra' | 'adoquin' | 'otro';
-  metrosRupturaCalle?: string;
-  metrosRupturaBanqueta?: string;
-  diametroToma?: string;
-  existeRed?: 'si' | 'no' | '';
-  distanciaRed?: string;          // metros lineales
-  presionRed?: string;            // kg/cm²
-  tipoMaterialRed?: string;
-  profundidadRed?: string;        // metros
+  numeroOficial?: string;
+  tipoUso?: string;
+  giro?: string;
+  // Áreas
+  areaTerreno?: string;
+  // Condiciones
+  condicionToma?: string;
+  condicionesPredio?: string;
+  // Infraestructura
+  infraHidraulicaExterna?: 'si' | 'no' | '';
+  infraSanitaria?: 'si' | 'no' | '';
+  materialCalle?: string;
+  materialBanqueta?: string;
+  metrosRupturaAguaBanqueta?: string;
+  metrosRupturaAguaCalle?: string;
+  metrosRupturaDrenajeBanqueta?: string;
+  metrosRupturaDrenajeCalle?: string;
+  // Observaciones y evidencia
   observaciones?: string;
-  // Toma existente
-  tomaExistente?: 'si' | 'no' | '';
-  diametroTomaExistente?: string;
-  estadoTomaExistente?: string;   // buena, regular, mala
-  // Medidor existente
+  evidencias?: string[];            // base64 data URLs
+  // Resultados
+  resultadoEjecucion?: string;
+  resultadoInspeccion?: string;
+  // Inspector principal
+  inspectorNumEmpleado?: string;
+  inspectorNombre?: string;
+  firmaInspector?: string;          // base64 data URL
+  // Inspectores adicionales
+  inspectoresAdicionales?: Array<{ noEmpleado: string; nombre: string; firma?: string }>;
+  // Tiempos y validación
+  inicio?: string;
+  fin?: string;
+  tipoOrdenCorrecto?: 'si' | 'no' | '';
+  // ── Legacy (kept for cotización engine backward compat) ──────────────────
+  inspector?: string;
+  diametroToma?: string;
   medidorExistente?: 'si' | 'no' | '';
   numMedidorExistente?: string;
+  metrosRupturaCalle?: string;
+  metrosRupturaBanqueta?: string;
+  existeRed?: 'si' | 'no' | '';
+  distanciaRed?: string;
+  presionRed?: string;
+  tipoMaterialRed?: string;
+  profundidadRed?: string;
+  tomaExistente?: 'si' | 'no' | '';
+  diametroTomaExistente?: string;
+  estadoTomaExistente?: string;
 }
 
 // ── Solicitud record (persisted) ──────────────────────────────────────────────
@@ -150,5 +229,6 @@ export interface SolicitudRecord {
   estado: SolicitudEstado;
   ordenInspeccion?: OrdenInspeccionData;
   formData: SolicitudState;
+  contratoId?: string;
   createdAt: string;
 }

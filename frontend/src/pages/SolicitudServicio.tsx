@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createSolicitud, fetchSolicitud, updateSolicitud } from '@/api/solicitudes';
 import type { CatalogoEstadoINEGI, CatalogoMunicipioINEGIRow, PaginatedInegi } from '@/api/domicilios-inegi';
+import { fetchInegiEstados, fetchInegiMunicipiosCatalogo, fetchInegiLocalidadesCatalogo, fetchInegiColoniasCatalogo } from '@/api/domicilios-inegi';
 import { ArrowLeft, Check, FileText, MapPin, User, HelpCircle, Settings, Receipt, ClipboardCheck, Wand2 } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,8 +21,8 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { toast } from '@/components/ui/sonner';
 import DomicilioPickerForm from '@/components/contratacion/DomicilioPickerForm';
-import { fetchAdministraciones } from '@/api/catalogos';
-import { fetchTiposContratacion, type TipoContratacion } from '@/api/tipos-contratacion';
+import { fetchAdministraciones, fetchDistritos, fetchGruposActividad, fetchActividades, type DistritoCatalogo, type CatalogoGrupoActividad, type CatalogoActividad } from '@/api/catalogos';
+import { fetchTiposContratacion, fetchTipoContratacionConfiguracion, type TipoContratacion } from '@/api/tipos-contratacion';
 import { hasApi } from '@/api/contratos';
 import { cn } from '@/lib/utils';
 import type { DomicilioFormValue, SolicitudEstado, SolicitudRecord, SolicitudState } from '@/types/solicitudes';
@@ -67,7 +68,7 @@ const MOCK_STEP_DATA: Partial<SolicitudState>[] = [
       codigoPostal: '76030',
       calle: 'Av. Constituyentes',
       numExterior: '425',
-      numInterior: '',
+      numInterior: 'Depto. 3',
       referencia: 'Entre Av. 5 de Febrero y calle Hidalgo',
     },
     predioManzana: '12',
@@ -99,7 +100,14 @@ const MOCK_STEP_DATA: Partial<SolicitudState>[] = [
     propManzana: '',
     propLote: '',
   },
-  // 2 – Solicitud
+  // 2 – Fiscal (mismosDatosProp='si' → copiar de propietario al seleccionar)
+  {
+    requiereFactura: 'si',
+    mismosDatosProp: 'si',
+    fiscalRegimenFiscal: '616',
+    fiscalUsoCfdi: 'G03',
+  },
+  // 3 – Solicitud
   {
     usoDomestico: 'si',
     hayTuberias: 'si',
@@ -116,32 +124,13 @@ const MOCK_STEP_DATA: Partial<SolicitudState>[] = [
     personasVivienda: '4',
     tieneCertConexion: 'si',
   },
-  // 3 – Contratación
+  // 4 – Contratación (adminId/tipoContratacionId resolved at runtime; distritoId/grupoActividadId/actividadId pick first available)
   {
     adminId: '1',
+    distritoId: '__first__',
+    grupoActividadId: '__first__',
+    actividadId: '__first__',
     contratoPadre: '',
-  },
-  // 4 – Fiscal
-  {
-    requiereFactura: 'si',
-    mismosDatosProp: 'si',
-    fiscalTipoPersona: 'fisica',
-    fiscalRazonSocial: '',
-    fiscalRfc: 'GARM850312AB3',
-    fiscalCorreo: 'mgarcia@correo.com',
-    fiscalDir: {
-      estadoINEGIId: '22',
-      municipioINEGIId: '014',
-      localidadINEGIId: '',
-      coloniaINEGIId: '',
-      codigoPostal: '76030',
-      calle: 'Calle Independencia',
-      numExterior: '88',
-      numInterior: 'Int. 3',
-      referencia: '',
-    },
-    fiscalRegimenFiscal: '616',
-    fiscalUsoCfdi: 'G03',
   },
 ];
 
@@ -156,7 +145,7 @@ const MOCK_DATA: SolicitudState = {
     codigoPostal: '76030',
     calle: 'Av. Constituyentes',
     numExterior: '425',
-    numInterior: '',
+    numInterior: 'Depto. 3',
     referencia: 'Entre Av. 5 de Febrero y calle Hidalgo',
   },
   predioManzana: '12',
@@ -227,9 +216,9 @@ const MOCK_DATA: SolicitudState = {
 const STEPS = [
   { key: 'predio',        label: 'Predio',        icon: MapPin },
   { key: 'propietario',   label: 'Propietario',   icon: User },
+  { key: 'fiscal',        label: 'Fiscal',        icon: Receipt },
   { key: 'solicitud',     label: 'Solicitud',     icon: HelpCircle },
   { key: 'contratacion',  label: 'Contratación',  icon: Settings },
-  { key: 'fiscal',        label: 'Fiscal',        icon: Receipt },
   { key: 'resumen',       label: 'Resumen',       icon: ClipboardCheck },
 ] as const;
 
@@ -237,22 +226,47 @@ type StepKey = typeof STEPS[number]['key'];
 
 // ── Per-step validation ───────────────────────────────────────────────────────
 
+function validDir(d: { estadoINEGIId: string; municipioINEGIId: string; coloniaINEGIId: string; calle: string; numExterior: string }) {
+  return !!(d.estadoINEGIId && d.municipioINEGIId && d.coloniaINEGIId && d.calle.trim() && d.numExterior.trim());
+}
+
 function canAdvance(step: number, form: SolicitudState): boolean {
   switch (step) {
-    case 0: // Predio — calle obligatoria
-      return !!form.predioDir.calle.trim();
-    case 1: // Propietario
+    case 0: // Predio
+      return validDir(form.predioDir);
+
+    case 1: { // Propietario
       if (!form.propTipoPersona) return false;
-      if (form.propTipoPersona === 'moral') return !!form.propRazonSocial.trim();
-      return !!(form.propPaterno.trim() || form.propNombre.trim());
-    case 2: // Solicitud
-      return !!form.usoDomestico && !!form.hayTuberias;
-    case 3: // Tipo de contratación
-      return !!form.adminId && !!form.tipoContratacionId;
-    case 4: // Fiscal
-      return !!form.requiereFactura;
-    case 5: // Resumen — always ok
+      if (form.propTipoPersona === 'moral' && !form.propRazonSocial.trim()) return false;
+      if (form.propTipoPersona === 'fisica' && (!form.propPaterno.trim() || !form.propNombre.trim())) return false;
+      if (!form.propCorreo.trim() || !form.propTelefono.trim()) return false;
+      return validDir(form.propDir);
+    }
+
+    case 2: { // Fiscal
+      if (!form.requiereFactura) return false;
+      if (form.requiereFactura === 'no') return true;
+      // requiere factura = si
+      if (!form.mismosDatosProp) return false;
+      if (!form.fiscalTipoPersona) return false;
+      if (form.fiscalTipoPersona === 'moral' && !form.fiscalRazonSocial.trim()) return false;
+      if (!form.fiscalRfc.trim() || !form.fiscalCorreo.trim()) return false;
+      if (!validDir(form.fiscalDir)) return false;
+      if (!form.fiscalRegimenFiscal || !form.fiscalUsoCfdi) return false;
       return true;
+    }
+
+    case 3: // Solicitud
+      if (!form.usoDomestico || !form.hayTuberias) return false;
+      if (form.usoDomestico === 'no') return !!form.noDomHayInfra;
+      return true;
+
+    case 4: // Contratación
+      return !!(form.adminId && form.tipoContratacionId && form.distritoId && form.grupoActividadId && form.actividadId);
+
+    case 5: // Resumen
+      return true;
+
     default:
       return true;
   }
@@ -307,20 +321,23 @@ function PillToggle({
   value,
   onChange,
   idPrefix,
+  disabled = false,
 }: {
   options: { value: string; label: string; sub?: string }[];
   value: string;
   onChange: (v: string) => void;
   idPrefix: string;
+  disabled?: boolean;
 }) {
   return (
-    <RadioGroup value={value} onValueChange={onChange} className="flex flex-wrap gap-2">
+    <RadioGroup value={value} onValueChange={onChange} disabled={disabled} className="flex flex-wrap gap-2">
       {options.map((opt, i) => (
         <Label
           key={opt.value}
           htmlFor={`${idPrefix}-${i}`}
           className={cn(
-            'flex cursor-pointer items-center gap-1.5 rounded-md border px-4 py-1.5 text-sm font-medium transition-colors select-none',
+            'flex items-center gap-1.5 rounded-md border px-4 py-1.5 text-sm font-medium transition-colors select-none',
+            disabled ? 'cursor-not-allowed opacity-70' : 'cursor-pointer',
             value === opt.value ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent',
           )}
         >
@@ -547,8 +564,138 @@ function StepSolicitud({ form, set }: { form: SolicitudState; set: (p: Partial<S
       )}
 
       {form.usoDomestico === 'no' && (
-        <div className="rounded-md border border-dashed bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-          Para uso no doméstico continúe con las siguientes secciones.
+        <div className="space-y-5 rounded-lg border bg-muted/20 p-4">
+          <p className="text-lg font-bold text-primary uppercase tracking-wide">Uso No Doméstico</p>
+          <p className="text-sm text-muted-foreground">Llenar todos los campos que correspondan.</p>
+          <p className="text-xs text-muted-foreground">(Usos mixtos pueden ser: doméstico+comercio, industria+comercio u otros similares de modo que se llenen los campos específicos).</p>
+
+          <div className="space-y-2">
+            <p className="text-sm font-medium">¿Cuenta con infraestructura para toma/s y otros servicios de agua? <span className="text-destructive">*</span></p>
+            <YesNo
+              id="no-dom-hay-infra"
+              value={form.noDomHayInfra}
+              onChange={(v) => set({ noDomHayInfra: v })}
+            />
+          </div>
+
+          {/* CON infraestructura → giros específicos */}
+          {form.noDomHayInfra === 'si' && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">Seleccione el giro específico y llene los campos</p>
+
+              {/* Restaurante */}
+              <div className="grid grid-cols-[120px_1fr_1fr_1fr] items-center gap-3">
+                <span className="text-sm font-semibold">RESTAURANTE</span>
+                <Field label="Núm. comensales por día">
+                  <Input className="h-9" type="number" min="0" placeholder="0" value={form.noDomRestComensales} onChange={(e) => set({ noDomRestComensales: e.target.value })} />
+                </Field>
+                <Field label="Núm. de mesas">
+                  <Input className="h-9" type="number" min="0" placeholder="0" value={form.noDomRestMesas} onChange={(e) => set({ noDomRestMesas: e.target.value })} />
+                </Field>
+                <Field label="Núm. de sanitarios">
+                  <Input className="h-9" type="number" min="0" placeholder="0" value={form.noDomRestSanitarios} onChange={(e) => set({ noDomRestSanitarios: e.target.value })} />
+                </Field>
+              </div>
+
+              {/* Lavandería */}
+              <div className="grid grid-cols-[120px_1fr_1fr_1fr] items-center gap-3">
+                <span className="text-sm font-semibold">LAVANDERÍA</span>
+                <Field label="Núm. de lavadoras">
+                  <Input className="h-9" type="number" min="0" placeholder="0" value={form.noDomLavNumLavadoras} onChange={(e) => set({ noDomLavNumLavadoras: e.target.value })} />
+                </Field>
+                <Field label="Capacidad Kg por lavadora">
+                  <Input className="h-9" type="number" min="0" placeholder="0" value={form.noDomLavCapKg} onChange={(e) => set({ noDomLavCapKg: e.target.value })} />
+                </Field>
+                <Field label="Kg de ropa promedio por día">
+                  <Input className="h-9" type="number" min="0" placeholder="0" value={form.noDomLavKgDia} onChange={(e) => set({ noDomLavKgDia: e.target.value })} />
+                </Field>
+              </div>
+
+              {/* Autolavado */}
+              <div className="grid grid-cols-[120px_1fr_3fr] items-center gap-3">
+                <span className="text-sm font-semibold">AUTOLAVADO</span>
+                <Field label="Núm. automóviles lavados por día">
+                  <Input className="h-9" type="number" min="0" placeholder="0" value={form.noDomAutoAutosDia} onChange={(e) => set({ noDomAutoAutosDia: e.target.value })} />
+                </Field>
+              </div>
+
+              {/* Tortillería */}
+              <div className="grid grid-cols-[120px_1fr_3fr] items-center gap-3">
+                <span className="text-sm font-semibold">TORTILLERÍA</span>
+                <Field label="Núm. kg procesados por día">
+                  <Input className="h-9" type="number" min="0" placeholder="0" value={form.noDomTortKgDia} onChange={(e) => set({ noDomTortKgDia: e.target.value })} />
+                </Field>
+              </div>
+
+              {/* Oficinas */}
+              <div className="grid grid-cols-[120px_1fr_1fr_2fr] items-center gap-3">
+                <span className="text-sm font-semibold">OFICINAS</span>
+                <Field label="M² de oficina/s">
+                  <Input className="h-9" type="number" min="0" placeholder="0" value={form.noDomOficM2Oficinas} onChange={(e) => set({ noDomOficM2Oficinas: e.target.value })} />
+                </Field>
+                <Field label="M² de estacionamiento">
+                  <Input className="h-9" type="number" min="0" placeholder="0" value={form.noDomOficM2Estac} onChange={(e) => set({ noDomOficM2Estac: e.target.value })} />
+                </Field>
+              </div>
+
+              {/* Otro giro */}
+              <div className="grid grid-cols-[120px_1fr] items-center gap-3">
+                <span className="text-sm font-semibold">OTRO GIRO</span>
+                <Field label="Especificar">
+                  <Input className="h-9" placeholder="Descripción del giro" value={form.noDomOtroGiro} onChange={(e) => set({ noDomOtroGiro: e.target.value })} />
+                </Field>
+              </div>
+            </div>
+          )}
+
+          {/* SIN infraestructura → requerimiento de agua */}
+          {form.noDomHayInfra === 'no' && (
+            <div className="space-y-4">
+              <p className="text-base font-bold text-primary uppercase tracking-wide">Requerimiento de Agua</p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="py-2 text-left font-semibold w-40">USO</th>
+                      <th className="py-2 text-left font-semibold">UNIDADES (Especificar núm. de tomas)</th>
+                      <th className="py-2 text-left font-semibold">GIRO</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {([
+                      { label: 'DOMÉSTICO',  uKey: 'noDomReqDomUnidades', gKey: 'noDomReqDomGiro' },
+                      { label: 'COMERCIAL',  uKey: 'noDomReqComUnidades', gKey: 'noDomReqComGiro' },
+                      { label: 'INDUSTRIAL', uKey: 'noDomReqIndUnidades', gKey: 'noDomReqIndGiro' },
+                      { label: 'OTRO (Especificar)', uKey: 'noDomReqOtroUnidades', gKey: 'noDomReqOtroGiro' },
+                    ] as { label: string; uKey: keyof SolicitudState; gKey: keyof SolicitudState }[]).map((row) => (
+                      <tr key={row.label}>
+                        <td className="py-2 font-semibold pr-4">{row.label}</td>
+                        <td className="py-2 pr-4">
+                          <Input className="h-8 max-w-[120px]" type="number" min="0" placeholder="0"
+                            value={form[row.uKey] as string}
+                            onChange={(e) => set({ [row.uKey]: e.target.value } as Partial<SolicitudState>)} />
+                        </td>
+                        <td className="py-2">
+                          <Input className="h-8" placeholder="—"
+                            value={form[row.gKey] as string}
+                            onChange={(e) => set({ [row.gKey]: e.target.value } as Partial<SolicitudState>)} />
+                        </td>
+                      </tr>
+                    ))}
+                    <tr className="border-t-2 font-bold">
+                      <td className="py-2 pr-4">TOTAL DE UNIDADES A SERVIR</td>
+                      <td className="py-2">
+                        <Input className="h-8 max-w-[120px]" type="number" min="0" placeholder="0"
+                          value={form.noDomReqTotalUnidades}
+                          onChange={(e) => set({ noDomReqTotalUnidades: e.target.value })} />
+                      </td>
+                      <td />
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -576,8 +723,43 @@ function StepContratacion({ form, set }: { form: SolicitudState; set: (p: Partia
     enabled: useApi && !!form.adminId,
   });
 
+  const { data: distritos = [], isLoading: distritosLoading } = useQuery({
+    queryKey: ['catalogos', 'distritos'],
+    queryFn: fetchDistritos,
+    enabled: useApi,
+    staleTime: 60 * 60 * 1000,
+  });
+
+  const { data: grupos = [], isLoading: gruposLoading } = useQuery({
+    queryKey: ['catalogos', 'grupos-actividad'],
+    queryFn: fetchGruposActividad,
+    enabled: useApi,
+    staleTime: 60 * 60 * 1000,
+  });
+
+  const { data: actividades = [], isLoading: actividadesLoading } = useQuery({
+    queryKey: ['catalogos', 'actividades'],
+    queryFn: fetchActividades,
+    enabled: useApi,
+    staleTime: 60 * 60 * 1000,
+  });
+
+  const actividadesFiltradas: CatalogoActividad[] = form.grupoActividadId
+    ? actividades.filter((a) => a.grupoId === form.grupoActividadId)
+    : actividades;
+
   const tiposList: TipoContratacion[] = tiposRes?.data ?? [];
   const selectedTipo = tiposList.find((t) => t.id === form.tipoContratacionId);
+
+  const { data: tipoConfig, isLoading: configLoading } = useQuery({
+    queryKey: ['tipo-contratacion-config', form.tipoContratacionId],
+    queryFn: () => fetchTipoContratacionConfiguracion(form.tipoContratacionId),
+    enabled: useApi && !!form.tipoContratacionId,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const variables = tipoConfig?.variables ?? [];
+  const documentos = tipoConfig?.documentos ?? [];
 
   return (
     <div className="space-y-5">
@@ -647,6 +829,71 @@ function StepContratacion({ form, set }: { form: SolicitudState; set: (p: Partia
         </Field>
       </div>
 
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Field label="Distrito" required>
+          <Select
+            value={form.distritoId}
+            onValueChange={(v) => set({ distritoId: v })}
+            disabled={!useApi || distritosLoading || distritos.length === 0}
+          >
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder={distritosLoading ? 'Cargando…' : 'Seleccione distrito…'} />
+            </SelectTrigger>
+            <SelectContent>
+              {distritos.map((d: DistritoCatalogo) => (
+                <SelectItem key={d.id} value={d.id}>{d.nombre}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+
+        <Field label="Grupo actividad" required>
+          <Select
+            value={form.grupoActividadId}
+            onValueChange={(v) => set({ grupoActividadId: v, actividadId: '' })}
+            disabled={!useApi || gruposLoading || grupos.length === 0}
+          >
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder={gruposLoading ? 'Cargando…' : 'Seleccione grupo…'} />
+            </SelectTrigger>
+            <SelectContent>
+              {grupos.map((g: CatalogoGrupoActividad) => (
+                <SelectItem key={g.id} value={g.id}>
+                  {g.codigo} – {g.descripcion}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+
+        <Field label="Actividad" required>
+          <Select
+            value={form.actividadId}
+            onValueChange={(v) => set({ actividadId: v })}
+            disabled={!useApi || actividadesLoading || actividadesFiltradas.length === 0}
+          >
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder={
+                !form.grupoActividadId
+                  ? 'Primero seleccione grupo'
+                  : actividadesLoading
+                    ? 'Cargando…'
+                    : actividadesFiltradas.length === 0
+                      ? 'Sin actividades para este grupo'
+                      : 'Seleccione actividad…'
+              } />
+            </SelectTrigger>
+            <SelectContent>
+              {actividadesFiltradas.map((a: CatalogoActividad) => (
+                <SelectItem key={a.id} value={a.id}>
+                  {a.codigo} – {a.descripcion}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+
       <Field label="Contrato padre (solo individualizaciones)">
         <Input className="h-9" placeholder="Folio o número de contrato padre" value={form.contratoPadre} onChange={(e) => set({ contratoPadre: e.target.value })} />
       </Field>
@@ -657,6 +904,93 @@ function StepContratacion({ form, set }: { form: SolicitudState; set: (p: Partia
           <span className="ml-2 font-mono text-xs text-muted-foreground">({selectedTipo.codigo})</span>
         </div>
       )}
+
+      {/* Variables de Contratación */}
+      <div className="space-y-3">
+        <p className="text-sm font-medium">Variables de Contratación:</p>
+        <div className="rounded-md border bg-background p-4">
+          {configLoading ? (
+            <p className="text-xs text-muted-foreground">Cargando variables…</p>
+          ) : variables.length > 0 ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {variables
+                .slice()
+                .sort((a, b) => a.orden - b.orden)
+                .map((v) => (
+                  <Field
+                    key={v.id}
+                    label={`${v.tipoVariable.nombre}${v.tipoVariable.unidad ? ` (${v.tipoVariable.unidad})` : ''}`}
+                    required={v.obligatorio}
+                  >
+                    <Input
+                      className="h-9"
+                      placeholder={v.valorDefecto ?? ''}
+                      value={(form.variablesCapturadas[v.tipoVariable.codigo] as string) ?? ''}
+                      onChange={(e) =>
+                        set({
+                          variablesCapturadas: {
+                            ...form.variablesCapturadas,
+                            [v.tipoVariable.codigo]: e.target.value,
+                          },
+                        })
+                      }
+                    />
+                  </Field>
+                ))}
+            </div>
+          ) : (
+            <textarea
+              className="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
+              placeholder="Anota aquí las variables de contratación…"
+              value={form.variablesTexto}
+              onChange={(e) => set({ variablesTexto: e.target.value })}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Documentos Presentados */}
+      <div className="space-y-3">
+        <p className="text-sm font-medium">Documentos Presentados:</p>
+        <div className="rounded-md border bg-background p-4">
+          {configLoading ? (
+            <p className="text-xs text-muted-foreground">Cargando documentos…</p>
+          ) : documentos.length > 0 ? (
+            <div className="space-y-2">
+              {documentos.map((doc) => {
+                const checked = form.documentosRecibidos.includes(doc.id);
+                return (
+                  <label key={doc.id} className="flex cursor-pointer items-center gap-2.5 text-sm">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-input accent-primary"
+                      checked={checked}
+                      onChange={(e) =>
+                        set({
+                          documentosRecibidos: e.target.checked
+                            ? [...form.documentosRecibidos, doc.id]
+                            : form.documentosRecibidos.filter((id) => id !== doc.id),
+                        })
+                      }
+                    />
+                    <span className={doc.obligatorio ? 'font-medium' : ''}>
+                      {doc.nombreDocumento.toUpperCase()}
+                      {doc.obligatorio && <span className="ml-1 text-destructive">*</span>}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          ) : (
+            <textarea
+              className="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
+              placeholder="Lista los documentos presentados…"
+              value={form.documentosTexto}
+              onChange={(e) => set({ documentosTexto: e.target.value })}
+            />
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -664,12 +998,27 @@ function StepContratacion({ form, set }: { form: SolicitudState; set: (p: Partia
 function StepFiscal({
   form,
   set,
-  onCopiarProp,
 }: {
   form: SolicitudState;
   set: (p: Partial<SolicitudState>) => void;
-  onCopiarProp: () => void;
 }) {
+  const locked = form.mismosDatosProp === 'si';
+
+  function handleMismosDatos(v: 'si' | 'no') {
+    if (v === 'si') {
+      set({
+        mismosDatosProp: 'si',
+        fiscalTipoPersona: form.propTipoPersona,
+        fiscalRazonSocial: form.propRazonSocial,
+        fiscalRfc: form.propRfc,
+        fiscalCorreo: form.propCorreo,
+        fiscalDir: { ...form.propDir },
+      });
+    } else {
+      set({ mismosDatosProp: 'no' });
+    }
+  }
+
   return (
     <div className="space-y-5">
       <div className="space-y-2">
@@ -684,84 +1033,75 @@ function StepFiscal({
               ¿La factura y dirección fiscal serán los mismos que los del propietario?{' '}
               <span className="text-xs font-normal text-muted-foreground">(Sección B)</span>
             </p>
-            <div className="flex items-center gap-3">
-              <YesNo
-                id="mismos-datos-prop"
-                value={form.mismosDatosProp}
-                onChange={(v) => {
-                  set({ mismosDatosProp: v });
-                  if (v === 'si') onCopiarProp();
-                }}
-              />
-              {form.mismosDatosProp === 'no' && (
-                <Button type="button" variant="outline" size="sm" onClick={onCopiarProp}>
-                  Copiar datos del propietario
-                </Button>
-              )}
-            </div>
+            <YesNo id="mismos-datos-prop" value={form.mismosDatosProp} onChange={handleMismosDatos} />
           </div>
 
-          {form.mismosDatosProp === 'no' && (
+          {(form.mismosDatosProp === 'si' || form.mismosDatosProp === 'no') && (
             <div className="space-y-5">
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Tipo de persona <span className="text-destructive">*</span></Label>
+                <Label className="text-sm font-medium">
+                  Tipo de persona <span className="text-destructive">*</span>
+                  {locked && <span className="ml-2 text-xs font-normal text-muted-foreground">(del propietario)</span>}
+                </Label>
                 <PillToggle
                   idPrefix="fiscal-tipo"
                   options={[{ value: 'fisica', label: 'Física' }, { value: 'moral', label: 'Moral' }]}
                   value={form.fiscalTipoPersona}
-                  onChange={(v) => set({ fiscalTipoPersona: v as 'fisica' | 'moral' })}
+                  onChange={locked ? () => {} : (v) => set({ fiscalTipoPersona: v as 'fisica' | 'moral' })}
+                  disabled={locked}
                 />
               </div>
 
               {form.fiscalTipoPersona === 'moral' && (
                 <Field label="Razón social" required>
-                  <Input className="h-9" value={form.fiscalRazonSocial} onChange={(e) => set({ fiscalRazonSocial: e.target.value })} />
+                  <Input className="h-9" value={form.fiscalRazonSocial} readOnly={locked} disabled={locked} onChange={(e) => set({ fiscalRazonSocial: e.target.value })} />
                 </Field>
               )}
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="RFC para facturación" required>
-                  <Input className="h-9 font-mono text-xs" placeholder="XXXX000000XX0" value={form.fiscalRfc} onChange={(e) => set({ fiscalRfc: e.target.value.toUpperCase() })} maxLength={13} />
+                  <Input className="h-9 font-mono text-xs" placeholder="XXXX000000XX0" value={form.fiscalRfc} readOnly={locked} disabled={locked} onChange={(e) => set({ fiscalRfc: e.target.value.toUpperCase() })} maxLength={13} />
                 </Field>
                 <Field label="Correo electrónico" required>
-                  <Input className="h-9" type="email" value={form.fiscalCorreo} onChange={(e) => set({ fiscalCorreo: e.target.value })} />
+                  <Input className="h-9" type="email" value={form.fiscalCorreo} readOnly={locked} disabled={locked} onChange={(e) => set({ fiscalCorreo: e.target.value })} />
                 </Field>
               </div>
 
               <Separator />
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Domicilio fiscal</p>
-              <DomicilioPickerForm value={form.fiscalDir} onChange={(v) => set({ fiscalDir: v })} />
-            </div>
-          )}
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Domicilio fiscal
+                {locked && <span className="ml-2 font-normal normal-case text-muted-foreground/70">(precargado del propietario)</span>}
+              </p>
+              <DomicilioPickerForm value={form.fiscalDir} onChange={locked ? () => {} : (v) => set({ fiscalDir: v })} disabled={locked} />
 
-          {(form.mismosDatosProp === 'si' || form.mismosDatosProp === 'no') && (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Régimen fiscal" required>
-                <Select value={form.fiscalRegimenFiscal} onValueChange={(v) => set({ fiscalRegimenFiscal: v })}>
-                  <SelectTrigger className="h-9"><SelectValue placeholder="Seleccione régimen…" /></SelectTrigger>
-                  <SelectContent>
-                    {REGIMENES_FISCALES.map((r) => (
-                      <SelectItem key={r.id} value={r.id}>
-                        <span className="font-mono text-xs text-muted-foreground">{r.id}</span>
-                        <span className="ml-2">{r.nombre}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Uso del CFDI" required>
-                <Select value={form.fiscalUsoCfdi} onValueChange={(v) => set({ fiscalUsoCfdi: v })}>
-                  <SelectTrigger className="h-9"><SelectValue placeholder="Seleccione uso…" /></SelectTrigger>
-                  <SelectContent>
-                    {USOS_CFDI.map((u) => (
-                      <SelectItem key={u.id} value={u.id}>
-                        <span className="font-mono text-xs text-muted-foreground">{u.id}</span>
-                        <span className="ml-2">{u.nombre}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Régimen fiscal" required>
+                  <Select value={form.fiscalRegimenFiscal} onValueChange={(v) => set({ fiscalRegimenFiscal: v })}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Seleccione régimen…" /></SelectTrigger>
+                    <SelectContent>
+                      {REGIMENES_FISCALES.map((r) => (
+                        <SelectItem key={r.id} value={r.id}>
+                          <span className="font-mono text-xs text-muted-foreground">{r.id}</span>
+                          <span className="ml-2">{r.nombre}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Uso del CFDI" required>
+                  <Select value={form.fiscalUsoCfdi} onValueChange={(v) => set({ fiscalUsoCfdi: v })}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Seleccione uso…" /></SelectTrigger>
+                    <SelectContent>
+                      {USOS_CFDI.map((u) => (
+                        <SelectItem key={u.id} value={u.id}>
+                          <span className="font-mono text-xs text-muted-foreground">{u.id}</span>
+                          <span className="ml-2">{u.nombre}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
             </div>
           )}
         </>
@@ -965,38 +1305,67 @@ export default function SolicitudServicio() {
     setForm((prev) => ({ ...prev, ...patch }));
   }
 
-  function copiarDatosPropietario() {
-    set({
-      fiscalTipoPersona: form.propTipoPersona,
-      fiscalRazonSocial: form.propRazonSocial,
-      fiscalRfc: form.propRfc,
-      fiscalCorreo: form.propCorreo,
-      fiscalDir: { ...form.propDir },
-    });
-  }
-
   const isLastStep = currentStep === STEPS.length - 1;
   const canNext = canAdvance(currentStep, form);
 
-  function resolveDir(dir: DomicilioFormValue | undefined): DomicilioFormValue | undefined {
+  async function resolveDir(dir: DomicilioFormValue | undefined): Promise<DomicilioFormValue | undefined> {
     if (!dir) return dir;
-    const estados = queryClient.getQueryData<CatalogoEstadoINEGI[]>(['inegi-estados']) ?? [];
-    const estado = estados.find((e) => e.claveINEGI === dir.estadoINEGIId || e.id === dir.estadoINEGIId);
+
+    // Resolve estado — fetch if not cached yet
+    const estados = await queryClient.fetchQuery({
+      queryKey: ['inegi-estados'],
+      queryFn: fetchInegiEstados,
+      staleTime: 10 * 60 * 1000,
+    });
+    const estado = (estados ?? []).find((e) => e.claveINEGI === dir.estadoINEGIId || e.id === dir.estadoINEGIId);
     const estadoId = estado?.id ?? '';
 
-    const mpioCache = queryClient.getQueryData<PaginatedInegi<CatalogoMunicipioINEGIRow>>(
-      ['inegi-municipios', estadoId],
-    );
-    const municipios = mpioCache?.data ?? [];
-    const mpio = municipios.find(
-      (m) =>
-        m.claveINEGI === dir.municipioINEGIId?.slice(-3) ||
-        m.claveINEGI === dir.municipioINEGIId ||
-        m.id === dir.municipioINEGIId,
-    );
+    if (!estadoId) return { ...dir, estadoINEGIId: '', municipioINEGIId: '', localidadINEGIId: '', coloniaINEGIId: '' };
+
+    // Resolve municipio (fetch if not in cache)
+    const mpioRes = await queryClient.fetchQuery({
+      queryKey: ['inegi-municipios', estadoId],
+      queryFn: () => fetchInegiMunicipiosCatalogo({ estadoId, limit: 200 }),
+      staleTime: 10 * 60 * 1000,
+    });
+    const municipios = mpioRes?.data ?? [];
+    // Match by claveINEGI (with/without leading zeros), full combined code, or UUID
+    const rawMpio = dir.municipioINEGIId ?? '';
+    const mpio =
+      municipios.find((m) => m.id === rawMpio) ??
+      municipios.find((m) => m.claveINEGI === rawMpio) ??
+      municipios.find((m) => m.claveINEGI === rawMpio.slice(-3)) ??
+      municipios.find((m) => m.claveINEGI === rawMpio.replace(/^0+/, '')) ??
+      municipios[0]; // fallback: first municipio in state (demo only)
     const municipioId = mpio?.id ?? '';
 
-    return { ...dir, estadoINEGIId: estadoId, municipioINEGIId: municipioId };
+    if (!municipioId) return { ...dir, estadoINEGIId: estadoId, municipioINEGIId: '', localidadINEGIId: '', coloniaINEGIId: '' };
+
+    // Resolve localidad — use provided id or pick first available
+    let localidadId = dir.localidadINEGIId;
+    if (!localidadId) {
+      const locRes = await queryClient.fetchQuery({
+        queryKey: ['inegi-localidades', municipioId],
+        queryFn: () => fetchInegiLocalidadesCatalogo({ municipioId, limit: 200 }),
+        staleTime: 10 * 60 * 1000,
+      });
+      localidadId = locRes?.data?.[0]?.id ?? '';
+    }
+
+    // Resolve colonia — prefer one matching the CP, else first available
+    let coloniaId = dir.coloniaINEGIId;
+    if (!coloniaId) {
+      const colRes = await queryClient.fetchQuery({
+        queryKey: ['inegi-colonias', municipioId],
+        queryFn: () => fetchInegiColoniasCatalogo({ municipioId, limit: 500 }),
+        staleTime: 10 * 60 * 1000,
+      });
+      const colonias = colRes?.data ?? [];
+      const byCP = dir.codigoPostal ? colonias.find((c) => c.codigoPostal === dir.codigoPostal) : null;
+      coloniaId = byCP?.id ?? colonias[0]?.id ?? '';
+    }
+
+    return { ...dir, estadoINEGIId: estadoId, municipioINEGIId: municipioId, localidadINEGIId: localidadId, coloniaINEGIId: coloniaId };
   }
 
   async function handlePrellenar() {
@@ -1018,39 +1387,87 @@ export default function SolicitudServicio() {
     try {
       let patch: Partial<SolicitudState> = { ...stepData };
 
-      if (currentStep === 3) {
+      if (currentStep === 4) {
         const administraciones = await queryClient.fetchQuery({
           queryKey: ['catalogos-operativos', 'administraciones'],
           queryFn: fetchAdministraciones,
         });
-        const firstAdmin = administraciones[0];
-        if (!firstAdmin) {
+        if (!administraciones.length) {
           toast.error('No hay administraciones en el catálogo');
           return;
         }
-        const { data: tipos } = await fetchTiposContratacion({
-          administracionId: firstAdmin.id,
-          activo: true,
-          page: 1,
-          limit: 200,
-        });
-        const firstTipo = tipos.find((t) => t.activo) ?? tipos[0];
-        const tipoId = firstTipo?.id ?? '';
-        if (!tipoId) {
-          toast.error('No hay tipos de contratación para la primera administración');
+        // Find first admin that actually has tipos de contratación
+        let chosenAdmin = null;
+        let chosenTipo = null;
+        for (const admin of administraciones) {
+          const { data: tipos } = await fetchTiposContratacion({
+            administracionId: admin.id,
+            activo: true,
+            page: 1,
+            limit: 10,
+          });
+          const tipo = tipos.find((t) => t.activo) ?? tipos[0];
+          if (tipo) {
+            chosenAdmin = admin;
+            chosenTipo = tipo;
+            break;
+          }
+        }
+        if (!chosenAdmin || !chosenTipo) {
+          toast.error('No se encontraron tipos de contratación en ninguna administración');
           return;
         }
-        patch = { ...patch, adminId: firstAdmin.id, tipoContratacionId: tipoId };
+        // Resolve distrito — pick first available
+        const distritos = await queryClient.fetchQuery({
+          queryKey: ['catalogos', 'distritos'],
+          queryFn: fetchDistritos,
+          staleTime: 60 * 60 * 1000,
+        });
+        const distritoId = distritos?.[0]?.id ?? '';
+
+        // Resolve grupoActividad + actividad — pick first available, filter actividades by grupo
+        const grupos = await queryClient.fetchQuery({
+          queryKey: ['catalogos', 'grupos-actividad'],
+          queryFn: fetchGruposActividad,
+          staleTime: 60 * 60 * 1000,
+        });
+        const grupo = grupos?.[0];
+        const grupoActividadId = grupo?.id ?? '';
+
+        const actividades = await queryClient.fetchQuery({
+          queryKey: ['catalogos', 'actividades'],
+          queryFn: fetchActividades,
+          staleTime: 60 * 60 * 1000,
+        });
+        const actividadFiltrada = grupoActividadId
+          ? (actividades ?? []).find((a) => a.grupoId === grupoActividadId)
+          : (actividades ?? [])[0];
+        const actividadId = actividadFiltrada?.id ?? '';
+
+        patch = { ...patch, adminId: chosenAdmin.id, tipoContratacionId: chosenTipo.id, distritoId, grupoActividadId, actividadId };
       }
 
       if (currentStep === 0 && patch.predioDir) {
-        patch = { ...patch, predioDir: resolveDir(patch.predioDir) };
+        patch = { ...patch, predioDir: await resolveDir(patch.predioDir) };
       }
       if (currentStep === 1 && patch.propDir) {
-        patch = { ...patch, propDir: resolveDir(patch.propDir) };
+        patch = { ...patch, propDir: await resolveDir(patch.propDir) };
       }
-      if (currentStep === 4 && patch.fiscalDir) {
-        patch = { ...patch, fiscalDir: resolveDir(patch.fiscalDir) };
+      if (currentStep === 2) {
+        if (patch.mismosDatosProp === 'si') {
+          // Copy propietario data into fiscal fields (mirrors handleMismosDatos)
+          const resolvedPropDir = await resolveDir({ ...form.propDir });
+          patch = {
+            ...patch,
+            fiscalTipoPersona: form.propTipoPersona,
+            fiscalRazonSocial: form.propRazonSocial,
+            fiscalRfc: form.propRfc,
+            fiscalCorreo: form.propCorreo,
+            fiscalDir: resolvedPropDir ?? { ...form.propDir },
+          };
+        } else if (patch.fiscalDir) {
+          patch = { ...patch, fiscalDir: await resolveDir(patch.fiscalDir) };
+        }
       }
 
       setForm((prev) => ({ ...prev, ...patch }));
@@ -1124,7 +1541,7 @@ export default function SolicitudServicio() {
     propietario: <StepPropietario form={form} set={set} />,
     solicitud: <StepSolicitud form={form} set={set} />,
     contratacion: <StepContratacion form={form} set={set} />,
-    fiscal: <StepFiscal form={form} set={set} onCopiarProp={copiarDatosPropietario} />,
+    fiscal: <StepFiscal form={form} set={set} />,
     resumen: <StepResumen form={form} />,
   };
 
@@ -1147,7 +1564,9 @@ export default function SolicitudServicio() {
                 ? `Editar solicitud — ${existingRecord.folio}`
                 : 'CEA-FUS01 — Nueva Solicitud de Servicios'}
             </h1>
-            <p className="text-xs text-muted-foreground">Los campos con * son obligatorios.</p>
+            <p className="inline-flex items-center gap-1 text-xs font-medium text-destructive bg-destructive/10 border border-destructive/30 rounded-md px-2 py-0.5">
+              <span className="text-sm font-bold leading-none">*</span> Los campos marcados son obligatorios
+            </p>
           </div>
         </div>
         {!isEditMode && (

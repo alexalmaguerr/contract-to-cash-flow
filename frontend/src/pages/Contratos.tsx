@@ -309,6 +309,13 @@ const Contratos = () => {
 
   useEffect(() => {
     if (searchParams.get('new') === '1' || searchParams.get('procesoId')) setShowWizard(true);
+    const detailId = searchParams.get('detail');
+    if (detailId) {
+      setDetail(detailId);
+      const next = new URLSearchParams(searchParams);
+      next.delete('detail');
+      setSearchParams(next, { replace: true });
+    }
   }, [searchParams]);
 
   const resumeContratacionWizard = useCallback(
@@ -459,7 +466,7 @@ const Contratos = () => {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-muted/40">
-              {['ID contrato', 'Fecha de creación', 'Cliente / titular', 'Estado (flujo)', ''].map((h) => (
+              {['ID contrato', 'Creación / modificación', 'Cliente / titular', 'Estado (flujo)', ''].map((h) => (
                 <th key={h} className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-4 py-3">{h}</th>
               ))}
             </tr>
@@ -468,20 +475,37 @@ const Contratos = () => {
             {filteredContratos.map(
               (c: {
                 id: string;
+                numeroContrato?: number | null;
                 nombre: string;
                 estado: string;
                 createdAt?: string;
+                updatedAt?: string;
                 fecha: string;
                 tipoContratacionId?: string | null;
               }) => {
               const flujo = mapEstadoContratoToFlujoRegistro(c.estado);
-              const creado = c.createdAt
-                ? new Date(c.createdAt).toLocaleDateString('es-MX', { dateStyle: 'medium' })
-                : c.fecha;
+              const fmtDateTime = (iso: string) =>
+                new Date(iso).toLocaleString('es-MX', {
+                  day: '2-digit', month: 'short', year: 'numeric',
+                  hour: '2-digit', minute: '2-digit', hour12: true,
+                });
+              const creado = c.createdAt ? fmtDateTime(c.createdAt) : c.fecha;
+              const modificado = c.updatedAt && c.updatedAt !== c.createdAt
+                ? fmtDateTime(c.updatedAt)
+                : null;
               return (
                 <tr key={c.id} className="border-t border-border/50 hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3.5 font-mono text-xs text-[#007BFF] font-medium">{c.id}</td>
-                  <td className="px-4 py-3.5 text-muted-foreground tabular-nums">{creado}</td>
+                  <td className="px-4 py-3.5 font-medium text-[#007BFF]">
+                    {c.numeroContrato ?? <span className="font-mono text-xs">{c.id.slice(0, 8)}…</span>}
+                  </td>
+                  <td className="px-4 py-3.5 text-muted-foreground tabular-nums">
+                    <span className="block text-xs">{creado}</span>
+                    {modificado && (
+                      <span className="block text-[11px] text-muted-foreground/60 mt-0.5">
+                        Mod. {modificado}
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-3.5 font-medium">{c.nombre}</td>
                   <td className="px-4 py-3.5">
                     <span className="text-sm" title={c.estado}>
@@ -612,7 +636,7 @@ const Contratos = () => {
         <DialogContent className="max-w-6xl w-[95vw] h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
           <DialogHeader className="sr-only">
             <DialogTitle>
-              {selected ? `Contrato ${selected.id}` : 'Detalle de contrato'}
+              {selected ? `Contrato ${selected.numeroContrato ?? selected.id}` : 'Detalle de contrato'}
             </DialogTitle>
             <DialogDescription>
               {selected
@@ -669,7 +693,7 @@ const Contratos = () => {
                   {/* Identidad */}
                   <div className="p-5 border-b space-y-2.5">
                     <div className="flex items-start justify-between gap-2">
-                      <span className="font-mono text-xl font-bold tracking-tight leading-none">{selected.id}</span>
+                      <span className="font-mono text-xl font-bold tracking-tight leading-none">{selected.numeroContrato ?? selected.id.slice(0, 8)}</span>
                       <StatusBadge status={selected.estado} />
                     </div>
                     <p className="font-semibold text-sm leading-snug">{selected.nombre}</p>
@@ -827,6 +851,12 @@ const Contratos = () => {
                         <section className="space-y-2">
                           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-0.5">Configuración</h3>
                           <div className="rounded-lg border divide-y">
+                            {selected.direccion && (
+                              <div className="px-4 py-3 bg-blue-50/50 dark:bg-blue-950/20">
+                                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-0.5">Dirección del predio</p>
+                                <p className="text-sm font-medium">{selected.direccion}</p>
+                              </div>
+                            )}
                             <Row label="Administración" value={getAdminNombreForTipo(selected.tipoContratacionId)} />
                             <Row label="Zona" value={selected.zonaId || '—'} />
                             <Row label="Punto de servicio" value={<span className="font-mono text-xs">{selected.puntoServicioId || '—'}</span>} />

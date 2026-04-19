@@ -42,6 +42,8 @@ export interface PersonaWizard {
 export interface WizardData {
   puntoServicioId?: string;
   puntoServicioCodigo?: string;
+  /** Dirección formateada del domicilio del punto de servicio seleccionado. */
+  puntoServicioDireccion?: string;
   administracion?: string;
   propietario?: PersonaWizard;
   personaFiscal?: PersonaWizard;
