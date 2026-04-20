@@ -21,7 +21,16 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { toast } from '@/components/ui/sonner';
 import DomicilioPickerForm from '@/components/contratacion/DomicilioPickerForm';
-import { fetchAdministraciones, fetchDistritos, fetchGruposActividad, fetchActividades, type DistritoCatalogo, type CatalogoGrupoActividad, type CatalogoActividad } from '@/api/catalogos';
+import {
+  fetchAdministraciones,
+  fetchDistritos,
+  fetchGruposActividad,
+  fetchActividades,
+  fetchCatalogoSat,
+  type DistritoCatalogo,
+  type CatalogoGrupoActividad,
+  type CatalogoActividad,
+} from '@/api/catalogos';
 import { fetchTiposContratacion, fetchTipoContratacionConfiguracion, type TipoContratacion } from '@/api/tipos-contratacion';
 import { hasApi } from '@/api/contratos';
 import { cn } from '@/lib/utils';
@@ -1044,6 +1053,32 @@ function StepFiscal({
   set: (p: Partial<SolicitudState>) => void;
 }) {
   const locked = form.mismosDatosProp === 'si';
+  const useApi = hasApi();
+
+  const { data: regimenSat = [] } = useQuery({
+    queryKey: ['catalogos', 'sat', 'REGIMEN_FISCAL'],
+    queryFn: () => fetchCatalogoSat('REGIMEN_FISCAL'),
+    enabled: useApi,
+  });
+  const { data: usoSat = [] } = useQuery({
+    queryKey: ['catalogos', 'sat', 'USO_CFDI'],
+    queryFn: () => fetchCatalogoSat('USO_CFDI'),
+    enabled: useApi,
+  });
+
+  const esFisica = form.fiscalTipoPersona === 'fisica';
+  const regimenOpciones =
+    regimenSat.length > 0
+      ? regimenSat
+          .filter((r) => (esFisica ? r.aplicaFisica : r.aplicaMoral))
+          .map((r) => ({ clave: r.clave, texto: r.descripcion }))
+      : REGIMENES_FISCALES.map((r) => ({ clave: r.id, texto: r.nombre }));
+  const usoOpciones =
+    usoSat.length > 0
+      ? usoSat
+          .filter((u) => (esFisica ? u.aplicaFisica : u.aplicaMoral))
+          .map((u) => ({ clave: u.clave, texto: u.descripcion }))
+      : USOS_CFDI.map((u) => ({ clave: u.id, texto: u.nombre }));
 
   function handleMismosDatos(v: 'si' | 'no') {
     if (v === 'si') {
@@ -1120,10 +1155,10 @@ function StepFiscal({
                   <Select value={form.fiscalRegimenFiscal} onValueChange={(v) => set({ fiscalRegimenFiscal: v })}>
                     <SelectTrigger className="h-9"><SelectValue placeholder="Seleccione régimen…" /></SelectTrigger>
                     <SelectContent>
-                      {REGIMENES_FISCALES.map((r) => (
-                        <SelectItem key={r.id} value={r.id}>
-                          <span className="font-mono text-xs text-muted-foreground">{r.id}</span>
-                          <span className="ml-2">{r.nombre}</span>
+                      {regimenOpciones.map((r) => (
+                        <SelectItem key={r.clave} value={r.clave}>
+                          <span className="font-mono text-xs text-muted-foreground">{r.clave}</span>
+                          <span className="ml-2">{r.texto}</span>
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1133,10 +1168,10 @@ function StepFiscal({
                   <Select value={form.fiscalUsoCfdi} onValueChange={(v) => set({ fiscalUsoCfdi: v })}>
                     <SelectTrigger className="h-9"><SelectValue placeholder="Seleccione uso…" /></SelectTrigger>
                     <SelectContent>
-                      {USOS_CFDI.map((u) => (
-                        <SelectItem key={u.id} value={u.id}>
-                          <span className="font-mono text-xs text-muted-foreground">{u.id}</span>
-                          <span className="ml-2">{u.nombre}</span>
+                      {usoOpciones.map((u) => (
+                        <SelectItem key={u.clave} value={u.clave}>
+                          <span className="font-mono text-xs text-muted-foreground">{u.clave}</span>
+                          <span className="ml-2">{u.texto}</span>
                         </SelectItem>
                       ))}
                     </SelectContent>

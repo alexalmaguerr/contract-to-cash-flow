@@ -1,4 +1,5 @@
-import { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient, CatalogoSatTipo } from '@prisma/client';
+import { REGIMEN_FISCAL_SAT, SAT_VIGENCIA_INICIO, USO_CFDI_SAT } from './catalogo-sat-seed-data';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -1302,6 +1303,74 @@ async function seedClausulasHydra() {
   console.log(`Vínculos cláusula→tipo creados: ${linkCount} (${tipos.length} tipos × ${clausulasDb.length} cláusulas)`);
 }
 
+async function seedCatalogoSat() {
+  for (let i = 0; i < REGIMEN_FISCAL_SAT.length; i++) {
+    const r = REGIMEN_FISCAL_SAT[i];
+    await prisma.catalogoSat.upsert({
+      where: {
+        tipo_clave: {
+          tipo: CatalogoSatTipo.REGIMEN_FISCAL,
+          clave: r.clave,
+        },
+      },
+      update: {
+        descripcion: r.descripcion,
+        aplicaFisica: r.aplicaFisica,
+        aplicaMoral: r.aplicaMoral,
+        vigenciaInicio: SAT_VIGENCIA_INICIO,
+        vigenciaFin: null,
+        orden: i,
+        activo: true,
+      },
+      create: {
+        tipo: CatalogoSatTipo.REGIMEN_FISCAL,
+        clave: r.clave,
+        descripcion: r.descripcion,
+        aplicaFisica: r.aplicaFisica,
+        aplicaMoral: r.aplicaMoral,
+        vigenciaInicio: SAT_VIGENCIA_INICIO,
+        orden: i,
+        activo: true,
+      },
+    });
+  }
+  for (let i = 0; i < USO_CFDI_SAT.length; i++) {
+    const u = USO_CFDI_SAT[i];
+    await prisma.catalogoSat.upsert({
+      where: {
+        tipo_clave: {
+          tipo: CatalogoSatTipo.USO_CFDI,
+          clave: u.clave,
+        },
+      },
+      update: {
+        descripcion: u.descripcion,
+        aplicaFisica: u.aplicaFisica,
+        aplicaMoral: u.aplicaMoral,
+        vigenciaInicio: SAT_VIGENCIA_INICIO,
+        vigenciaFin: null,
+        regimenesReceptorPermitidos: u.regimenesReceptorPermitidos,
+        orden: i,
+        activo: true,
+      },
+      create: {
+        tipo: CatalogoSatTipo.USO_CFDI,
+        clave: u.clave,
+        descripcion: u.descripcion,
+        aplicaFisica: u.aplicaFisica,
+        aplicaMoral: u.aplicaMoral,
+        vigenciaInicio: SAT_VIGENCIA_INICIO,
+        regimenesReceptorPermitidos: u.regimenesReceptorPermitidos,
+        orden: i,
+        activo: true,
+      },
+    });
+  }
+  console.log(
+    `Catálogo SAT sembrado: ${REGIMEN_FISCAL_SAT.length} régimen(es) fiscal(es), ${USO_CFDI_SAT.length} uso(s) CFDI`,
+  );
+}
+
 async function seedPlantillaHydra() {
   const contenido = `CONTRATO DE PRESTACIÓN DE SERVICIOS INTEGRALES DE AGUA POTABLE, QUE CELEBRAN LA COMISIÓN ESTATAL DE AGUAS, CON DOMICILIO EN {{direccionComision}}, A QUIEN EN EL CUERPO DE ESTE CONTRATO SE LE DENOMINARÁ "LA COMISIÓN", Y {{nombre}}, CON DOMICILIO EN {{direccion}}, C.P. {{codigoPostal}}, A QUIEN SE LE DENOMINARÁ "EL USUARIO".
 
@@ -1398,6 +1467,7 @@ main()
   .then(() => seedCatalogosOperativos())
   .then(() => seedCatalogosContratacion())
   .then(() => seedCatalogosActividadRelacionPS())
+  .then(() => seedCatalogoSat())
   .then(() => seedTarifas())
   .then(() => seedCatalogosMedidor())
   .then(() => seedFormasPagoOficinas())
