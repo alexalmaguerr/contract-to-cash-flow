@@ -121,29 +121,37 @@ Misma lógica para la **primera hoja** de un XLSX de localidades.
 
 Los municipios de Querétaro se cargan con el seed desde `backend/prisma/data/catalogo-municipios-qro-sige.json` (hoja **Municipio (provincia)** de `Catálogos de domicilio.xlsx`, solo `procomid = 22`). Cada fila tiene **`proid`** (1–18) y **`claveINEGI`** `22001`…`22018`.
 
-Las **localidades** oficiales para esos municipios deben importarse desde el export **AGEEML** del INEGI, por ejemplo **`AGEEML_2026419165655.xlsx`**, hoja **`Consulta`**:
+### Producción y CI (sin Excel en el servidor)
 
-- **`CVE_ENT`** debe ser **22** (Querétaro).
-- **`CVE_MUN`** (001, 002, …) numéricamente coincide con **`proid`** del JSON municipal (y con la columna **`pro`** de la hoja «Municipio (provincia)» en SIGE).
-- **`CVEGEO`**: 9 dígitos; se usa como **`clave_inegi`** única de la localidad en BD.
-- **`NOM_LOC`**: nombre de la localidad.
+Las **localidades** se versionan en **`backend/prisma/data/catalogo-localidades-qro-ageeml.json`**. El seed (`seedInegiQueretaro` dentro de `prisma db seed`) inserta esas filas con `createMany` + `skipDuplicates` después de crear los municipios. **No hace falta** subir el `.xlsx` a producción ni ejecutar importaciones contra el libro en el despliegue.
 
-**Requisito:** los 18 municipios deben existir ya en `catalogo_municipios_inegi` (ejecutar `prisma db seed` o el bloque `seedInegiQueretaro`).
+### Desarrollo: regenerar el JSON desde AGEEML
+
+Cuando INEGI actualice el catálogo, en una máquina con el Excel del export **AGEEML** (hoja **`Consulta`**):
+
+- **`CVE_ENT`** = **22**.
+- **`CVE_MUN`** (001…018) = **`proid`** del JSON municipal.
+- **`CVEGEO`** (9 dígitos) → `claveINEGI` de la localidad; **`NOM_LOC`** → nombre.
 
 ```bash
 cd backend
-# Primera carga o sustitución completa del listado estatal:
-npm run import:localidades-sige-qro -- --wipe-qro-localidades
-
-# Archivo explícito:
-npm run import:localidades-sige-qro -- --file "../_DocumentacIon_Interna_Sistema_Anterior/Gestion Servicio/Contratos/AGEEML_2026419165655.xlsx"
+npm run export:localidades-qro-json
+# opcional: -- --file "C:/ruta/al/AGEEML.xlsx"   o variable AGEEML_QRO_XLSX_PATH
 ```
 
-Sin `--file`, el script busca por defecto `AGEEML_2026419165655.xlsx` bajo `_DocumentacIon_Interna_Sistema_Anterior/Gestion Servicio/Contratos/`. Variable alternativa: **`AGEEML_QRO_XLSX_PATH`**.
+Eso sobrescribe `prisma/data/catalogo-localidades-qro-ageeml.json`; hay que **commitear** el archivo y desplegar; en prod solo corre `prisma db seed` (o el `start:prod` que ya lo invoca).
 
-`--wipe-qro-localidades` borra antes todas las filas de `catalogo_localidades_inegi` cuyo municipio pertenece al estado INEGI **22** (útil si antes se importó otra fuente con otras claves).
+### Opcional: import directo a la BD (local / depuración)
 
-Idempotencia: `createMany` con `skipDuplicates: true` sobre `clave_inegi`.
+```bash
+cd backend
+npm run import:localidades-sige-qro -- --wipe-qro-localidades
+npm run import:localidades-sige-qro -- --file "../ruta/AGEEML.xlsx"
+```
+
+Sin `--file`, se intenta la ruta bajo `_DocumentacIon_Interna_.../Contratos/`. **`AGEEML_QRO_XLSX_PATH`** como alternativa. `--wipe-qro-localidades` vacía localidades del estado 22 antes de insertar.
+
+Idempotencia del seed y del import: `createMany` con `skipDuplicates: true` sobre `clave_inegi` única.
 
 ## Columnas SEPOMEX (CPdescarga)
 

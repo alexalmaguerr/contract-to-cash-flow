@@ -1,31 +1,24 @@
 /**
- * Importa localidades de Querétaro (CVE_ENT 22) para los municipios ya cargados en BD,
- * usando el catálogo AGEEML (INEGI) exportado a Excel.
+ * Importa localidades de Querétaro a la BD desde un Excel AGEEML (uso local / CI con el archivo presente).
  *
- * Enlace territorial: **CVE_MUN** del AGEEML (001–018) = **proid** en
- * `prisma/data/catalogo-municipios-qro-sige.json` (columna `pro` / id municipal SIGE).
+ * En producción el flujo esperado es: JSON versionado en `prisma/data/catalogo-localidades-qro-ageeml.json`
+ * cargado por `seedInegiQueretaro` en `prisma db seed`. Regenerar ese JSON con:
+ *   npm run export:localidades-qro-json
  *
- * El libro típico tiene una sola hoja **Consulta** con metadatos en las primeras filas;
- * la fila cuyo primer valor es `CVEGEO` se toma como cabecera de columnas.
- *
- * Clave única (`claveINEGI`): valor limpio de **CVEGEO** (9 dígitos, único por localidad).
- *
- * Uso (desde backend/):
- *   npx ts-node --compiler-options "{\"module\":\"CommonJS\"}" scripts/import-localidades-sige-qro.ts
+ * Enlace: **CVE_MUN** (001–018) = **proid** en `catalogo-municipios-qro-sige.json`.
+ * Clave localidad: **CVEGEO** (9 dígitos).
  *
  * Opciones:
- *   --file <ruta>     Ruta al XLSX AGEEML (por defecto: AGEEML bajo Contratos del repo).
- *   --wipe-qro-localidades   Borra localidades de municipios del estado 22 antes de insertar.
+ *   --file <ruta>     Ruta al XLSX AGEEML (por defecto bajo _DocumentacIon_Interna/... si existe).
+ *   --wipe-qro-localidades   Borra localidades del estado 22 antes de insertar.
  *
- * Variables de entorno:
- *   AGEEML_QRO_XLSX_PATH — ruta al XLSX si no se pasa --file
+ * Variables: AGEEML_QRO_XLSX_PATH
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
-import * as XLSX from 'xlsx';
-import type { WorkSheet } from 'xlsx';
 import { PrismaClient } from '@prisma/client';
+import { parseAgeemlXlsxToSeedRows } from './lib/ageeml-qro-localidades';
 
 const prisma = new PrismaClient();
 
@@ -59,84 +52,6 @@ function defaultAgeemlPath(backendRoot: string): string {
     'Contratos',
     'AGEEML_2026419165655.xlsx',
   );
-}
-
-function nombreLocalidad(raw: unknown): string {
-  const s = String(raw ?? '')
-    .trim()
-    .slice(0, 512);
-  return s || '(sin nombre)';
-}
-
-function claveFromCvegeo(raw: unknown): string | null {
-  const digits = String(raw ?? '')
-    .replace(/\D/g, '')
-    .trim();
-  if (digits.length < 9) return null;
-  return digits.slice(-9);
-}
-
-/** Localiza fila de cabecera (CVEGEO, CVE_ENT, …) en hoja «Consulta» tipo export INEGI */
-function findHeaderRowIndex(aoa: unknown[][]): number {
-  for (let i = 0; i < Math.min(30, aoa.length); i++) {
-    const row = aoa[i];
-    if (!Array.isArray(row) || row.length === 0) continue;
-    if (String(row[0]).trim() === 'CVEGEO') return i;
-  }
-  return -1;
-}
-
-type ParsedAgeemlRow = {
-  cveEnt: string;
-  cveMun: number;
-  cveGeo: string;
-  nomLoc: string;
-};
-
-function parseAgeemlSheet(sheet: WorkSheet): ParsedAgeemlRow[] {
-  const aoa = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
-    header: 1,
-    defval: '',
-    raw: false,
-  });
-  const headerIdx = findHeaderRowIndex(aoa);
-  if (headerIdx < 0) {
-    throw new Error(
-      'No se encontró la fila de cabecera (primera celda = CVEGEO). ¿Es un export AGEEML válido?',
-    );
-  }
-  const header = aoa[headerIdx] as string[];
-  const col = (name: string) => header.findIndex((c) => String(c).trim() === name);
-  const iGeo = col('CVEGEO');
-  const iEnt = col('CVE_ENT');
-  const iMun = col('CVE_MUN');
-  const iLoc = col('NOM_LOC');
-  if (iGeo < 0 || iEnt < 0 || iMun < 0 || iLoc < 0) {
-    throw new Error(
-      `Cabecera incompleta. Índices: CVEGEO=${iGeo} CVE_ENT=${iEnt} CVE_MUN=${iMun} NOM_LOC=${iLoc}`,
-    );
-  }
-
-  const out: ParsedAgeemlRow[] = [];
-  for (let r = headerIdx + 1; r < aoa.length; r++) {
-    const row = aoa[r] as unknown[];
-    if (!row || row.length === 0) continue;
-    const cveEnt = String(row[iEnt] ?? '').trim();
-    if (cveEnt !== '22') continue;
-
-    const munRaw = String(row[iMun] ?? '').trim();
-    const cveMun = parseInt(munRaw, 10);
-    if (!Number.isFinite(cveMun) || cveMun < 1) continue;
-
-    const cveGeo = claveFromCvegeo(row[iGeo]);
-    if (!cveGeo) continue;
-
-    const nomLoc = nombreLocalidad(row[iLoc]);
-    if (!nomLoc || nomLoc === '(sin nombre)') continue;
-
-    out.push({ cveEnt, cveMun, cveGeo, nomLoc });
-  }
-  return out;
 }
 
 async function main() {
@@ -194,30 +109,17 @@ async function main() {
     }
   }
 
-  console.log('Leyendo Excel AGEEML (puede tardar):', filePath);
-  const wb = XLSX.readFile(filePath);
-  const sheetName = wb.SheetNames.includes('Consulta')
-    ? 'Consulta'
-    : wb.SheetNames[0];
-  if (!sheetName) {
-    console.error('El libro no contiene hojas.');
-    process.exit(1);
-  }
-  const rows = parseAgeemlSheet(wb.Sheets[sheetName]);
-  console.log(`Filas de localidad (CVE_ENT=22) leídas: ${rows.length}`);
+  console.log('Leyendo Excel AGEEML:', filePath);
+  const seedRows = parseAgeemlXlsxToSeedRows(filePath, allowedProid);
+  console.log(`Filas de localidad (CVE_ENT=22, CVE_MUN en catálogo): ${seedRows.length}`);
 
   let skippedNoMun = 0;
-  let skippedProid = 0;
   let inserted = 0;
 
   let batch: { municipioId: string; claveINEGI: string; nombre: string; activo: boolean }[] = [];
 
-  for (const row of rows) {
-    if (!allowedProid.has(row.cveMun)) {
-      skippedProid++;
-      continue;
-    }
-    const municipioId = proidToMunicipioId.get(row.cveMun);
+  for (const row of seedRows) {
+    const municipioId = claveToId.get(row.claveMunicipioINEGI);
     if (!municipioId) {
       skippedNoMun++;
       continue;
@@ -225,8 +127,8 @@ async function main() {
 
     batch.push({
       municipioId,
-      claveINEGI: row.cveGeo,
-      nombre: row.nomLoc,
+      claveINEGI: row.claveINEGI,
+      nombre: row.nombre,
       activo: true,
     });
 
@@ -250,7 +152,7 @@ async function main() {
 
   const total = await prisma.catalogoLocalidadINEGI.count();
   console.log(
-    `Filas insertadas (nuevas): ${inserted}. Omitidas sin municipio en BD: ${skippedNoMun}. CVE_MUN fuera del catálogo SIGE QRO: ${skippedProid}. Total localidades en BD: ${total}.`,
+    `Filas insertadas (nuevas): ${inserted}. Omitidas sin municipio en BD: ${skippedNoMun}. Total localidades en BD: ${total}.`,
   );
 }
 
