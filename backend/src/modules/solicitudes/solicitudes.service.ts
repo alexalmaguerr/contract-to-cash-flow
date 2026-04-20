@@ -155,8 +155,9 @@ export class SolicitudesService {
   }
 
   /**
-   * Column `solicitudes.tipo_contratacion_id` and JSON `formData.tipoContratacionId` can drift
-   * (e.g. reseeded catálogo with new cuid). Only persist an FK that exists on `tipos_contratacion`.
+   * Resuelve el FK real de `tipos_contratacion.id` para el contrato.
+   * Acepta el mismo criterio que `TiposContratacionService.findOne`: valor puede ser **id (cuid)** o **codigo** único.
+   * También prueba columna de solicitud y `formData.tipoContratacionId` por si hubo desalineación.
    */
   private async resolveTipoContratacionIdForContrato(sol: {
     tipoContratacionId: string | null;
@@ -171,16 +172,16 @@ export class SolicitudesService {
       ),
     ];
     if (candidates.length === 0) return null;
-    for (const candidateId of candidates) {
-      const row = await this.prisma.tipoContratacion.findUnique({
-        where: { id: candidateId },
+    for (const candidate of candidates) {
+      const row = await this.prisma.tipoContratacion.findFirst({
+        where: { OR: [{ id: candidate }, { codigo: candidate }] },
         select: { id: true },
       });
       if (row) return row.id;
     }
     throw new BadRequestException(
-      'El tipo de contratación de la solicitud no existe en el catálogo (ID obsoleto o catálogo distinto). ' +
-        'Actualice la solicitud eligiendo de nuevo el tipo de contratación o sincronice los catálogos.',
+      'No se encontró el tipo de contratación indicado en la solicitud (ni por id ni por código en el catálogo). ' +
+        'Revise que coincida con un tipo activo en el sistema o vuelva a seleccionarlo en el formulario.',
     );
   }
 
