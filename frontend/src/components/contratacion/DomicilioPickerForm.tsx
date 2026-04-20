@@ -74,7 +74,7 @@ export default function DomicilioPickerForm({ value, onChange, disabled = false 
 
   const { data: locRes, isLoading: loadingLocs } = useQuery({
     queryKey: ['inegi-localidades', value.municipioINEGIId],
-    queryFn: () => fetchInegiLocalidadesCatalogo({ municipioId: value.municipioINEGIId, limit: 200 }),
+    queryFn: () => fetchInegiLocalidadesCatalogo({ municipioId: value.municipioINEGIId, limit: 500 }),
     enabled: Boolean(value.municipioINEGIId),
     staleTime: 10 * 60 * 1000,
   });

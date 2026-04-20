@@ -117,23 +117,33 @@ El script detecta delimitador `,` o tabulador en la primera línea.
 
 Misma lógica para la **primera hoja** de un XLSX de localidades.
 
-## Localidades SIGE / «Catálogos de domicilio» (Querétaro)
+## Localidades AGEEML (Querétaro, CVE_ENT 22)
 
-Los municipios de Querétaro del sistema anterior se cargan desde `backend/prisma/data/catalogo-municipios-qro-sige.json` (derivado del catálogo territorial compatible con **AGEEML** / SIGE). Las **localidades** masivas para esos mismos municipios están en el Excel **`Catálogos de domicilio.xlsx`**, hoja **`Localidad (Población)`**, columnas `pobid`, `pobnombre`, `pobproid`, `pobcodine`:
+Los municipios de Querétaro se cargan con el seed desde `backend/prisma/data/catalogo-municipios-qro-sige.json` (hoja **Municipio (provincia)** de `Catálogos de domicilio.xlsx`, solo `procomid = 22`). Cada fila tiene **`proid`** (1–18) y **`claveINEGI`** `22001`…`22018`.
 
-- **`pobproid`** coincide con **`proid`** en la hoja «Municipio (provincia)» y con la clave municipal utilizada junto al catálogo ya cargado (equivalente **`cve_mun`** / **`proid`** según la fuente).
-- La relación con la BD es **`pobproid` → `CatalogoMunicipioINEGI`** mediante `claveINEGI` (`22001` … `22018` en Querétaro).
+Las **localidades** oficiales para esos municipios deben importarse desde el export **AGEEML** del INEGI, por ejemplo **`AGEEML_2026419165655.xlsx`**, hoja **`Consulta`**:
 
-**Import solo para municipios ya presentes en BD** (~3 600 localidades para los 18 municipios de Querétaro si el libro contiene el catálogo nacional completo):
+- **`CVE_ENT`** debe ser **22** (Querétaro).
+- **`CVE_MUN`** (001, 002, …) numéricamente coincide con **`proid`** del JSON municipal (y con la columna **`pro`** de la hoja «Municipio (provincia)» en SIGE).
+- **`CVEGEO`**: 9 dígitos; se usa como **`clave_inegi`** única de la localidad en BD.
+- **`NOM_LOC`**: nombre de la localidad.
+
+**Requisito:** los 18 municipios deben existir ya en `catalogo_municipios_inegi` (ejecutar `prisma db seed` o el bloque `seedInegiQueretaro`).
 
 ```bash
 cd backend
-npm run import:localidades-sige-qro -- --file "../ruta/a/Catálogos de domicilio.xlsx"
+# Primera carga o sustitución completa del listado estatal:
+npm run import:localidades-sige-qro -- --wipe-qro-localidades
+
+# Archivo explícito:
+npm run import:localidades-sige-qro -- --file "../_DocumentacIon_Interna_Sistema_Anterior/Gestion Servicio/Contratos/AGEEML_2026419165655.xlsx"
 ```
 
-Sin `--file`, el script usa por defecto la ruta interna `_DocumentacIon_Interna_Sistema_Anterior/Gestion Servicio/Contratos/Catálogos de domicilio.xlsx` si existe. También puede definirse **`CAT_DOM_XLSX_PATH`**.
+Sin `--file`, el script busca por defecto `AGEEML_2026419165655.xlsx` bajo `_DocumentacIon_Interna_Sistema_Anterior/Gestion Servicio/Contratos/`. Variable alternativa: **`AGEEML_QRO_XLSX_PATH`**.
 
-Clave única en tabla: combinación de clave geoestadística (`pobcodine`, 9 dígitos si existe) más `pobid`, para evitar duplicados por datos sucios en el archivo fuente (`skipDuplicates` en `createMany`).
+`--wipe-qro-localidades` borra antes todas las filas de `catalogo_localidades_inegi` cuyo municipio pertenece al estado INEGI **22** (útil si antes se importó otra fuente con otras claves).
+
+Idempotencia: `createMany` con `skipDuplicates: true` sobre `clave_inegi`.
 
 ## Columnas SEPOMEX (CPdescarga)
 

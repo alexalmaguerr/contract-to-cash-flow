@@ -198,9 +198,9 @@ export class DomiciliosService {
     return { estados, municipios, localidades, colonias };
   }
 
-  private clampCatalogLimit(limit?: number) {
+  private clampCatalogLimit(limit?: number, maxCap = 200) {
     const n = limit ?? 50;
-    return Math.min(200, Math.max(1, n));
+    return Math.min(maxCap, Math.max(1, n));
   }
 
   /** Municipios INEGI paginados (para consulta de catálogo en UI) */
@@ -240,7 +240,8 @@ export class DomiciliosService {
     limit?: number;
   }) {
     const page = Math.max(1, params.page ?? 1);
-    const limit = this.clampCatalogLimit(params.limit);
+    /** INEGI QRO: hasta ~310 localidades por municipio (AGEEML 2026). */
+    const limit = this.clampCatalogLimit(params.limit, 500);
     const where = {
       activo: true,
       ...(params.municipioId && { municipioId: params.municipioId }),

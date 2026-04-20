@@ -20,7 +20,7 @@
     "procomid": 22,
     "claveINEGI": "22003",
     "nombre": "ARROYO SECO",
-    "activo": false,
+    "activo": true,
     "fuente": "Catálogos de domicilio.xlsx · hoja «Municipio (provincia)» · procomid 22 (Querétaro)"
   },
   {
@@ -44,7 +44,7 @@
     "procomid": 22,
     "claveINEGI": "22006",
     "nombre": "CORREGIDORA",
-    "activo": false,
+    "activo": true,
     "fuente": "Catálogos de domicilio.xlsx · hoja «Municipio (provincia)» · procomid 22 (Querétaro)"
   },
   {

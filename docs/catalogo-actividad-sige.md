@@ -17,6 +17,8 @@
 
 En la app interna: **Configuración → Catálogos del contrato** (`/app/catalogos-contrato`, pestaña *Actividad*). Otras pestañas de la misma pantalla: categoría tarifaria, estado del contrato (referencia AQUACIS) y tipo de envío de factura.
 
+En **Solicitud CEA-FUS01 → Contratación**, el usuario elige primero un **grupo de actividad** del listado CIG2018 (GA01…GA19) y luego la **actividad** operativa SIGE (`ACTIPOL_*`). En base de datos todas las filas SIGE tienen `grupo_id = GA_SIGE`; los grupos CIG no tienen actividades hijas propias. La UI usa `actividadesVisiblesParaGrupo` en `frontend/src/api/catalogos.ts`: si el grupo elegido no tiene actividades ligadas, se ofrece el catálogo SIGE compartido (mismo criterio que el seed en `seed.ts`).
+
 ## API
 
 `GET /catalogos/actividades` devuelve **solo** filas cuyo `codigo` comienza por `ACTIPOL_` (catálogo SIGE sembrado desde `catalogo-actividad-sige.json`). Así no aparecen en el wizard ni en catálogos registros demo u híbridos con otro formato. `GET /catalogos/grupos-actividad` no cambia.

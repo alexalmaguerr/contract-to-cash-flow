@@ -1039,7 +1039,7 @@ async function seedInegiQueretaro() {
     where: { claveINEGI: '22011' },
   });
 
-  // Localidades masivas: ejecutar scripts/import-localidades-sige-qro.ts contra «Catálogos de domicilio.xlsx».
+  // Localidades masivas: ejecutar `npm run import:localidades-sige-qro` (AGEEML Querétaro, véase docs/import-catalogo-inegi.md).
 
   const colonias = [
     { claveINEGI: '22014-0001', nombre: 'Centro Histórico', codigoPostal: '76000' },

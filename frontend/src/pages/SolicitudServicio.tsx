@@ -27,6 +27,7 @@ import {
   fetchGruposActividad,
   fetchActividades,
   fetchCatalogoSat,
+  actividadesVisiblesParaGrupo,
   type DistritoCatalogo,
   type CatalogoGrupoActividad,
   type CatalogoActividad,
@@ -810,9 +811,10 @@ function StepContratacion({ form, set }: { form: SolicitudState; set: (p: Partia
     staleTime: 60 * 60 * 1000,
   });
 
-  const actividadesFiltradas: CatalogoActividad[] = form.grupoActividadId
-    ? actividades.filter((a) => a.grupoId === form.grupoActividadId)
-    : actividades;
+  const actividadesFiltradas: CatalogoActividad[] = actividadesVisiblesParaGrupo(
+    actividades,
+    form.grupoActividadId,
+  );
 
   const tiposList: TipoContratacion[] = tiposRes?.data ?? [];
   const selectedTipo = tiposList.find((t) => t.id === form.tipoContratacionId);
@@ -1494,7 +1496,7 @@ export default function SolicitudServicio() {
     if (!localidadId) {
       const locRes = await queryClient.fetchQuery({
         queryKey: ['inegi-localidades', municipioId],
-        queryFn: () => fetchInegiLocalidadesCatalogo({ municipioId, limit: 200 }),
+        queryFn: () => fetchInegiLocalidadesCatalogo({ municipioId, limit: 500 }),
         staleTime: 10 * 60 * 1000,
       });
       localidadId = locRes?.data?.[0]?.id ?? '';
@@ -1579,7 +1581,10 @@ export default function SolicitudServicio() {
           queryFn: fetchGruposActividad,
           staleTime: 60 * 60 * 1000,
         });
-        const grupo = grupos?.[0];
+        const grupo =
+          grupos?.find((g) => g.id === 'GA_SIGE') ??
+          grupos?.find((g) => g.codigo === 'SIGE_EST') ??
+          grupos?.[0];
         const grupoActividadId = grupo?.id ?? '';
 
         const actividades = await queryClient.fetchQuery({
@@ -1587,10 +1592,8 @@ export default function SolicitudServicio() {
           queryFn: fetchActividades,
           staleTime: 60 * 60 * 1000,
         });
-        const actividadFiltrada = grupoActividadId
-          ? (actividades ?? []).find((a) => a.grupoId === grupoActividadId)
-          : (actividades ?? [])[0];
-        const actividadId = actividadFiltrada?.id ?? '';
+        const visibles = actividadesVisiblesParaGrupo(actividades ?? [], grupoActividadId);
+        const actividadId = visibles[0]?.id ?? '';
 
         patch = {
           ...patch,
