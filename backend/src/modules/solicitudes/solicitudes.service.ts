@@ -1,8 +1,10 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class SolicitudesService {
+  private readonly logger = new Logger(SolicitudesService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   // ── Folio generation ──────────────────────────────────────────────────────
@@ -155,30 +157,83 @@ export class SolicitudesService {
   }
 
   /**
+   * Reúne posibles referencias al tipo (columna, JSON del formulario, anidados).
+   * Tras migraciones SIGE, el cuid guardado puede quedar huérfano; el **código** (`TCT-n`, stub, etc.) suele seguir siendo resoluble.
+   */
+  private collectTipoContratacionCandidates(sol: {
+    tipoContratacionId: string | null;
+    formData: unknown;
+  }): string[] {
+    const out: string[] = [];
+    const push = (v: unknown) => {
+      if (typeof v === 'string') {
+        const t = v.trim();
+        if (t) out.push(t);
+      } else if (typeof v === 'number' && Number.isFinite(v)) {
+        out.push(String(v));
+      }
+    };
+    push(sol.tipoContratacionId);
+    const fd = sol.formData;
+    if (fd && typeof fd === 'object') {
+      const o = fd as Record<string, unknown>;
+      push(o['tipoContratacionId']);
+      push(o['tipoContratacionCodigo']);
+      push(o['codigoTipoContratacion']);
+      push(o['tipo_contratacion_id']);
+      push(o['tipo_contratacion_codigo']);
+      const nested = o['tipoContratacion'];
+      if (nested && typeof nested === 'object') {
+        const n = nested as Record<string, unknown>;
+        push(n['id']);
+        push(n['codigo']);
+      }
+    }
+    return [...new Set(out)];
+  }
+
+  /** Igual que el catálogo: id, codigo exacto, codigo sin distinguir mayúsculas, o número SIGE → `TCT-{n}`. */
+  private async lookupTipoContratacionByCandidate(candidate: string): Promise<string | null> {
+    const exact = await this.prisma.tipoContratacion.findFirst({
+      where: { OR: [{ id: candidate }, { codigo: candidate }] },
+      select: { id: true },
+    });
+    if (exact) return exact.id;
+
+    const ci = await this.prisma.tipoContratacion.findFirst({
+      where: { codigo: { equals: candidate, mode: 'insensitive' } },
+      select: { id: true },
+    });
+    if (ci) return ci.id;
+
+    if (/^\d+$/.test(candidate)) {
+      const codigo = `TCT-${candidate}`;
+      const byTct = await this.prisma.tipoContratacion.findFirst({
+        where: { codigo },
+        select: { id: true },
+      });
+      if (byTct) return byTct.id;
+    }
+    return null;
+  }
+
+  /**
    * Resuelve el FK real de `tipos_contratacion.id` para el contrato.
-   * Acepta el mismo criterio que `TiposContratacionService.findOne`: valor puede ser **id (cuid)** o **codigo** único.
-   * También prueba columna de solicitud y `formData.tipoContratacionId` por si hubo desalineación.
+   * Alineado con `TiposContratacionService.findOne` (id o codigo) y tolerante a desalineación columna vs `formData`.
    */
   private async resolveTipoContratacionIdForContrato(sol: {
     tipoContratacionId: string | null;
     formData: unknown;
   }): Promise<string | null> {
-    const fd = sol.formData as { tipoContratacionId?: string } | undefined;
-    const candidates = [
-      ...new Set(
-        [sol.tipoContratacionId, fd?.tipoContratacionId]
-          .map((v) => (typeof v === 'string' ? v.trim() : ''))
-          .filter(Boolean),
-      ),
-    ];
+    const candidates = this.collectTipoContratacionCandidates(sol);
     if (candidates.length === 0) return null;
     for (const candidate of candidates) {
-      const row = await this.prisma.tipoContratacion.findFirst({
-        where: { OR: [{ id: candidate }, { codigo: candidate }] },
-        select: { id: true },
-      });
-      if (row) return row.id;
+      const id = await this.lookupTipoContratacionByCandidate(candidate);
+      if (id) return id;
     }
+    this.logger.warn(
+      `aceptar: no se resolvió tipo de contratación (candidatos=${JSON.stringify(candidates)})`,
+    );
     throw new BadRequestException(
       'No se encontró el tipo de contratación indicado en la solicitud (ni por id ni por código en el catálogo). ' +
         'Revise que coincida con un tipo activo en el sistema o vuelva a seleccionarlo en el formulario.',

@@ -183,8 +183,37 @@ const MOCK_DATA: SolicitudState = {
   condoNombreAgrupacion: '',
   personasVivienda: '4',
   tieneCertConexion: 'si',
+  noDomHayInfra: '',
+  noDomRestComensales: '',
+  noDomRestMesas: '',
+  noDomRestSanitarios: '',
+  noDomLavNumLavadoras: '',
+  noDomLavCapKg: '',
+  noDomLavKgDia: '',
+  noDomAutoAutosDia: '',
+  noDomTortKgDia: '',
+  noDomOficM2Oficinas: '',
+  noDomOficM2Estac: '',
+  noDomOtroGiro: '',
+  noDomReqDomUnidades: '',
+  noDomReqDomGiro: '',
+  noDomReqComUnidades: '',
+  noDomReqComGiro: '',
+  noDomReqIndUnidades: '',
+  noDomReqIndGiro: '',
+  noDomReqOtroUnidades: '',
+  noDomReqOtroGiro: '',
+  noDomReqTotalUnidades: '',
   adminId: '',
   tipoContratacionId: '',
+  tipoContratacionCodigo: '',
+  distritoId: '',
+  grupoActividadId: '',
+  actividadId: '',
+  variablesCapturadas: {},
+  variablesTexto: '',
+  documentosRecibidos: [],
+  documentosTexto: '',
   contratoPadre: '',
   requiereFactura: 'si',
   mismosDatosProp: 'si',
@@ -804,7 +833,7 @@ function StepContratacion({ form, set }: { form: SolicitudState; set: (p: Partia
         <Field label="Administración" required>
           <Select
             value={form.adminId}
-            onValueChange={(v) => set({ adminId: v, tipoContratacionId: '' })}
+            onValueChange={(v) => set({ adminId: v, tipoContratacionId: '', tipoContratacionCodigo: '' })}
             disabled={!useApi || adminsLoading || administraciones.length === 0}
           >
             <SelectTrigger className="h-9">
@@ -833,7 +862,10 @@ function StepContratacion({ form, set }: { form: SolicitudState; set: (p: Partia
         <Field label="Tipo de contratación" required>
           <Select
             value={form.tipoContratacionId}
-            onValueChange={(v) => set({ tipoContratacionId: v })}
+            onValueChange={(v) => {
+              const t = tiposList.find((x) => x.id === v);
+              set({ tipoContratacionId: v, tipoContratacionCodigo: t?.codigo ?? '' });
+            }}
             disabled={!form.adminId || tiposLoading || tiposList.length === 0}
           >
             <SelectTrigger className="h-9">
@@ -1388,7 +1420,12 @@ export default function SolicitudServicio() {
           propTelefono: apiSolicitud.propTelefono ?? '—',
           predioResumen: apiSolicitud.predioResumen,
           adminId: apiSolicitud.adminId ?? '',
-          tipoContratacionId: apiSolicitud.tipoContratacionId ?? '',
+          tipoContratacionId:
+            apiSolicitud.tipoContratacionId ??
+            (typeof apiSolicitud.formData?.tipoContratacionId === 'string'
+              ? apiSolicitud.formData.tipoContratacionId
+              : '') ??
+            '',
           usoDomestico: apiSolicitud.formData.usoDomestico,
           estado: apiSolicitud.estado as SolicitudEstado,
           formData: apiSolicitud.formData as SolicitudState,
@@ -1555,7 +1592,15 @@ export default function SolicitudServicio() {
           : (actividades ?? [])[0];
         const actividadId = actividadFiltrada?.id ?? '';
 
-        patch = { ...patch, adminId: chosenAdmin.id, tipoContratacionId: chosenTipo.id, distritoId, grupoActividadId, actividadId };
+        patch = {
+          ...patch,
+          adminId: chosenAdmin.id,
+          tipoContratacionId: chosenTipo.id,
+          tipoContratacionCodigo: chosenTipo.codigo,
+          distritoId,
+          grupoActividadId,
+          actividadId,
+        };
       }
 
       if (currentStep === 0 && patch.predioDir) {

@@ -100,6 +100,7 @@ function inspDtoToOrden(insp: SolicitudInspeccionDto): OrdenInspeccionData {
 
 function dtoToRecord(dto: SolicitudDto): SolicitudRecord {
   const fd = dto.formData as any;
+  const tipoFromForm = typeof fd?.tipoContratacionId === 'string' ? fd.tipoContratacionId.trim() : '';
   return {
     id: dto.id,
     folio: dto.folio,
@@ -110,7 +111,7 @@ function dtoToRecord(dto: SolicitudDto): SolicitudRecord {
     propTelefono: dto.propTelefono ?? '—',
     predioResumen: dto.predioResumen,
     adminId: fd?.adminId ?? '',
-    tipoContratacionId: dto.tipoContratacionId ?? '',
+    tipoContratacionId: (dto.tipoContratacionId ?? tipoFromForm) || '',
     usoDomestico: (fd?.usoDomestico as 'si' | 'no' | '') ?? '',
     estado: dto.estado as SolicitudEstado,
     ordenInspeccion: dto.inspeccion ? inspDtoToOrden(dto.inspeccion) : undefined,
