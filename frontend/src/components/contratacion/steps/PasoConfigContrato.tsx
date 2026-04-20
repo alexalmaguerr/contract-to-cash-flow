@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Check, ChevronsUpDown, Loader2 } from 'lucide-react';
 
@@ -28,11 +28,21 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { CLASES_CONTRATACION, TIPOS_PUNTO_SERVICIO } from '../wizard-catalogos-ui';
+import {
+  CLASE_CONTRATACION_ALTA_NUEVA_COD,
+  CLASES_CONTRATACION,
+  TIPOS_PUNTO_SERVICIO,
+} from '../wizard-catalogos-ui';
 import { descripcionEsIndividualizacion, type StepProps } from '../hooks/useWizardState';
 
 export default function PasoConfigContrato({ data, updateData }: StepProps) {
   const [tipoOpen, setTipoOpen] = useState(false);
+
+  useEffect(() => {
+    if (data.claseContratacion !== CLASE_CONTRATACION_ALTA_NUEVA_COD) {
+      updateData({ claseContratacion: CLASE_CONTRATACION_ALTA_NUEVA_COD });
+    }
+  }, [data.claseContratacion, updateData]);
 
   const actividadesQ = useQuery({
     queryKey: ['catalogos', 'actividades', 'wizard'],
@@ -258,25 +268,20 @@ export default function PasoConfigContrato({ data, updateData }: StepProps) {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        {/* ── Clase de contratación ───────────────────────────────────── */}
+        {/* ── Clase de contratación (fija: alta nueva) ───────────────── */}
         <div className="space-y-2">
           <Label htmlFor="wizard-clase">Clase de contratación</Label>
-          <Select
-            value={data.claseContratacion ?? ''}
-            onValueChange={(v) => updateData({ claseContratacion: v })}
-          >
-            <SelectTrigger id="wizard-clase">
-              <SelectValue placeholder="Seleccione clase…" />
-            </SelectTrigger>
-            <SelectContent>
-              {CLASES_CONTRATACION.map((c) => (
-                <SelectItem key={c.cod} value={c.cod}>
-                  <span className="font-mono text-xs text-muted-foreground">{c.cod}</span>
-                  <span className="ml-2">{c.descripcion}</span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Input
+            id="wizard-clase"
+            readOnly
+            aria-readonly="true"
+            tabIndex={-1}
+            className="bg-muted cursor-default"
+            value={
+              CLASES_CONTRATACION.find((c) => c.cod === CLASE_CONTRATACION_ALTA_NUEVA_COD)
+                ?.descripcion ?? 'Alta nueva'
+            }
+          />
         </div>
 
         {/* ── Tipo de punto de servicio ────────────────────────────────── */}

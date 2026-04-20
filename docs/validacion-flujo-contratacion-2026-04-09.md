@@ -21,6 +21,7 @@ Documento de brechas entre el flujo operativo deseado (lista de pasos + notas SI
 | 3.2 Contrato padre | Implementado | `referenciaContratoAnterior` en `PasoConfigContrato` (obligatorio si el tipo catalogado es individualización/condominio). |
 | 4. Actividad | Implementado | Selector en `PasoConfigContrato` + `actividadId` en alta. |
 | 5. Tipo de contratación | Implementado | Catálogo por administración en `PasoConfigContrato`; `tipoContratacionId` en alta (además de `tipoContrato` / `tipoServicio` como strings operativos). |
+| 5.1 Clase de contratación | Implementado | Valor fijo **Alta nueva** (código `AN`); se envía como `tipoContrato` en el alta; en UI es solo lectura en `PasoConfigContrato` (sin catálogo desplegable). |
 | 6. Superficie, unidades, personas | Implementado | Campos opcionales en `PasoConfigContrato` y envío en `CreateContratoDto` (`superficiePredio`, `superficieConstruida`, `unidadesServidas`, `personasHabitanVivienda`). |
 | 7. Documentos recibidos | Implementado | Checklist desde `GET /tipos-contratacion/:id/configuracion` (`documentos`); validación de obligatorios en `POST /contratos`. |
 | 8. Factura contratación timbrada + convenio | Implementado (flag) | `POST /contratos/:id/factura-contratacion` genera `Timbrado` sin consumo + `CostoContrato` con conceptos del tipo; controlado por `FEATURE_FACTURACION_CONTRATACION`. Checkbox en wizard. |
@@ -92,3 +93,5 @@ Se actualizaron las filas **1–11** de la tabla “Matriz paso → implementaci
 **2026-04-16 (visibilidad en listado):** si el alta envía `distritoId` en `variablesCapturadas`, el servicio de contratos **rellena `zonaId`** desde el distrito cuando no vino en el DTO. En la pantalla `Contratos`, si hay filtro por zonas del contexto, los contratos **Pendiente de alta** sin `zonaId` siguen listándose para no “perder” altas recientes hasta asignar zona/ruta.
 
 **2026-04-16 (reanudar registro y columna “Estado (flujo)”):** la columna de flujo ya no muestra “Pago pendiente” para el estado persistido **Pendiente de alta** (solo para estados ligados a pago). En listado y ficha, contratos **Pendiente de alta** tienen acción **Continuar contratación** (y **Editar** reanuda el mismo asistente): se localiza el `ProcesoContratacion` abierto del contrato, se abre el wizard con `?new=1&procesoId=…`, y si no hubiera proceso se intenta `POST /procesos-contratacion`.
+
+**2026-04-19 (wizard de alta):** el asistente tiene **8 pasos**; la revisión final y la acción **Crear Contrato** ocurren en el paso **Resumen** (`PasoResumen.tsx` + pie de `WizardContratacion.tsx`). Se eliminó el paso separado “Confirmación”.
