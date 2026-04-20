@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { TipoContratacionConfiguracion } from '@/api/tipos-contratacion';
+import { CLASE_CONTRATACION_ALTA_NUEVA_COD } from '../wizard-catalogos-ui';
 
 export type WizardStep =
   | 'puntoServicio'
@@ -89,6 +90,7 @@ export interface StepProps {
 }
 
 export const initialWizardData = (): WizardData => ({
+  claseContratacion: CLASE_CONTRATACION_ALTA_NUEVA_COD,
   variablesCapturadas: {},
   documentosRecibidos: [],
   conceptosLecturaPeriodica: [],

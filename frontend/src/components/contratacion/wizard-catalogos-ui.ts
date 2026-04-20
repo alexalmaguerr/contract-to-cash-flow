@@ -1,10 +1,10 @@
 /** Catálogos UI compartidos entre pasos de configuración y resumen del wizard. */
 
+/** Único valor aplicable en el asistente de registro de contrato (solo lectura en paso 3). */
+export const CLASE_CONTRATACION_ALTA_NUEVA_COD = 'AN';
+
 export const CLASES_CONTRATACION: { cod: string; descripcion: string }[] = [
-  { cod: 'AN', descripcion: 'Alta Nueva' },
-  { cod: 'CN', descripcion: 'Cambio Nombre' },
-  { cod: 'PB', descripcion: 'Alta Procede de Baja' },
-  { cod: 'BJ', descripcion: 'Baja' },
+  { cod: CLASE_CONTRATACION_ALTA_NUEVA_COD, descripcion: 'Alta nueva' },
 ];
 
 export const TIPOS_PUNTO_SERVICIO: { id: string; descripcion: string }[] = [
