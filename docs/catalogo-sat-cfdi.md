@@ -22,7 +22,7 @@ npx prisma migrate deploy
 npm run prisma:seed
 ```
 
-En el menú lateral: **Configuración → Catálogos SAT (CFDI)** (`/app/catalogos-sat`) abre directamente las tablas SAT. También están en **Configuración → Catálogos CIG2018**, pestaña **SAT · CFDI**.
+En el menú lateral: **Configuración → Catálogos SAT (CFDI)** (`/app/catalogos-sat`) abre directamente las tablas SAT **sin** la cinta de pestañas del resto de catálogos CIG2018 (misma pantalla que **Catálogos**, pero filtrada a SAT). También están en **Configuración → Catálogos CIG2018**, pestaña **SAT · CFDI**.
 
 ## Comportamiento en solicitudes (paso fiscal)
 
@@ -33,7 +33,11 @@ En **Solicitud de servicio**, cuando hay API activa:
 
 Si no hay régimen seleccionado, el uso del CFDI permanece deshabilitado hasta elegir régimen. Al cambiar tipo de persona o régimen, se limpian selecciones que dejen de ser válidas.
 
-Sin API, se usan listas estáticas acotadas en `SolicitudServicio.tsx` con la misma lógica de filtrado (datos alineados al seed).
+Sin API, se usan listas estáticas en `frontend/src/lib/sat-catalog-fallback.ts` (misma lógica de filtrado; antes vivían solo en `SolicitudServicio.tsx`).
+
+## Comportamiento en registro de contrato (wizard, paso Personas)
+
+En **Registro de contrato** → paso **Personas** (titular y persona fiscal), la misma regla aplica: tras elegir **tipo de persona**, **Régimen fiscal** y **Uso del CFDI** son selects alimentados por `GET /catalogos/sat` (o el fallback anterior si no hay API). Los valores guardados en el formulario son las **claves SAT** (p. ej. `605`, `G03`); al enviar el alta, el régimen del titular y de la persona fiscal se normalizan a clave en el cliente.
 
 ## Actualización desde Excel
 

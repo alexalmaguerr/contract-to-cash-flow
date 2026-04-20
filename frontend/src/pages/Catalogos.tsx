@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '@/components/PageHeader';
@@ -183,6 +183,10 @@ const Catalogos = () => {
   const isSatEntry = location.pathname.endsWith('/catalogos-sat');
   const useApi = hasApi();
   const [catalogTab, setCatalogTab] = useState(() => (isSatEntry ? SAT_CFDI_TAB : 'actividades'));
+
+  useEffect(() => {
+    if (isSatEntry) setCatalogTab(SAT_CFDI_TAB);
+  }, [isSatEntry]);
 
   const [munPage, setMunPage] = useState(1);
   const [munEstadoId, setMunEstadoId] = useState('');
@@ -514,17 +518,19 @@ const Catalogos = () => {
       )}
 
       <Tabs value={catalogTab} onValueChange={setCatalogTab}>
-        <TabsList className="mb-4 bg-white border rounded-lg p-1 gap-1 h-auto flex flex-wrap justify-start">
-          {tabDefs.map((t) => (
-            <TabsTrigger
-              key={t.value}
-              value={t.value}
-              className="rounded-md data-[state=active]:bg-[#003366] data-[state=active]:text-white text-xs sm:text-sm px-3 py-2"
-            >
-              {t.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        {!isSatEntry && (
+          <TabsList className="mb-4 bg-white border rounded-lg p-1 gap-1 h-auto flex flex-wrap justify-start">
+            {tabDefs.map((t) => (
+              <TabsTrigger
+                key={t.value}
+                value={t.value}
+                className="rounded-md data-[state=active]:bg-[#003366] data-[state=active]:text-white text-xs sm:text-sm px-3 py-2"
+              >
+                {t.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        )}
 
         <TabsContent value="conceptos-cobro" className="mt-0">
           <div className="bg-white rounded-xl border border-border/50 shadow-sm overflow-hidden overflow-x-auto">

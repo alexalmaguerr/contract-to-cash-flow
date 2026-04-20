@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import type { PersonaWizard, StepProps } from '../hooks/useWizardState';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -12,6 +13,15 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Paperclip, X } from 'lucide-react';
+import { fetchCatalogoSat, type CatalogoSatItem } from '@/api/catalogos';
+import { hasApi } from '@/api/client';
+import {
+  REGIMEN_FISCAL_OFFLINE,
+  USO_CFDI_OFFLINE,
+  regimenClaveFromStored,
+  usoCfdiClaveFromStored,
+  usoCfdiMatchesRegimenSeleccionado,
+} from '@/lib/sat-catalog-fallback';
 
 // ── Demo data ─────────────────────────────────────────────────────────────────
 
@@ -24,8 +34,8 @@ const DEMO_TITULAR: PersonaWizard = {
   documentoIdentificacion: '',
   telefonos: '4421234567',
   email: 'juan.perez@ejemplo.com',
-  usoCfdi: 'G03 - Gastos en general',
-  regimenFiscal: '605 - Sueldos y Salarios e Ingresos Asimilados',
+  usoCfdi: 'G03',
+  regimenFiscal: '605',
 };
 
 const DEMO_FISCAL: PersonaWizard = { ...DEMO_TITULAR };
@@ -106,7 +116,10 @@ function DocumentoUpload({
             <button
               type="button"
               className="ml-1 text-muted-foreground hover:text-foreground"
-              onClick={() => { onChange(''); if (ref.current) ref.current.value = ''; }}
+              onClick={() => {
+                onChange('');
+                if (ref.current) ref.current.value = '';
+              }}
               disabled={disabled}
             >
               <X className="h-3 w-3" />
@@ -136,6 +149,9 @@ function PersonaBlock({
   required,
   disabled,
   showErrors,
+  regimenSat,
+  usoSat,
+  satPending,
 }: {
   title: string;
   value: PersonaWizard | undefined;
@@ -144,12 +160,72 @@ function PersonaBlock({
   required?: boolean;
   disabled?: boolean;
   showErrors?: boolean;
+  regimenSat: CatalogoSatItem[];
+  usoSat: CatalogoSatItem[];
+  satPending: boolean;
 }) {
   const v = value ?? {};
   const patch = (partial: Partial<PersonaWizard>) => onChange({ ...v, ...partial });
+  const useApi = hasApi();
 
   const err = (field: keyof PersonaWizard) =>
     required && showErrors && !v[field]?.toString().trim();
+
+  const tipoPersona = v.tipoPersona;
+  const esFisica = tipoPersona === 'fisica';
+  const esMoral = tipoPersona === 'moral';
+  const tipoOk = esFisica || esMoral;
+
+  const regimenSel = regimenClaveFromStored(v.regimenFiscal);
+  const usoSel = usoCfdiClaveFromStored(v.usoCfdi);
+
+  const regimenOpciones = useMemo(() => {
+    if (!tipoOk) return [] as { clave: string; texto: string }[];
+    if (regimenSat.length > 0) {
+      return regimenSat
+        .filter((r) => (esFisica ? r.aplicaFisica : r.aplicaMoral))
+        .map((r) => ({ clave: r.clave, texto: r.descripcion }));
+    }
+    return REGIMEN_FISCAL_OFFLINE.filter((r) => (esFisica ? r.aplicaFisica : r.aplicaMoral)).map((r) => ({
+      clave: r.id,
+      texto: r.nombre,
+    }));
+  }, [regimenSat, esFisica, tipoOk]);
+
+  const usoOpciones = useMemo(() => {
+    if (!tipoOk || regimenSel === '') return [] as { clave: string; texto: string }[];
+    if (usoSat.length > 0) {
+      const rows = usoSat.filter((u) => {
+        if (esFisica ? !u.aplicaFisica : !u.aplicaMoral) return false;
+        return usoCfdiMatchesRegimenSeleccionado(u.regimenesReceptorPermitidos, regimenSel);
+      });
+      return rows.map((u) => ({ clave: u.clave, texto: u.descripcion }));
+    }
+    const rows = USO_CFDI_OFFLINE.filter((u) => {
+      if (esFisica ? !u.aplicaFisica : !u.aplicaMoral) return false;
+      return usoCfdiMatchesRegimenSeleccionado(u.regimenesReceptorPermitidos, regimenSel);
+    });
+    return rows.map((u) => ({ clave: u.id, texto: u.nombre }));
+  }, [usoSat, esFisica, regimenSel, tipoOk]);
+
+  useEffect(() => {
+    if (!tipoOk) return;
+    const rcl = regimenClaveFromStored(v.regimenFiscal);
+    if (rcl && !regimenOpciones.some((o) => o.clave === rcl)) {
+      patch({ regimenFiscal: '', usoCfdi: '' });
+      return;
+    }
+    const ucl = usoCfdiClaveFromStored(v.usoCfdi);
+    if (ucl && !usoOpciones.some((o) => o.clave === ucl)) {
+      patch({ usoCfdi: '' });
+    }
+    // patch cierra sobre el estado actual de `v`; incluirla rompería el ciclo de deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tipoOk, regimenOpciones, usoOpciones, v.regimenFiscal, v.usoCfdi]);
+
+  const satBloqueado = disabled || (useApi && satPending);
+  const regimenDisabled = satBloqueado || !tipoOk;
+  const usoDisabled = satBloqueado || !tipoOk || !regimenSel;
 
   return (
     <div className={`space-y-3 rounded-lg border bg-muted/20 p-4 ${disabled ? 'opacity-60' : ''}`}>
@@ -158,7 +234,6 @@ function PersonaBlock({
         {required && <span className="ml-1 text-destructive">*</span>}
       </h3>
       <div className="grid gap-3 sm:grid-cols-2">
-
         {/* Tipo de persona */}
         <div className="space-y-1.5 sm:col-span-2">
           <Label className={err('tipoPersona') ? 'text-destructive' : ''}>
@@ -166,7 +241,13 @@ function PersonaBlock({
           </Label>
           <Select
             value={v.tipoPersona ?? ''}
-            onValueChange={(val) => patch({ tipoPersona: val as 'fisica' | 'moral' })}
+            onValueChange={(val) =>
+              patch({
+                tipoPersona: val as 'fisica' | 'moral',
+                regimenFiscal: '',
+                usoCfdi: '',
+              })
+            }
             disabled={disabled}
           >
             <SelectTrigger className={err('tipoPersona') ? 'border-destructive' : ''}>
@@ -178,6 +259,67 @@ function PersonaBlock({
             </SelectContent>
           </Select>
           {err('tipoPersona') && <p className="text-xs text-destructive">Campo obligatorio</p>}
+        </div>
+
+        {/* Régimen fiscal y Uso del CFDI (GET /catalogos/sat o fallback offline) */}
+        <div className="space-y-1.5">
+          <Label>Régimen fiscal</Label>
+          <Select
+            value={regimenSel || undefined}
+            onValueChange={(nv) => patch({ regimenFiscal: nv, usoCfdi: '' })}
+            disabled={regimenDisabled}
+          >
+            <SelectTrigger id={`${idPrefix}-reg`}>
+              <SelectValue
+                placeholder={
+                  !tipoOk
+                    ? 'Primero elija tipo de persona…'
+                    : useApi && satPending
+                      ? 'Cargando catálogo SAT…'
+                      : 'Seleccione régimen…'
+                }
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {regimenOpciones.map((r) => (
+                <SelectItem key={r.clave} value={r.clave}>
+                  <span className="font-mono text-xs text-muted-foreground">{r.clave}</span>
+                  <span className="ml-2">{r.texto}</span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label>Uso del CFDI</Label>
+          <Select
+            value={usoSel || undefined}
+            onValueChange={(nv) => patch({ usoCfdi: nv })}
+            disabled={usoDisabled}
+          >
+            <SelectTrigger id={`${idPrefix}-cfdi`}>
+              <SelectValue
+                placeholder={
+                  !tipoOk
+                    ? 'Primero elija tipo de persona…'
+                    : !regimenSel
+                      ? 'Primero elija régimen fiscal…'
+                      : useApi && satPending
+                        ? 'Cargando catálogo SAT…'
+                        : 'Seleccione uso…'
+                }
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {usoOpciones.map((u) => (
+                <SelectItem key={u.clave} value={u.clave}>
+                  <span className="font-mono text-xs text-muted-foreground">{u.clave}</span>
+                  <span className="ml-2">{u.texto}</span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Paterno */}
@@ -265,30 +407,6 @@ function PersonaBlock({
           />
         </div>
 
-        {/* Uso del CFDI */}
-        <div className="space-y-1.5">
-          <Label>Uso del CFDI</Label>
-          <Input
-            id={`${idPrefix}-cfdi`}
-            value={v.usoCfdi ?? ''}
-            onChange={(e) => patch({ usoCfdi: e.target.value })}
-            disabled={disabled}
-            placeholder="Ej: G03 - Gastos en general"
-          />
-        </div>
-
-        {/* Régimen fiscal */}
-        <div className="space-y-1.5 sm:col-span-2">
-          <Label>Régimen fiscal</Label>
-          <Input
-            id={`${idPrefix}-reg`}
-            value={v.regimenFiscal ?? ''}
-            onChange={(e) => patch({ regimenFiscal: e.target.value })}
-            disabled={disabled}
-            placeholder="Ej: 605 - Sueldos y Salarios"
-          />
-        </div>
-
         {/* Documento de identificación oficial */}
         <div className="sm:col-span-2">
           <DocumentoUpload
@@ -361,6 +479,19 @@ function ContactoBlock({
 export default function PasoPersonas({ data, updateData }: StepProps) {
   const [fiscalIgualTitular, setFiscalIgualTitular] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
+  const useApi = hasApi();
+
+  const { data: regimenSat = [], isPending: regPending } = useQuery({
+    queryKey: ['catalogos', 'sat', 'REGIMEN_FISCAL'],
+    queryFn: () => fetchCatalogoSat('REGIMEN_FISCAL'),
+    enabled: useApi,
+  });
+  const { data: usoSat = [], isPending: usoPending } = useQuery({
+    queryKey: ['catalogos', 'sat', 'USO_CFDI'],
+    queryFn: () => fetchCatalogoSat('USO_CFDI'),
+    enabled: useApi,
+  });
+  const satPending = useApi && (regPending || usoPending);
 
   const handlePropietarioChange = (next: PersonaWizard) => {
     if (fiscalIgualTitular) {
@@ -396,7 +527,8 @@ export default function PasoPersonas({ data, updateData }: StepProps) {
           </h2>
           <p className="text-sm text-muted-foreground">
             Titular y persona fiscal son obligatorios (<span className="text-destructive">*</span>).
-            Contacto es opcional.
+            Contacto es opcional. Tras elegir tipo de persona, régimen fiscal y uso del CFDI se filtran
+            desde el catálogo SAT del backend.
           </p>
         </div>
         <Button
@@ -417,6 +549,9 @@ export default function PasoPersonas({ data, updateData }: StepProps) {
         onChange={handlePropietarioChange}
         required
         showErrors={showErrors}
+        regimenSat={regimenSat}
+        usoSat={usoSat}
+        satPending={satPending}
       />
 
       <label className="flex cursor-pointer items-center gap-2 px-1">
@@ -435,6 +570,9 @@ export default function PasoPersonas({ data, updateData }: StepProps) {
         required
         disabled={fiscalIgualTitular}
         showErrors={showErrors}
+        regimenSat={regimenSat}
+        usoSat={usoSat}
+        satPending={satPending}
       />
 
       <ContactoBlock

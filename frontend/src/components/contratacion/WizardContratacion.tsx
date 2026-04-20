@@ -24,6 +24,7 @@ import PasoFacturacion from './steps/PasoFacturacion';
 import PasoOrdenes from './steps/PasoOrdenes';
 import PasoResumen from './steps/PasoResumen';
 import { CLASE_CONTRATACION_ALTA_NUEVA_COD } from './wizard-catalogos-ui';
+import { regimenClaveFromStored } from '@/lib/sat-catalog-fallback';
 
 export interface WizardContratacionProps {
   onComplete: () => void;
@@ -115,7 +116,7 @@ function buildCreateContratoDto(data: WizardData): CreateContratoDto {
       email: pf.email?.trim() || undefined,
       telefono: pf.telefonos?.trim() || undefined,
       razonSocial: pf.razonSocial?.trim() || undefined,
-      regimenFiscal: pf.regimenFiscal?.trim() || undefined,
+      regimenFiscal: regimenClaveFromStored(pf.regimenFiscal) || undefined,
     };
   }
 
@@ -132,7 +133,8 @@ function buildCreateContratoDto(data: WizardData): CreateContratoDto {
   }
 
   if (prop?.razonSocial?.trim()) dto.razonSocial = prop.razonSocial.trim();
-  if (prop?.regimenFiscal?.trim()) dto.regimenFiscal = prop.regimenFiscal.trim();
+  const propReg = regimenClaveFromStored(prop?.regimenFiscal);
+  if (propReg) dto.regimenFiscal = propReg;
 
   return dto;
 }
