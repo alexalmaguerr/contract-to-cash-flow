@@ -16,6 +16,23 @@ export interface CatalogoActividad {
   grupo?: CatalogoGrupoActividad;
 }
 
+/** Id del grupo bajo el que el seed sembró el catálogo operativo SIGE (`ACTIPOL_*`). Ver `docs/catalogo-actividad-sige.md`. */
+export const CATALOGO_SIGE_GRUPO_ACTIVIDAD_ID = 'GA_SIGE';
+
+/**
+ * Actividades visibles al elegir un grupo: primero las ligadas al grupo;
+ * si no hay ninguna (grupos CIG2018 sin hijos en BD), el catálogo SIGE compartido bajo {@link CATALOGO_SIGE_GRUPO_ACTIVIDAD_ID}.
+ */
+export function actividadesVisiblesParaGrupo(
+  actividades: CatalogoActividad[],
+  grupoId: string,
+): CatalogoActividad[] {
+  if (!grupoId) return [];
+  const directas = actividades.filter((a) => a.grupoId === grupoId);
+  if (directas.length > 0) return directas;
+  return actividades.filter((a) => a.grupoId === CATALOGO_SIGE_GRUPO_ACTIVIDAD_ID);
+}
+
 export interface CatalogoCategoria {
   id: string;
   codigo: string;

@@ -27,6 +27,7 @@ import {
   fetchGruposActividad,
   fetchActividades,
   fetchCatalogoSat,
+  actividadesVisiblesParaGrupo,
   type DistritoCatalogo,
   type CatalogoGrupoActividad,
   type CatalogoActividad,
@@ -183,8 +184,37 @@ const MOCK_DATA: SolicitudState = {
   condoNombreAgrupacion: '',
   personasVivienda: '4',
   tieneCertConexion: 'si',
+  noDomHayInfra: '',
+  noDomRestComensales: '',
+  noDomRestMesas: '',
+  noDomRestSanitarios: '',
+  noDomLavNumLavadoras: '',
+  noDomLavCapKg: '',
+  noDomLavKgDia: '',
+  noDomAutoAutosDia: '',
+  noDomTortKgDia: '',
+  noDomOficM2Oficinas: '',
+  noDomOficM2Estac: '',
+  noDomOtroGiro: '',
+  noDomReqDomUnidades: '',
+  noDomReqDomGiro: '',
+  noDomReqComUnidades: '',
+  noDomReqComGiro: '',
+  noDomReqIndUnidades: '',
+  noDomReqIndGiro: '',
+  noDomReqOtroUnidades: '',
+  noDomReqOtroGiro: '',
+  noDomReqTotalUnidades: '',
   adminId: '',
   tipoContratacionId: '',
+  tipoContratacionCodigo: '',
+  distritoId: '',
+  grupoActividadId: '',
+  actividadId: '',
+  variablesCapturadas: {},
+  variablesTexto: '',
+  documentosRecibidos: [],
+  documentosTexto: '',
   contratoPadre: '',
   requiereFactura: 'si',
   mismosDatosProp: 'si',
@@ -781,9 +811,10 @@ function StepContratacion({ form, set }: { form: SolicitudState; set: (p: Partia
     staleTime: 60 * 60 * 1000,
   });
 
-  const actividadesFiltradas: CatalogoActividad[] = form.grupoActividadId
-    ? actividades.filter((a) => a.grupoId === form.grupoActividadId)
-    : actividades;
+  const actividadesFiltradas: CatalogoActividad[] = actividadesVisiblesParaGrupo(
+    actividades,
+    form.grupoActividadId,
+  );
 
   const tiposList: TipoContratacion[] = tiposRes?.data ?? [];
   const selectedTipo = tiposList.find((t) => t.id === form.tipoContratacionId);
@@ -804,7 +835,7 @@ function StepContratacion({ form, set }: { form: SolicitudState; set: (p: Partia
         <Field label="Administración" required>
           <Select
             value={form.adminId}
-            onValueChange={(v) => set({ adminId: v, tipoContratacionId: '' })}
+            onValueChange={(v) => set({ adminId: v, tipoContratacionId: '', tipoContratacionCodigo: '' })}
             disabled={!useApi || adminsLoading || administraciones.length === 0}
           >
             <SelectTrigger className="h-9">
@@ -833,7 +864,10 @@ function StepContratacion({ form, set }: { form: SolicitudState; set: (p: Partia
         <Field label="Tipo de contratación" required>
           <Select
             value={form.tipoContratacionId}
-            onValueChange={(v) => set({ tipoContratacionId: v })}
+            onValueChange={(v) => {
+              const t = tiposList.find((x) => x.id === v);
+              set({ tipoContratacionId: v, tipoContratacionCodigo: t?.codigo ?? '' });
+            }}
             disabled={!form.adminId || tiposLoading || tiposList.length === 0}
           >
             <SelectTrigger className="h-9">
@@ -1388,7 +1422,12 @@ export default function SolicitudServicio() {
           propTelefono: apiSolicitud.propTelefono ?? '—',
           predioResumen: apiSolicitud.predioResumen,
           adminId: apiSolicitud.adminId ?? '',
-          tipoContratacionId: apiSolicitud.tipoContratacionId ?? '',
+          tipoContratacionId:
+            apiSolicitud.tipoContratacionId ??
+            (typeof apiSolicitud.formData?.tipoContratacionId === 'string'
+              ? apiSolicitud.formData.tipoContratacionId
+              : '') ??
+            '',
           usoDomestico: apiSolicitud.formData.usoDomestico,
           estado: apiSolicitud.estado as SolicitudEstado,
           formData: apiSolicitud.formData as SolicitudState,
@@ -1457,7 +1496,7 @@ export default function SolicitudServicio() {
     if (!localidadId) {
       const locRes = await queryClient.fetchQuery({
         queryKey: ['inegi-localidades', municipioId],
-        queryFn: () => fetchInegiLocalidadesCatalogo({ municipioId, limit: 200 }),
+        queryFn: () => fetchInegiLocalidadesCatalogo({ municipioId, limit: 500 }),
         staleTime: 10 * 60 * 1000,
       });
       localidadId = locRes?.data?.[0]?.id ?? '';
@@ -1542,7 +1581,10 @@ export default function SolicitudServicio() {
           queryFn: fetchGruposActividad,
           staleTime: 60 * 60 * 1000,
         });
-        const grupo = grupos?.[0];
+        const grupo =
+          grupos?.find((g) => g.id === 'GA_SIGE') ??
+          grupos?.find((g) => g.codigo === 'SIGE_EST') ??
+          grupos?.[0];
         const grupoActividadId = grupo?.id ?? '';
 
         const actividades = await queryClient.fetchQuery({
@@ -1550,12 +1592,18 @@ export default function SolicitudServicio() {
           queryFn: fetchActividades,
           staleTime: 60 * 60 * 1000,
         });
-        const actividadFiltrada = grupoActividadId
-          ? (actividades ?? []).find((a) => a.grupoId === grupoActividadId)
-          : (actividades ?? [])[0];
-        const actividadId = actividadFiltrada?.id ?? '';
+        const visibles = actividadesVisiblesParaGrupo(actividades ?? [], grupoActividadId);
+        const actividadId = visibles[0]?.id ?? '';
 
-        patch = { ...patch, adminId: chosenAdmin.id, tipoContratacionId: chosenTipo.id, distritoId, grupoActividadId, actividadId };
+        patch = {
+          ...patch,
+          adminId: chosenAdmin.id,
+          tipoContratacionId: chosenTipo.id,
+          tipoContratacionCodigo: chosenTipo.codigo,
+          distritoId,
+          grupoActividadId,
+          actividadId,
+        };
       }
 
       if (currentStep === 0 && patch.predioDir) {

@@ -1,26 +1,24 @@
 /**
- * Importa localidades del archivo SIGE «Catálogos de domicilio.xlsx» para los municipios
- * de Querétaro ya cargados en BD (véase prisma/data/catalogo-municipios-qro-sige.json).
+ * Importa localidades de Querétaro a la BD desde un Excel AGEEML (uso local / CI con el archivo presente).
  *
- * Hoja de datos: **Localidad (Población)** (columnas pobid, pobnombre, pobproid, pobcodine).
- * `pobproid` coincide con `proid` en la hoja «Municipio (provincia)» y con `cve_mun`/`proid`
- * según el catálogo municipal ya integrado — se resuelve a `CatalogoMunicipioINEGI` por `claveINEGI`.
+ * En producción el flujo esperado es: JSON versionado en `prisma/data/catalogo-localidades-qro-ageeml.json`
+ * cargado por `seedInegiQueretaro` en `prisma db seed`. Regenerar ese JSON con:
+ *   npm run export:localidades-qro-json
  *
- * Clave única (`claveINEGI`): `${claveINEGI9}_${pobid}` cuando hay 9 dígitos en pobcodine;
- * si no, `SIGE_${pobid}` (casos datos incompletos).
+ * Enlace: **CVE_MUN** (001–018) = **proid** en `catalogo-municipios-qro-sige.json`.
+ * Clave localidad: **CVEGEO** (9 dígitos).
  *
- * Uso (desde backend/):
- *   npx ts-node --compiler-options "{\"module\":\"CommonJS\"}" scripts/import-localidades-sige-qro.ts \
- *     --file "../_DocumentacIon_Interna_Sistema_Anterior/Gestion Servicio/Contratos/Catálogos de domicilio.xlsx"
+ * Opciones:
+ *   --file <ruta>     Ruta al XLSX AGEEML (por defecto bajo _DocumentacIon_Interna/... si existe).
+ *   --wipe-qro-localidades   Borra localidades del estado 22 antes de insertar.
  *
- * Variables:
- *   CAT_DOM_XLSX_PATH — ruta al XLSX si no se pasa --file
+ * Variables: AGEEML_QRO_XLSX_PATH
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
-import * as XLSX from 'xlsx';
 import { PrismaClient } from '@prisma/client';
+import { parseAgeemlXlsxToSeedRows } from './lib/ageeml-qro-localidades';
 
 const prisma = new PrismaClient();
 
@@ -31,55 +29,41 @@ type MunicipioQroRow = {
   claveINEGI: string;
 };
 
-function parseArgs(): { file?: string } {
+function parseArgs(): { file?: string; wipe: boolean } {
   const argv = process.argv.slice(2);
-  let file = process.env.CAT_DOM_XLSX_PATH?.trim();
+  let file = process.env.AGEEML_QRO_XLSX_PATH?.trim();
+  let wipe = false;
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--file' && argv[i + 1]) {
       file = argv[++i];
+    } else if (argv[i] === '--wipe-qro-localidades') {
+      wipe = true;
     }
   }
-  return { file };
+  return { file, wipe };
 }
 
-function nineDigitClave(pobcodine: unknown): string | null {
-  const digits = String(pobcodine ?? '')
-    .replace(/\D/g, '')
-    .trim();
-  if (digits.length < 9) return null;
-  return digits.slice(-9);
-}
-
-function buildClaveINEGI(pobcodine: unknown, pobid: number): string {
-  const nine = nineDigitClave(pobcodine);
-  if (nine) return `${nine}_${pobid}`;
-  return `SIGE_${pobid}`;
-}
-
-function nombreLocalidad(raw: unknown): string {
-  const s = String(raw ?? '')
-    .trim()
-    .slice(0, 512);
-  return s || '(sin nombre)';
-}
-
-async function main() {
-  const { file: fileArg } = parseArgs();
-  const backendRoot = path.join(__dirname, '..');
-  const defaultRelative = path.join(
+function defaultAgeemlPath(backendRoot: string): string {
+  return path.join(
+    backendRoot,
     '..',
     '_DocumentacIon_Interna_Sistema_Anterior',
     'Gestion Servicio',
     'Contratos',
-    'Catálogos de domicilio.xlsx',
+    'AGEEML_2026419165655.xlsx',
   );
+}
+
+async function main() {
+  const { file: fileArg, wipe } = parseArgs();
+  const backendRoot = path.join(__dirname, '..');
   const filePath = fileArg
     ? path.resolve(fileArg)
-    : path.resolve(backendRoot, defaultRelative);
+    : path.resolve(backendRoot, defaultAgeemlPath(backendRoot));
 
   if (!fs.existsSync(filePath)) {
     console.error('No existe el archivo:', filePath);
-    console.error('Pase --file <ruta> o defina CAT_DOM_XLSX_PATH.');
+    console.error('Pase --file <ruta> o defina AGEEML_QRO_XLSX_PATH.');
     process.exit(1);
   }
 
@@ -110,45 +94,41 @@ async function main() {
     `Municipios QRO en BD resueltos: ${proidToMunicipioId.size}/${municipiosQro.length}`,
   );
 
-  console.log('Leyendo Excel (puede tardar):', filePath);
-  const wb = XLSX.readFile(filePath);
-  const sheetName = 'Localidad (Población)';
-  if (!wb.SheetNames.includes(sheetName)) {
-    console.error('El libro no contiene la hoja', sheetName);
-    console.error('Hojas disponibles:', wb.SheetNames.join(', '));
-    process.exit(1);
+  if (wipe) {
+    const estado = await prisma.catalogoEstadoINEGI.findUnique({
+      where: { claveINEGI: '22' },
+      select: { id: true },
+    });
+    if (estado) {
+      const del = await prisma.catalogoLocalidadINEGI.deleteMany({
+        where: { municipio: { estadoId: estado.id } },
+      });
+      console.log(`Eliminadas localidades previas del estado Querétaro: ${del.count}`);
+    } else {
+      console.warn('No existe estado INEGI clave 22; no se eliminaron localidades.');
+    }
   }
 
-  const sheet = wb.Sheets[sheetName];
-  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
-    defval: '',
-    raw: false,
-  });
+  console.log('Leyendo Excel AGEEML:', filePath);
+  const seedRows = parseAgeemlXlsxToSeedRows(filePath, allowedProid);
+  console.log(`Filas de localidad (CVE_ENT=22, CVE_MUN en catálogo): ${seedRows.length}`);
 
   let skippedNoMun = 0;
   let inserted = 0;
 
-  let batch: { municipioId: string; claveINEGI: string; nombre: string; activo: boolean }[] =
-    [];
+  let batch: { municipioId: string; claveINEGI: string; nombre: string; activo: boolean }[] = [];
 
-  for (const row of rows) {
-    const pobproid = Number(row.pobproid);
-    if (!Number.isFinite(pobproid) || !allowedProid.has(pobproid)) continue;
-
-    const pobid = Number(row.pobid);
-    if (!Number.isFinite(pobid)) continue;
-
-    const municipioId = proidToMunicipioId.get(pobproid);
+  for (const row of seedRows) {
+    const municipioId = claveToId.get(row.claveMunicipioINEGI);
     if (!municipioId) {
       skippedNoMun++;
       continue;
     }
 
-    const claveINEGI = buildClaveINEGI(row.pobcodine, pobid);
     batch.push({
       municipioId,
-      claveINEGI,
-      nombre: nombreLocalidad(row.pobnombre),
+      claveINEGI: row.claveINEGI,
+      nombre: row.nombre,
       activo: true,
     });
 

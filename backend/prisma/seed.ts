@@ -33,6 +33,19 @@ function loadCatalogoMunicipiosQroSige(): MunicipioQroSigeRow[] {
   return JSON.parse(fs.readFileSync(file, 'utf8')) as MunicipioQroSigeRow[];
 }
 
+type LocalidadQroAgeemlSeedRow = {
+  claveMunicipioINEGI: string;
+  claveINEGI: string;
+  nombre: string;
+};
+
+/** Generado con `npm run export:localidades-qro-json` desde AGEEML; se versiona en git (sin Excel en prod). */
+function loadCatalogoLocalidadesQroAgeeml(): LocalidadQroAgeemlSeedRow[] {
+  const file = path.join(__dirname, 'data', 'catalogo-localidades-qro-ageeml.json');
+  if (!fs.existsSync(file)) return [];
+  return JSON.parse(fs.readFileSync(file, 'utf8')) as LocalidadQroAgeemlSeedRow[];
+}
+
 async function main() {
   // Territorial: 13 administraciones (SIGE expid 1–13) y zonas de demo
   for (const a of FALLBACK_ADMINISTRACIONES) {
@@ -1039,7 +1052,49 @@ async function seedInegiQueretaro() {
     where: { claveINEGI: '22011' },
   });
 
-  // Localidades masivas: ejecutar scripts/import-localidades-sige-qro.ts contra «Catálogos de domicilio.xlsx».
+  const localidadesQro = loadCatalogoLocalidadesQroAgeeml();
+  if (localidadesQro.length > 0) {
+    const munPorClave = await prisma.catalogoMunicipioINEGI.findMany({
+      where: { estadoId: estado.id },
+      select: { id: true, claveINEGI: true },
+    });
+    const munIdPorClave = new Map(munPorClave.map((m) => [m.claveINEGI, m.id]));
+    const LOC_BATCH = 500;
+    let locInsertadas = 0;
+    for (let i = 0; i < localidadesQro.length; i += LOC_BATCH) {
+      const chunk = localidadesQro.slice(i, i + LOC_BATCH);
+      const data = chunk
+        .map((r) => {
+          const municipioId = munIdPorClave.get(r.claveMunicipioINEGI);
+          if (!municipioId) return null;
+          return {
+            municipioId,
+            claveINEGI: r.claveINEGI,
+            nombre: r.nombre,
+            activo: true,
+          };
+        })
+        .filter((x): x is NonNullable<typeof x> => x != null);
+      if (data.length > 0) {
+        const r = await prisma.catalogoLocalidadINEGI.createMany({
+          data,
+          skipDuplicates: true,
+        });
+        locInsertadas += r.count;
+      }
+    }
+    console.log(
+      'INEGI QRO localidades (desde JSON versionado):',
+      localidadesQro.length,
+      'filas en archivo,',
+      locInsertadas,
+      'filas nuevas insertadas en esta corrida (omitidas si ya existían por clave).',
+    );
+  } else {
+    console.warn(
+      'INEGI QRO: sin prisma/data/catalogo-localidades-qro-ageeml.json — sin localidades masivas en seed.',
+    );
+  }
 
   const colonias = [
     { claveINEGI: '22014-0001', nombre: 'Centro Histórico', codigoPostal: '76000' },
@@ -1094,7 +1149,9 @@ async function seedInegiQueretaro() {
   console.log(
     'INEGI Querétaro: 1 estado,',
     municipiosQro.length,
-    'municipios (SIGE/QRO), localidades vía import-localidades-sige-qro,',
+    'municipios (SIGE/QRO),',
+    localidadesQro.length,
+    'localidades en JSON de seed,',
     colonias.length + coloniasMarques.length,
     'colonias demo',
   );

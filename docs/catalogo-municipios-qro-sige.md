@@ -19,10 +19,14 @@ Columnas en el Excel: `proid`, `pronombre`, `procomid`, `proindblk`.
 
 ## Activo (`activo` en BD)
 
-Se toma de `proindblk` en el Excel: `activo = true` cuando `proindblk === "1"`, `false` cuando `"0"` (p. ej. ARROYO SECO y CORREGIDORA en el extracto usado).
+El JSON versionado puede marcar municipios como inactivos según `proindblk` en el Excel legado; para que los **18** municipios aparezcan en selectores de domicilio, conviene mantenerlos con `activo: true` salvo requisito explícito de negocio.
 
-## Demo localidades / colonias
+## Localidades (AGEEML → JSON → seed)
 
-Las filas de demostración (localidades y colonias de ejemplo) quedan asociadas a los municipios INEGI **22014** (Querétaro) y **22011** (El Marqués), con claves de localidad alineadas a ese esquema (`220140001`, etc.).
+El listado masivo de localidades **no** se lee del Excel en producción. Se genera en desarrollo con `npm run export:localidades-qro-json` a partir del export INEGI (**AGEEML**, hoja `Consulta`) y se guarda en **`backend/prisma/data/catalogo-localidades-qro-ageeml.json`**. `seedInegiQueretaro` carga ese archivo tras los municipios. Detalle en `docs/import-catalogo-inegi.md`.
+
+## Demo colonias
+
+Las colonias de demostración siguen definidas en `seed.ts` para los municipios INEGI **22014** (Querétaro) y **22011** (El Marqués).
 
 Si una base ya tenía datos sembrados con claves antiguas incorrectas (`22001` como ciudad de Querétaro), conviene `prisma migrate reset` o limpiar manualmente catálogos INEGI de Querétaro antes de volver a sembrar.

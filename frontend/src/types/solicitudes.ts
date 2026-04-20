@@ -62,6 +62,8 @@ export interface SolicitudState {
   noDomReqTotalUnidades: string;
   adminId: string;
   tipoContratacionId: string;
+  /** Código SIGE (`TCT-…`) guardado junto al id para tolerar re-sembrados / migraciones de catálogo. */
+  tipoContratacionCodigo?: string;
   distritoId: string;
   grupoActividadId: string;
   actividadId: string;
@@ -128,6 +130,7 @@ export const SOLICITUD_STATE_EMPTY: SolicitudState = {
   noDomReqTotalUnidades: '',
   adminId: '',
   tipoContratacionId: '',
+  tipoContratacionCodigo: '',
   distritoId: '',
   grupoActividadId: '',
   actividadId: '',
