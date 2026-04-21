@@ -58,6 +58,16 @@ export class SolicitudesController {
     return this.service.rechazar(id);
   }
 
+  @Post(':id/cancelar')
+  cancelar(@Param('id') id: string) {
+    return this.service.cancelar(id);
+  }
+
+  @Post(':id/retomar')
+  retomar(@Param('id') id: string) {
+    return this.service.retomar(id);
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.service.remove(id);

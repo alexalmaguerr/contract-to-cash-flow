@@ -1065,8 +1065,14 @@ function StepFiscal({
           onChange={(v) => set({
             requiereFactura: v,
             mismosDatosProp: '',
-            // When no invoice required, pre-fill with fiscal defaults for CEA's records
-            ...(v === 'no' ? { fiscalRegimenFiscal: '616', fiscalUsoCfdi: 'S01' } : {}),
+            // When no invoice required, use SAT "Público en general" generic data
+            ...(v === 'no' ? {
+              fiscalRfc: 'XAXX010101000',
+              fiscalRazonSocial: 'Público en general',
+              fiscalTipoPersona: 'moral' as const,
+              fiscalRegimenFiscal: '616',
+              fiscalUsoCfdi: 'S01',
+            } : {}),
           })}
         />
       </div>
@@ -1176,8 +1182,16 @@ function StepFiscal({
 
       {form.requiereFactura === 'no' && (
         <div className="space-y-3 rounded-md border bg-muted/20 px-4 py-4">
-          <p className="text-sm font-medium text-muted-foreground">No se generará factura para esta solicitud. Se registrarán los datos fiscales por defecto:</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Datos fiscales genéricos (SAT — Público en general)</p>
           <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-0.5">
+              <p className="text-xs text-muted-foreground">RFC</p>
+              <p className="text-sm font-mono font-medium">XAXX010101000</p>
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-xs text-muted-foreground">Razón social</p>
+              <p className="text-sm font-medium">Público en general</p>
+            </div>
             <div className="space-y-0.5">
               <p className="text-xs text-muted-foreground">Régimen fiscal</p>
               <p className="text-sm font-medium">616 — Sin obligaciones fiscales</p>

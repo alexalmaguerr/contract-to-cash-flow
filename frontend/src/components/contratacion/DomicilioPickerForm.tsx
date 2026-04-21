@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 
@@ -14,13 +14,7 @@ import {
 } from '@/api/domicilios-inegi';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 
 export interface DomicilioFormValue {
   estadoINEGIId: string;
@@ -115,16 +109,14 @@ export default function DomicilioPickerForm({ value, onChange, disabled = false 
             <Loader2 className="h-3.5 w-3.5 animate-spin" /> Cargando…
           </div>
         ) : (
-          <Select value={value.estadoINEGIId} onValueChange={handleEstado} disabled={disabled}>
-            <SelectTrigger className="h-9">
-              <SelectValue placeholder="Seleccionar estado" />
-            </SelectTrigger>
-            <SelectContent>
-              {estados.map((e: CatalogoEstadoINEGI) => (
-                <SelectItem key={e.id} value={e.id}>{e.nombre}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SearchableSelect
+            value={value.estadoINEGIId}
+            onValueChange={handleEstado}
+            disabled={disabled}
+            placeholder="Seleccionar estado"
+            searchPlaceholder="Buscar estado…"
+            options={estados.map((e: CatalogoEstadoINEGI) => ({ value: e.id, label: e.nombre }))}
+          />
         )}
       </div>
 
@@ -136,20 +128,14 @@ export default function DomicilioPickerForm({ value, onChange, disabled = false 
             <Loader2 className="h-3.5 w-3.5 animate-spin" /> Cargando…
           </div>
         ) : (
-          <Select
+          <SearchableSelect
             value={value.municipioINEGIId}
             onValueChange={handleMunicipio}
             disabled={disabled || !value.estadoINEGIId}
-          >
-            <SelectTrigger className="h-9">
-              <SelectValue placeholder={value.estadoINEGIId ? 'Seleccionar municipio' : 'Primero seleccione estado'} />
-            </SelectTrigger>
-            <SelectContent>
-              {municipios.map((m) => (
-                <SelectItem key={m.id} value={m.id}>{m.nombre}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            placeholder={value.estadoINEGIId ? 'Seleccionar municipio' : 'Primero seleccione estado'}
+            searchPlaceholder="Buscar municipio…"
+            options={municipios.map((m: CatalogoMunicipioINEGIRow) => ({ value: m.id, label: m.nombre }))}
+          />
         )}
       </div>
 
@@ -161,20 +147,14 @@ export default function DomicilioPickerForm({ value, onChange, disabled = false 
             <Loader2 className="h-3.5 w-3.5 animate-spin" /> Cargando…
           </div>
         ) : (
-          <Select
+          <SearchableSelect
             value={value.localidadINEGIId}
             onValueChange={(id) => set({ localidadINEGIId: id })}
             disabled={disabled || !value.municipioINEGIId}
-          >
-            <SelectTrigger className="h-9">
-              <SelectValue placeholder="Seleccionar localidad" />
-            </SelectTrigger>
-            <SelectContent>
-              {localidades.map((l) => (
-                <SelectItem key={l.id} value={l.id}>{l.nombre}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            placeholder="Seleccionar localidad"
+            searchPlaceholder="Buscar localidad…"
+            options={localidades.map((l: CatalogoLocalidadINEGIRow) => ({ value: l.id, label: l.nombre }))}
+          />
         )}
       </div>
 
@@ -186,22 +166,17 @@ export default function DomicilioPickerForm({ value, onChange, disabled = false 
             <Loader2 className="h-3.5 w-3.5 animate-spin" /> Cargando…
           </div>
         ) : (
-          <Select
+          <SearchableSelect
             value={value.coloniaINEGIId}
             onValueChange={(id) => set({ coloniaINEGIId: id })}
             disabled={disabled || !value.municipioINEGIId}
-          >
-            <SelectTrigger className="h-9">
-              <SelectValue placeholder={value.municipioINEGIId ? 'Seleccionar colonia' : 'Primero seleccione municipio'} />
-            </SelectTrigger>
-            <SelectContent>
-              {colonias.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.nombre} <span className="text-muted-foreground text-xs ml-1">{c.codigoPostal}</span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            placeholder={value.municipioINEGIId ? 'Seleccionar colonia' : 'Primero seleccione municipio'}
+            searchPlaceholder="Buscar colonia o C.P.…"
+            options={colonias.map((c: CatalogoColoniaINEGIRow) => ({
+              value: c.id,
+              label: c.codigoPostal ? `${c.nombre} — ${c.codigoPostal}` : c.nombre,
+            }))}
+          />
         )}
       </div>
 

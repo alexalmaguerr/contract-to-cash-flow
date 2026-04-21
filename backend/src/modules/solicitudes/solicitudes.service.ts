@@ -303,6 +303,39 @@ export class SolicitudesService {
     });
   }
 
+  // ── Cancel ────────────────────────────────────────────────────────────────
+  async cancelar(id: string) {
+    await this.findOne(id);
+    return this.prisma.solicitud.update({
+      where: { id },
+      data: { estado: 'cancelada' },
+      include: { inspeccion: true },
+    });
+  }
+
+  // ── Retomar (reactivate a cancelled solicitud) ────────────────────────────
+  async retomar(id: string) {
+    const sol = await this.findOne(id);
+
+    let estadoRetomado = 'inspeccion_pendiente';
+    const tipoId = sol.tipoContratacionId;
+    if (tipoId) {
+      const tipo = await this.prisma.tipoContratacion.findUnique({
+        where: { id: tipoId },
+        select: { requiereInspeccion: true },
+      });
+      if (tipo && !tipo.requiereInspeccion) {
+        estadoRetomado = 'en_cotizacion';
+      }
+    }
+
+    return this.prisma.solicitud.update({
+      where: { id },
+      data: { estado: estadoRetomado },
+      include: { inspeccion: true },
+    });
+  }
+
   async remove(id: string) {
     await this.findOne(id);
     await this.prisma.solicitud.delete({ where: { id } });

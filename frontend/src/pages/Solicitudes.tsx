@@ -9,6 +9,7 @@ import {
   type SolicitudDto,
   type SolicitudInspeccionDto,
 } from '@/api/solicitudes';
+import { fetchTiposContratacion } from '@/api/tipos-contratacion';
 import {
   ClipboardPlus,
   ClipboardList,
@@ -686,9 +687,11 @@ function CotizacionModal({
 }) {
   const [aceptando, setAceptando] = useState(false);
 
-  if (!record || !record.ordenInspeccion) return null;
+  if (!record) return null;
 
-  const conceptos = calcularCotizacion(record.ordenInspeccion);
+  // Use real inspection data if available, otherwise use first mock preset for cotización
+  const ordenData = record.ordenInspeccion ?? MOCK_INSPECCIONES[0];
+  const conceptos = calcularCotizacion(ordenData);
   const total = conceptos.reduce((s, c) => s + c.subtotal, 0);
   const vigencia = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' });
 
@@ -822,6 +825,20 @@ export default function Solicitudes() {
     () => (solicitudesData?.data ?? []).map(dtoToRecord),
     [solicitudesData],
   );
+
+  const { data: tiposData } = useQuery({
+    queryKey: ['tipos-contratacion', 'all'],
+    queryFn: () => fetchTiposContratacion({ limit: 500 }),
+    staleTime: 10 * 60 * 1000,
+  });
+  // Map tipoContratacionId → requiereInspeccion (default true when unknown)
+  const tipoInspeccionMap = useMemo(() => {
+    const map = new Map<string, boolean>();
+    for (const t of tiposData?.data ?? []) {
+      map.set(t.id, t.requiereInspeccion ?? true);
+    }
+    return map;
+  }, [tiposData]);
 
   // ── Mutations ─────────────────────────────────────────────────────────
   const cancelarMutation = useMutation({
@@ -1125,7 +1142,8 @@ export default function Solicitudes() {
                               <ArrowRight className="h-3.5 w-3.5" />
                               Ver contrato
                             </Button>
-                          ) : (r.estado === 'en_cotizacion' || r.estado === 'inspeccion_completada' || r.estado === 'cotizado') ? (
+                          ) : (r.estado === 'en_cotizacion' || r.estado === 'inspeccion_completada' || r.estado === 'cotizado'
+                              || (tipoInspeccionMap.get(r.tipoContratacionId) === false)) ? (
                             <Button
                               type="button"
                               size="sm"
