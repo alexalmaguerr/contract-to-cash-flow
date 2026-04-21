@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   fetchSolicitudes,
-  upsertInspeccion as apiUpsertInspeccion,
   aceptarSolicitud as apiAceptarSolicitud,
-  rechazarSolicitud as apiRechazarSolicitud,
+  cancelarSolicitud as apiCancelarSolicitud,
+  retormarSolicitud as apiRetormarSolicitud,
   type SolicitudDto,
   type SolicitudInspeccionDto,
 } from '@/api/solicitudes';
@@ -24,6 +24,10 @@ import {
   Receipt,
   CalendarClock,
   Wand2,
+  WifiOff,
+  Ban,
+  RotateCcw,
+  Filter,
 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -37,14 +41,6 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   Sheet,
   SheetContent,
@@ -175,8 +171,6 @@ const RESULTADO_INSPECCION = [
   { id: 'pendiente', label: 'Pendiente' },
 ];
 
-const DIAMETROS_TOMA = ['1/2"', '3/4"', '1"', '1.5"', '2"', '3"', '4"'];
-
 // ── Status badge ──────────────────────────────────────────────────────────────
 
 const ESTADO_CONFIG: Record<SolicitudEstado, { label: string; icon: React.ElementType; className: string }> = {
@@ -214,6 +208,11 @@ const ESTADO_CONFIG: Record<SolicitudEstado, { label: string; icon: React.Elemen
     label: 'Rechazada',
     icon: XCircle,
     className: 'border-red-400/60 bg-red-50 text-red-800 dark:bg-red-950/40 dark:text-red-300',
+  },
+  cancelada: {
+    label: 'Cancelada',
+    icon: Ban,
+    className: 'border-slate-400/60 bg-slate-50 text-slate-700 dark:bg-slate-900/40 dark:text-slate-400',
   },
   cotizado: {
     label: 'En cotización',
@@ -263,65 +262,92 @@ function DetailRow({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
-// ── YesNo pill ────────────────────────────────────────────────────────────────
+// ── Inspection mock data (3 presets for demo cycling) ────────────────────────
 
-function YesNo({
-  value,
-  onChange,
-}: {
-  value: 'si' | 'no' | '';
-  onChange: (v: 'si' | 'no') => void;
-}) {
-  return (
-    <div className="flex flex-row">
-      {(['si', 'no'] as const).map((opt) => (
-        <button
-          key={opt}
-          type="button"
-          onClick={() => onChange(opt)}
-          className={cn(
-            'border px-3 py-1.5 text-sm font-medium transition-colors select-none',
-            opt === 'si' ? 'rounded-l-md border-r-0' : 'rounded-r-md',
-            value === opt
-              ? 'bg-primary text-primary-foreground border-primary'
-              : 'bg-background border-input hover:bg-accent',
-          )}
-        >
-          {opt === 'si' ? 'Sí' : 'No'}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-// ── Inspection mock data ──────────────────────────────────────────────────────
-
-const MOCK_INSPECCION: OrdenInspeccionData = {
-  estado: 'completada',
-  fechaInspeccion: '2026-04-13',
-  numeroOficial: 'No marcado',
-  tipoUso: 'baldio',
-  giro: 'Baldío',
-  areaTerreno: '180',
-  condicionToma: 'no_tiene',
-  condicionesPredio: 'baldio',
-  infraHidraulicaExterna: 'si',
-  infraSanitaria: 'si',
-  materialCalle: 'empedrado',
-  materialBanqueta: 'concreto',
-  metrosRupturaAguaBanqueta: '2',
-  metrosRupturaAguaCalle: '0',
-  metrosRupturaDrenajeBanqueta: '2',
-  metrosRupturaDrenajeCalle: '3',
-  observaciones: 'Solar baldío físicamente no se aprecian las preparaciones de agua y drenaje, se marcan metros de ruptura.',
-  resultadoEjecucion: 'visitada_ejecutada',
-  resultadoInspeccion: 'ejecutada',
-  inspectorNumEmpleado: '180076',
-  inspectorNombre: 'Sergio Leonardo Nuñez López',
-  inicio: '2026-04-13T13:15:09',
-  fin: '2026-04-13T13:19:25',
-  tipoOrdenCorrecto: 'si',
-};
+const MOCK_INSPECCIONES: OrdenInspeccionData[] = [
+  // 1. Residencial — toma nueva, ruptura moderada
+  {
+    estado: 'completada',
+    fechaInspeccion: '2026-04-10',
+    numeroOficial: '45',
+    tipoUso: 'domestico',
+    giro: 'Casa habitación',
+    areaTerreno: '120',
+    condicionToma: 'no_tiene',
+    condicionesPredio: 'construido',
+    infraHidraulicaExterna: 'si',
+    infraSanitaria: 'si',
+    materialCalle: 'concreto_asfaltico',
+    materialBanqueta: 'concreto',
+    metrosRupturaAguaBanqueta: '3',
+    metrosRupturaAguaCalle: '2',
+    metrosRupturaDrenajeBanqueta: '3',
+    metrosRupturaDrenajeCalle: '0',
+    observaciones: 'Predio con construcción terminada. Sin toma de agua existente. Se identifican preparaciones previas de agua y drenaje.',
+    resultadoEjecucion: 'visitada_ejecutada',
+    resultadoInspeccion: 'ejecutada',
+    inspectorNumEmpleado: '180076',
+    inspectorNombre: 'Sergio Leonardo Nuñez López',
+    inicio: '2026-04-10T09:00:00',
+    fin: '2026-04-10T09:18:45',
+    tipoOrdenCorrecto: 'si',
+  },
+  // 2. Baldío — sin toma, ruptura drenaje
+  {
+    estado: 'completada',
+    fechaInspeccion: '2026-04-13',
+    numeroOficial: 'No marcado',
+    tipoUso: 'baldio',
+    giro: 'Baldío',
+    areaTerreno: '180',
+    condicionToma: 'no_tiene',
+    condicionesPredio: 'baldio',
+    infraHidraulicaExterna: 'si',
+    infraSanitaria: 'si',
+    materialCalle: 'empedrado',
+    materialBanqueta: 'concreto',
+    metrosRupturaAguaBanqueta: '2',
+    metrosRupturaAguaCalle: '0',
+    metrosRupturaDrenajeBanqueta: '2',
+    metrosRupturaDrenajeCalle: '3',
+    observaciones: 'Solar baldío físicamente no se aprecian las preparaciones de agua y drenaje, se marcan metros de ruptura.',
+    resultadoEjecucion: 'visitada_ejecutada',
+    resultadoInspeccion: 'ejecutada',
+    inspectorNumEmpleado: '180076',
+    inspectorNombre: 'Sergio Leonardo Nuñez López',
+    inicio: '2026-04-13T13:15:09',
+    fin: '2026-04-13T13:19:25',
+    tipoOrdenCorrecto: 'si',
+  },
+  // 3. Comercial — toma en mal estado, ruptura mayor, inspector adicional
+  {
+    estado: 'completada',
+    fechaInspeccion: '2026-04-14',
+    numeroOficial: '201 A',
+    tipoUso: 'comercial',
+    giro: 'Restaurante',
+    areaTerreno: '320',
+    condicionToma: 'mala',
+    condicionesPredio: 'construido',
+    infraHidraulicaExterna: 'si',
+    infraSanitaria: 'si',
+    materialCalle: 'concreto_hidraulico',
+    materialBanqueta: 'concreto_hidraulico',
+    metrosRupturaAguaBanqueta: '4',
+    metrosRupturaAguaCalle: '5',
+    metrosRupturaDrenajeBanqueta: '4',
+    metrosRupturaDrenajeCalle: '6',
+    observaciones: 'Local comercial con toma existente en mal estado. Se requiere cambio completo de la toma y reposición de banqueta y calle por obras previas.',
+    resultadoEjecucion: 'visitada_ejecutada',
+    resultadoInspeccion: 'ejecutada',
+    inspectorNumEmpleado: '110152',
+    inspectorNombre: 'María Elena Guerrero Vázquez',
+    inspectoresAdicionales: [{ noEmpleado: '180076', nombre: 'Sergio Leonardo Nuñez López' }],
+    inicio: '2026-04-14T10:30:00',
+    fin: '2026-04-14T10:55:10',
+    tipoOrdenCorrecto: 'si',
+  },
+];
 
 // ── Inspection Sheet ──────────────────────────────────────────────────────────
 
@@ -329,51 +355,171 @@ function OrdenInspeccionSheet({
   record,
   open,
   onClose,
-  onSave,
   onAceptar,
   onRechazar,
 }: {
   record: SolicitudRecord | null;
   open: boolean;
   onClose: () => void;
-  onSave: (id: string, orden: OrdenInspeccionData) => void;
   onAceptar: (id: string) => void;
   onRechazar: (id: string) => void;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState<Partial<OrdenInspeccionData>>({});
-
-  function startEdit() {
-    setDraft(record?.ordenInspeccion ?? { estado: 'en_proceso' });
-    setEditing(true);
-  }
-
-  function set(patch: Partial<OrdenInspeccionData>) {
-    setDraft((prev) => ({ ...prev, ...patch }));
-  }
-
-  function handleSave() {
-    if (!record) return;
-    onSave(record.id, draft as OrdenInspeccionData);
-    setEditing(false);
-  }
-
-  function handlePrellenar() {
-    setDraft(MOCK_INSPECCION);
-  }
+  const [mockIdx, setMockIdx] = useState(0);
 
   if (!record) return null;
 
+  // For demo: use mock data if no real inspection data exists
   const orden = record.ordenInspeccion;
+  const demoOrden = MOCK_INSPECCIONES[mockIdx];
+
+  function cycleMock() {
+    setMockIdx((i) => (i + 1) % MOCK_INSPECCIONES.length);
+  }
+
+  function InspeccionView({ data }: { data: OrdenInspeccionData }) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-2">
+          {data.estado === 'completada' ? (
+            <>
+              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+              <span className="font-medium">Inspección completada</span>
+            </>
+          ) : (
+            <Badge variant="secondary" className="gap-1.5">
+              <Clock className="h-3.5 w-3.5" />
+              En proceso
+            </Badge>
+          )}
+        </div>
+
+        <Separator />
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Información general</p>
+        <div className="grid grid-cols-2 gap-4">
+          <DetailRow label="Fecha de inspección" value={data.fechaInspeccion} />
+          <DetailRow label="Número oficial" value={data.numeroOficial} />
+          <DetailRow label="Tipo de uso" value={CATALOG_LABEL(TIPO_USO, data.tipoUso)} />
+          <DetailRow label="Giro" value={data.giro} />
+          <DetailRow label="Área terreno (m²)" value={data.areaTerreno ? `${data.areaTerreno} m²` : undefined} />
+          <DetailRow label="Condición de la toma" value={CATALOG_LABEL(CONDICION_TOMA, data.condicionToma)} />
+          <DetailRow label="Condiciones del predio" value={CATALOG_LABEL(CONDICIONES_PREDIO, data.condicionesPredio)} />
+        </div>
+
+        <Separator />
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Infraestructura</p>
+        <div className="grid grid-cols-2 gap-4">
+          <DetailRow label="Infra. hidráulica externa" value={data.infraHidraulicaExterna === 'si' ? 'Sí' : data.infraHidraulicaExterna === 'no' ? 'No' : undefined} />
+          <DetailRow label="Infra. sanitaria" value={data.infraSanitaria === 'si' ? 'Sí' : data.infraSanitaria === 'no' ? 'No' : undefined} />
+          <DetailRow label="Material de calle" value={data.materialCalle ? MATERIAL_LABEL[data.materialCalle] : undefined} />
+          <DetailRow label="Material de banqueta" value={data.materialBanqueta ? MATERIAL_LABEL[data.materialBanqueta] : undefined} />
+        </div>
+
+        <Separator />
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ruptura AGUA</p>
+        <div className="grid grid-cols-2 gap-4">
+          <DetailRow label="Banqueta (ml)" value={data.metrosRupturaAguaBanqueta} />
+          <DetailRow label="Calle (ml)" value={data.metrosRupturaAguaCalle} />
+        </div>
+
+        <Separator />
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ruptura DRENAJE</p>
+        <div className="grid grid-cols-2 gap-4">
+          <DetailRow label="Banqueta (ml)" value={data.metrosRupturaDrenajeBanqueta} />
+          <DetailRow label="Calle (ml)" value={data.metrosRupturaDrenajeCalle} />
+        </div>
+
+        {data.observaciones && (
+          <>
+            <Separator />
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Observaciones</p>
+              <p className="text-sm">{data.observaciones}</p>
+            </div>
+          </>
+        )}
+
+        {data.evidencias && data.evidencias.length > 0 && (
+          <>
+            <Separator />
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Evidencia fotográfica</p>
+            <div className="grid grid-cols-2 gap-2">
+              {data.evidencias.map((src, i) => (
+                <img key={i} src={src} alt={`Evidencia ${i + 1}`} className="w-full rounded-md border object-cover aspect-video" />
+              ))}
+            </div>
+          </>
+        )}
+
+        <Separator />
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Resultados</p>
+        <div className="grid grid-cols-2 gap-4">
+          <DetailRow label="Resultado de ejecución" value={CATALOG_LABEL(RESULTADO_EJECUCION, data.resultadoEjecucion)} />
+          <DetailRow label="Resultado de inspección" value={CATALOG_LABEL(RESULTADO_INSPECCION, data.resultadoInspeccion)} />
+        </div>
+
+        <Separator />
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Inspector asignado</p>
+        <div className="grid grid-cols-2 gap-4">
+          <DetailRow label="No. Empleado" value={data.inspectorNumEmpleado} />
+          <DetailRow label="Nombre" value={data.inspectorNombre} />
+        </div>
+        {data.firmaInspector && (
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">Firma del inspector</p>
+            <img src={data.firmaInspector} alt="Firma inspector" className="max-h-28 rounded-md border bg-white p-2" />
+          </div>
+        )}
+
+        {data.inspectoresAdicionales && data.inspectoresAdicionales.length > 0 && (
+          <>
+            <Separator />
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Inspectores adicionales</p>
+            {data.inspectoresAdicionales.map((insp, i) => (
+              <div key={i} className="rounded-md border p-3 space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <DetailRow label="No. Empleado" value={insp.noEmpleado} />
+                  <DetailRow label="Nombre" value={insp.nombre} />
+                </div>
+                {insp.firma && (
+                  <img src={insp.firma} alt={`Firma inspector ${i + 2}`} className="max-h-28 rounded-md border bg-white p-2" />
+                )}
+              </div>
+            ))}
+          </>
+        )}
+
+        <Separator />
+        <div className="grid grid-cols-2 gap-4">
+          <DetailRow label="Inicio" value={data.inicio} />
+          <DetailRow label="Fin" value={data.fin} />
+          <DetailRow label="Tipo de orden correcto" value={data.tipoOrdenCorrecto === 'si' ? 'Sí' : data.tipoOrdenCorrecto === 'no' ? 'No' : undefined} />
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <Sheet open={open} onOpenChange={(o) => { if (!o) { onClose(); setEditing(false); } }}>
+    <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <SheetContent side="right" className="flex w-full flex-col gap-0 overflow-y-auto p-0 sm:max-w-[540px]">
         <SheetHeader className="border-b px-6 py-4">
-          <SheetTitle className="flex items-center gap-2 text-base">
-            <ClipboardList className="h-4 w-4 text-muted-foreground" />
-            Orden de inspección
-          </SheetTitle>
+          <div className="flex items-center justify-between">
+            <SheetTitle className="flex items-center gap-2 text-base">
+              <ClipboardList className="h-4 w-4 text-muted-foreground" />
+              Orden de inspección
+            </SheetTitle>
+            {!orden && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 gap-1.5 border-dashed text-muted-foreground hover:text-foreground"
+                onClick={cycleMock}
+              >
+                <Wand2 className="h-3 w-3" />
+                Demo {mockIdx + 1}/{MOCK_INSPECCIONES.length}
+              </Button>
+            )}
+          </div>
           <div className="text-xs text-muted-foreground">
             {record.folio} — {record.propNombreCompleto}
           </div>
@@ -384,515 +530,36 @@ function OrdenInspeccionSheet({
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto px-6 py-5">
-          {/* No results yet */}
-          {!orden && !editing && (
-            <div className="flex flex-col items-center gap-4 py-10 text-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-950/50 dark:text-amber-300">
-                <ClipboardList className="h-8 w-8" />
+          {/* No real data — show waiting state with demo data below */}
+          {!orden && (
+            <>
+              <div className="mb-5 flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400">
+                <WifiOff className="h-4 w-4 shrink-0" />
+                <span>Pendiente de recibir datos del sistema externo. Se muestra un ejemplo de referencia.</span>
               </div>
-              <div>
-                <p className="font-semibold">Orden de inspección en proceso</p>
-                <p className="mt-1 max-w-xs text-sm text-muted-foreground">
-                  Aún no se han recibido los resultados de la inspección en campo. El inspector registrará los datos una vez concluida.
-                </p>
-              </div>
-              <Button type="button" size="sm" onClick={startEdit}>
-                Registrar resultados
-              </Button>
-            </div>
+              <InspeccionView data={demoOrden} />
+            </>
           )}
 
-          {/* Results already recorded — view mode */}
-          {orden && !editing && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {orden.estado === 'completada' ? (
-                    <>
-                      <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                      <span className="font-medium">Inspección completada</span>
-                    </>
-                  ) : (
-                    <Badge variant="secondary" className="gap-1.5">
-                      <Clock className="h-3.5 w-3.5" />
-                      En proceso
-                    </Badge>
-                  )}
-                </div>
-                <Button type="button" variant="outline" size="sm" onClick={startEdit}>
-                  <Pencil className="mr-1.5 h-3.5 w-3.5" /> Editar
-                </Button>
-              </div>
-
-              <Separator />
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Información general</p>
-              <div className="grid grid-cols-2 gap-4">
-                <DetailRow label="Fecha de inspección" value={orden.fechaInspeccion} />
-                <DetailRow label="Número oficial" value={orden.numeroOficial} />
-                <DetailRow label="Tipo de uso" value={CATALOG_LABEL(TIPO_USO, orden.tipoUso)} />
-                <DetailRow label="Giro" value={orden.giro} />
-                <DetailRow label="Área terreno (m²)" value={orden.areaTerreno ? `${orden.areaTerreno} m²` : undefined} />
-                <DetailRow label="Condición de la toma" value={CATALOG_LABEL(CONDICION_TOMA, orden.condicionToma)} />
-                <DetailRow label="Condiciones del predio" value={CATALOG_LABEL(CONDICIONES_PREDIO, orden.condicionesPredio)} />
-              </div>
-
-              <Separator />
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Infraestructura</p>
-              <div className="grid grid-cols-2 gap-4">
-                <DetailRow label="Infra. hidráulica externa" value={orden.infraHidraulicaExterna === 'si' ? 'Sí' : orden.infraHidraulicaExterna === 'no' ? 'No' : undefined} />
-                <DetailRow label="Infra. sanitaria" value={orden.infraSanitaria === 'si' ? 'Sí' : orden.infraSanitaria === 'no' ? 'No' : undefined} />
-                <DetailRow label="Material de calle" value={orden.materialCalle ? MATERIAL_LABEL[orden.materialCalle] : undefined} />
-                <DetailRow label="Material de banqueta" value={orden.materialBanqueta ? MATERIAL_LABEL[orden.materialBanqueta] : undefined} />
-              </div>
-
-              <Separator />
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ruptura AGUA</p>
-              <div className="grid grid-cols-2 gap-4">
-                <DetailRow label="Banqueta (ml)" value={orden.metrosRupturaAguaBanqueta} />
-                <DetailRow label="Calle (ml)" value={orden.metrosRupturaAguaCalle} />
-              </div>
-
-              <Separator />
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ruptura DRENAJE</p>
-              <div className="grid grid-cols-2 gap-4">
-                <DetailRow label="Banqueta (ml)" value={orden.metrosRupturaDrenajeBanqueta} />
-                <DetailRow label="Calle (ml)" value={orden.metrosRupturaDrenajeCalle} />
-              </div>
-
-              {orden.observaciones && (
-                <>
-                  <Separator />
-                  <div className="space-y-1">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Observaciones</p>
-                    <p className="text-sm">{orden.observaciones}</p>
-                  </div>
-                </>
-              )}
-
-              {orden.evidencias && orden.evidencias.length > 0 && (
-                <>
-                  <Separator />
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Evidencia fotográfica</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {orden.evidencias.map((src, i) => (
-                      <img key={i} src={src} alt={`Evidencia ${i + 1}`} className="w-full rounded-md border object-cover aspect-video" />
-                    ))}
-                  </div>
-                </>
-              )}
-
-              <Separator />
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Resultados</p>
-              <div className="grid grid-cols-2 gap-4">
-                <DetailRow label="Resultado de ejecución" value={CATALOG_LABEL(RESULTADO_EJECUCION, orden.resultadoEjecucion)} />
-                <DetailRow label="Resultado de inspección" value={CATALOG_LABEL(RESULTADO_INSPECCION, orden.resultadoInspeccion)} />
-              </div>
-
-              <Separator />
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Inspector asignado</p>
-              <div className="grid grid-cols-2 gap-4">
-                <DetailRow label="No. Empleado" value={orden.inspectorNumEmpleado} />
-                <DetailRow label="Nombre" value={orden.inspectorNombre} />
-              </div>
-              {orden.firmaInspector && (
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">Firma del inspector</p>
-                  <img src={orden.firmaInspector} alt="Firma inspector" className="max-h-28 rounded-md border bg-white p-2" />
-                </div>
-              )}
-
-              {orden.inspectoresAdicionales && orden.inspectoresAdicionales.length > 0 && (
-                <>
-                  <Separator />
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Inspectores adicionales</p>
-                  {orden.inspectoresAdicionales.map((insp, i) => (
-                    <div key={i} className="rounded-md border p-3 space-y-2">
-                      <div className="grid grid-cols-2 gap-2">
-                        <DetailRow label="No. Empleado" value={insp.noEmpleado} />
-                        <DetailRow label="Nombre" value={insp.nombre} />
-                      </div>
-                      {insp.firma && (
-                        <img src={insp.firma} alt={`Firma inspector ${i + 2}`} className="max-h-28 rounded-md border bg-white p-2" />
-                      )}
-                    </div>
-                  ))}
-                </>
-              )}
-
-              <Separator />
-              <div className="grid grid-cols-2 gap-4">
-                <DetailRow label="Inicio" value={orden.inicio} />
-                <DetailRow label="Fin" value={orden.fin} />
-                <DetailRow label="Tipo de orden correcto" value={orden.tipoOrdenCorrecto === 'si' ? 'Sí' : orden.tipoOrdenCorrecto === 'no' ? 'No' : undefined} />
-              </div>
-            </div>
-          )}
-
-          {/* Edit / create form */}
-          {editing && (
-            <div className="space-y-5">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold">Registrar resultados de inspección</p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-7 gap-1.5 border-dashed text-muted-foreground hover:text-foreground"
-                  onClick={handlePrellenar}
-                >
-                  <Wand2 className="h-3 w-3" />
-                  Prellenar demo
-                </Button>
-              </div>
-
-              {/* Estado */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Estado de la inspección</Label>
-                <div className="flex flex-row">
-                  {([['en_proceso', 'En proceso'], ['completada', 'Completada']] as const).map(([val, lbl]) => (
-                    <button
-                      key={val}
-                      type="button"
-                      onClick={() => set({ estado: val })}
-                      className={cn(
-                        'border px-3.5 py-1.5 text-sm font-medium transition-colors select-none',
-                        val === 'en_proceso' ? 'rounded-l-md border-r-0' : 'rounded-r-md',
-                        (draft.estado ?? 'en_proceso') === val ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent',
-                      )}
-                    >
-                      {lbl}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Información general */}
-              <Separator />
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Información general</p>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <Label className="text-sm">Fecha de inspección</Label>
-                  <Input className="h-9" type="date" value={draft.fechaInspeccion ?? ''} onChange={(e) => set({ fechaInspeccion: e.target.value })} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-sm">Número oficial</Label>
-                  <Input className="h-9" placeholder="Ej. 123 o No marcado" value={draft.numeroOficial ?? ''} onChange={(e) => set({ numeroOficial: e.target.value })} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-sm">Tipo de uso</Label>
-                  <Select value={draft.tipoUso ?? ''} onValueChange={(v) => set({ tipoUso: v })}>
-                    <SelectTrigger className="h-9"><SelectValue placeholder="Seleccionar…" /></SelectTrigger>
-                    <SelectContent>
-                      {TIPO_USO.map((t) => <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-sm">Giro</Label>
-                  <Input className="h-9" placeholder="Ej. Baldío, Restaurante…" value={draft.giro ?? ''} onChange={(e) => set({ giro: e.target.value })} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-sm">Área terreno (m²)</Label>
-                  <Input className="h-9" type="number" min="0" placeholder="0" value={draft.areaTerreno ?? ''} onChange={(e) => set({ areaTerreno: e.target.value })} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-sm">Condición de la toma</Label>
-                  <Select value={draft.condicionToma ?? ''} onValueChange={(v) => set({ condicionToma: v })}>
-                    <SelectTrigger className="h-9"><SelectValue placeholder="Seleccionar…" /></SelectTrigger>
-                    <SelectContent>
-                      {CONDICION_TOMA.map((c) => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="col-span-2 space-y-1">
-                  <Label className="text-sm">Condiciones del predio</Label>
-                  <Select value={draft.condicionesPredio ?? ''} onValueChange={(v) => set({ condicionesPredio: v })}>
-                    <SelectTrigger className="h-9"><SelectValue placeholder="Seleccionar…" /></SelectTrigger>
-                    <SelectContent>
-                      {CONDICIONES_PREDIO.map((c) => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Infraestructura */}
-              <Separator />
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Infraestructura</p>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-sm">¿Infra. hidráulica externa?</Label>
-                  <YesNo value={draft.infraHidraulicaExterna ?? ''} onChange={(v) => set({ infraHidraulicaExterna: v })} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-sm">¿Infra. sanitaria?</Label>
-                  <YesNo value={draft.infraSanitaria ?? ''} onChange={(v) => set({ infraSanitaria: v })} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-sm">Material de calle</Label>
-                  <Select value={draft.materialCalle ?? ''} onValueChange={(v) => set({ materialCalle: v })}>
-                    <SelectTrigger className="h-9"><SelectValue placeholder="Seleccionar…" /></SelectTrigger>
-                    <SelectContent>
-                      {MATERIAL_CALLE.map((m) => <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-sm">Material de banqueta</Label>
-                  <Select value={draft.materialBanqueta ?? ''} onValueChange={(v) => set({ materialBanqueta: v })}>
-                    <SelectTrigger className="h-9"><SelectValue placeholder="Seleccionar…" /></SelectTrigger>
-                    <SelectContent>
-                      {MATERIAL_BANQUETA.map((m) => <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Ruptura AGUA */}
-              <Separator />
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Metros de ruptura — AGUA</p>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <Label className="text-sm">Banqueta (ml)</Label>
-                  <Input className="h-9" type="number" min="0" step="0.01" placeholder="0" value={draft.metrosRupturaAguaBanqueta ?? ''} onChange={(e) => set({ metrosRupturaAguaBanqueta: e.target.value })} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-sm">Calle (ml)</Label>
-                  <Input className="h-9" type="number" min="0" step="0.01" placeholder="0" value={draft.metrosRupturaAguaCalle ?? ''} onChange={(e) => set({ metrosRupturaAguaCalle: e.target.value })} />
-                </div>
-              </div>
-
-              {/* Ruptura DRENAJE */}
-              <Separator />
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Metros de ruptura — DRENAJE</p>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <Label className="text-sm">Banqueta (ml)</Label>
-                  <Input className="h-9" type="number" min="0" step="0.01" placeholder="0" value={draft.metrosRupturaDrenajeBanqueta ?? ''} onChange={(e) => set({ metrosRupturaDrenajeBanqueta: e.target.value })} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-sm">Calle (ml)</Label>
-                  <Input className="h-9" type="number" min="0" step="0.01" placeholder="0" value={draft.metrosRupturaDrenajeCalle ?? ''} onChange={(e) => set({ metrosRupturaDrenajeCalle: e.target.value })} />
-                </div>
-              </div>
-
-              {/* Observaciones y evidencia */}
-              <Separator />
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Observaciones y evidencia</p>
-              <div className="space-y-1">
-                <Label className="text-sm">Observaciones</Label>
-                <textarea
-                  className="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
-                  placeholder="Descripción de las condiciones encontradas…"
-                  value={draft.observaciones ?? ''}
-                  onChange={(e) => set({ observaciones: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm">Evidencia fotográfica</Label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-foreground hover:file:bg-muted/80"
-                  onChange={(e) => {
-                    const files = Array.from(e.target.files ?? []);
-                    files.forEach((file) => {
-                      const reader = new FileReader();
-                      reader.onload = (ev) => {
-                        const b64 = ev.target?.result as string;
-                        set({ evidencias: [...(draft.evidencias ?? []), b64] });
-                      };
-                      reader.readAsDataURL(file);
-                    });
-                    e.target.value = '';
-                  }}
-                />
-                {draft.evidencias && draft.evidencias.length > 0 && (
-                  <div className="grid grid-cols-2 gap-2">
-                    {draft.evidencias.map((src, i) => (
-                      <div key={i} className="relative group">
-                        <img src={src} alt={`Evidencia ${i + 1}`} className="w-full rounded-md border object-cover aspect-video" />
-                        <button
-                          type="button"
-                          onClick={() => set({ evidencias: draft.evidencias!.filter((_, j) => j !== i) })}
-                          className="absolute top-1 right-1 hidden group-hover:flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white text-xs"
-                        >✕</button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Resultados */}
-              <Separator />
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Resultados</p>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <Label className="text-sm">Resultado de ejecución</Label>
-                  <Select value={draft.resultadoEjecucion ?? ''} onValueChange={(v) => set({ resultadoEjecucion: v })}>
-                    <SelectTrigger className="h-9"><SelectValue placeholder="Seleccionar…" /></SelectTrigger>
-                    <SelectContent>
-                      {RESULTADO_EJECUCION.map((r) => <SelectItem key={r.id} value={r.id}>{r.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-sm">Resultado de inspección</Label>
-                  <Select value={draft.resultadoInspeccion ?? ''} onValueChange={(v) => set({ resultadoInspeccion: v })}>
-                    <SelectTrigger className="h-9"><SelectValue placeholder="Seleccionar…" /></SelectTrigger>
-                    <SelectContent>
-                      {RESULTADO_INSPECCION.map((r) => <SelectItem key={r.id} value={r.id}>{r.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Inspector principal */}
-              <Separator />
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Inspector asignado</p>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <Label className="text-sm">No. Empleado</Label>
-                  <Input className="h-9" placeholder="180076" value={draft.inspectorNumEmpleado ?? ''} onChange={(e) => set({ inspectorNumEmpleado: e.target.value })} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-sm">Nombre</Label>
-                  <Input className="h-9" placeholder="Nombre completo" value={draft.inspectorNombre ?? ''} onChange={(e) => set({ inspectorNombre: e.target.value })} />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm">Firma del inspector</Label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-foreground hover:file:bg-muted/80"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = (ev) => set({ firmaInspector: ev.target?.result as string });
-                    reader.readAsDataURL(file);
-                  }}
-                />
-                {draft.firmaInspector && (
-                  <div className="flex items-start gap-2">
-                    <img src={draft.firmaInspector} alt="Firma" className="max-h-24 rounded-md border bg-white p-2" />
-                    <button type="button" onClick={() => set({ firmaInspector: undefined })} className="text-xs text-destructive hover:underline">Eliminar</button>
-                  </div>
-                )}
-              </div>
-
-              {/* Inspectores adicionales */}
-              <Separator />
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Inspectores adicionales</p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-xs"
-                  onClick={() => set({ inspectoresAdicionales: [...(draft.inspectoresAdicionales ?? []), { noEmpleado: '', nombre: '' }] })}
-                >
-                  + Agregar
-                </Button>
-              </div>
-              {(draft.inspectoresAdicionales ?? []).map((insp, i) => (
-                <div key={i} className="rounded-md border p-3 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-medium text-muted-foreground">Inspector {i + 2}</p>
-                    <button
-                      type="button"
-                      onClick={() => set({ inspectoresAdicionales: draft.inspectoresAdicionales!.filter((_, j) => j !== i) })}
-                      className="text-xs text-destructive hover:underline"
-                    >Eliminar</button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs">No. Empleado</Label>
-                      <Input className="h-8" placeholder="110152" value={insp.noEmpleado} onChange={(e) => {
-                        const updated = [...draft.inspectoresAdicionales!];
-                        updated[i] = { ...updated[i], noEmpleado: e.target.value };
-                        set({ inspectoresAdicionales: updated });
-                      }} />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Nombre</Label>
-                      <Input className="h-8" placeholder="Nombre completo" value={insp.nombre} onChange={(e) => {
-                        const updated = [...draft.inspectoresAdicionales!];
-                        updated[i] = { ...updated[i], nombre: e.target.value };
-                        set({ inspectoresAdicionales: updated });
-                      }} />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Firma</Label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="block w-full text-xs text-muted-foreground file:mr-2 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1 file:text-xs file:font-medium"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        const reader = new FileReader();
-                        reader.onload = (ev) => {
-                          const updated = [...draft.inspectoresAdicionales!];
-                          updated[i] = { ...updated[i], firma: ev.target?.result as string };
-                          set({ inspectoresAdicionales: updated });
-                        };
-                        reader.readAsDataURL(file);
-                      }}
-                    />
-                    {insp.firma && <img src={insp.firma} alt="Firma" className="max-h-20 rounded-md border bg-white p-1" />}
-                  </div>
-                </div>
-              ))}
-
-              {/* Tiempos y validación */}
-              <Separator />
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tiempos y validación</p>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <Label className="text-sm">Inicio</Label>
-                  <Input className="h-9" type="datetime-local" value={draft.inicio ?? ''} onChange={(e) => set({ inicio: e.target.value })} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-sm">Fin</Label>
-                  <Input className="h-9" type="datetime-local" value={draft.fin ?? ''} onChange={(e) => set({ fin: e.target.value })} />
-                </div>
-                <div className="col-span-2 space-y-1.5">
-                  <Label className="text-sm">¿El tipo de inspección y número de orden es correcto?</Label>
-                  <YesNo value={draft.tipoOrdenCorrecto ?? ''} onChange={(v) => set({ tipoOrdenCorrecto: v })} />
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Real data received */}
+          {orden && <InspeccionView data={orden} />}
         </div>
 
-        {/* Footer actions — edit mode */}
-        {editing && (
-          <div className="flex items-center justify-end gap-2 border-t px-6 py-4">
-            <Button type="button" variant="outline" onClick={() => setEditing(false)}>Cancelar</Button>
-            <Button type="button" onClick={handleSave} className="bg-[#007BFF] hover:bg-blue-600 text-white">
-              Guardar inspección
-            </Button>
-          </div>
-        )}
-
         {/* Footer actions — view mode after inspection is completed */}
-        {!editing && orden?.estado === 'completada' && record && (
+        {orden?.estado === 'completada' && record && (
           <div className="border-t px-6 py-4 space-y-3">
             {(record.estado === 'en_cotizacion' || record.estado === 'inspeccion_completada') && (
               <>
-                <p className="text-xs text-muted-foreground">La inspección fue completada. Puedes avanzar a cuantificación o rechazar la solicitud.</p>
+                <p className="text-xs text-muted-foreground">La inspección fue completada. Puedes avanzar a cuantificación o cancelar la solicitud.</p>
                 <div className="flex items-center gap-2">
                   <Button
                     type="button"
                     variant="outline"
-                    className="flex-1 border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
+                    className="flex-1 border-slate-300 text-slate-600 hover:bg-slate-50 hover:text-slate-700"
                     onClick={() => onRechazar(record.id)}
                   >
-                    <XCircle className="mr-1.5 h-4 w-4" />
-                    Rechazar
+                    <Ban className="mr-1.5 h-4 w-4" />
+                    Cancelar solicitud
                   </Button>
                   <Button
                     type="button"
@@ -909,6 +576,12 @@ function OrdenInspeccionSheet({
               <div className="flex items-center gap-2 text-emerald-700">
                 <CheckCircle2 className="h-4 w-4" />
                 <span className="text-sm font-medium">Solicitud aceptada — proceso de contratación iniciado</span>
+              </div>
+            )}
+            {record.estado === 'cancelada' && (
+              <div className="flex items-center gap-2 text-slate-600">
+                <Ban className="h-4 w-4" />
+                <span className="text-sm font-medium">Solicitud cancelada</span>
               </div>
             )}
             {record.estado === 'rechazada' && (
@@ -1089,7 +762,7 @@ function CotizacionModal({
             onClick={() => onRechazar(record.id)}
           >
             <XCircle className="mr-1.5 h-4 w-4" />
-            Rechazar cotización
+            Cancelar solicitud
           </Button>
           <Button
             type="button"
@@ -1108,10 +781,19 @@ function CotizacionModal({
 
 // ── Main list page ────────────────────────────────────────────────────────────
 
+const ESTADO_FILTER_OPTIONS = [
+  { value: 'todas', label: 'Todas las activas' },
+  { value: 'inspeccion_pendiente', label: 'Pendiente de inspección' },
+  { value: 'en_cotizacion', label: 'En cotización' },
+  { value: 'aceptada', label: 'Alta de contrato' },
+] as const;
+
 export default function Solicitudes() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
+  const [estadoFiltro, setEstadoFiltro] = useState<string>('todas');
+  const [tab, setTab] = useState<'activas' | 'canceladas'>('activas');
   const [inspRecord, setInspRecord] = useState<SolicitudRecord | null>(null);
   const [cotizandoRecord, setCotizandoRecord] = useState<SolicitudRecord | null>(null);
 
@@ -1126,44 +808,57 @@ export default function Solicitudes() {
   );
 
   // ── Mutations ─────────────────────────────────────────────────────────
-  const upsertInspeccionMutation = useMutation({
-    mutationFn: ({ id, orden }: { id: string; orden: OrdenInspeccionData }) =>
-      apiUpsertInspeccion(id, orden),
+  const cancelarMutation = useMutation({
+    mutationFn: (id: string) => apiCancelarSolicitud(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['solicitudes'] }),
   });
 
-  const rechazarMutation = useMutation({
-    mutationFn: (id: string) => apiRechazarSolicitud(id),
+  const retormarMutation = useMutation({
+    mutationFn: (id: string) => apiRetormarSolicitud(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['solicitudes'] }),
   });
+
+  // Active = not cancelled/rejected
+  const activeRecords = useMemo(
+    () => records.filter((r) => r.estado !== 'cancelada' && r.estado !== 'rechazada'),
+    [records],
+  );
+  const cancelledRecords = useMemo(
+    () => records.filter((r) => r.estado === 'cancelada' || r.estado === 'rechazada'),
+    [records],
+  );
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return records;
-    return records.filter(
+    const base = tab === 'canceladas' ? cancelledRecords : activeRecords;
+    let result = base;
+    if (estadoFiltro !== 'todas' && tab === 'activas') {
+      result = result.filter((r) => {
+        if (estadoFiltro === 'inspeccion_pendiente') return ['borrador', 'inspeccion_pendiente', 'inspeccion_en_proceso'].includes(r.estado);
+        if (estadoFiltro === 'en_cotizacion') return ['inspeccion_completada', 'en_cotizacion', 'cotizado'].includes(r.estado);
+        if (estadoFiltro === 'aceptada') return r.estado === 'aceptada' || r.estado === 'contratado';
+        return r.estado === estadoFiltro;
+      });
+    }
+    if (!q) return result;
+    return result.filter(
       (r) =>
         r.folio.toLowerCase().includes(q) ||
         r.propNombreCompleto.toLowerCase().includes(q) ||
         r.predioResumen.toLowerCase().includes(q),
     );
-  }, [records, search]);
+  }, [records, search, estadoFiltro, tab, activeRecords, cancelledRecords]);
 
-  // KPI counts (3-state model)
-  const total = records.length;
-  const pendientesInsp = records.filter((r) =>
+  // KPI counts
+  const total = activeRecords.length;
+  const pendientesInsp = activeRecords.filter((r) =>
     ['borrador', 'inspeccion_pendiente', 'inspeccion_en_proceso'].includes(r.estado),
   ).length;
-  const enCotizacion = records.filter((r) =>
+  const enCotizacion = activeRecords.filter((r) =>
     ['inspeccion_completada', 'en_cotizacion', 'cotizado'].includes(r.estado),
   ).length;
-  const aceptadas = records.filter((r) => r.estado === 'aceptada' || r.estado === 'contratado').length;
-  const rechazadas = records.filter((r) => r.estado === 'rechazada').length;
-
-  function handleSaveOrden(id: string, orden: OrdenInspeccionData) {
-    upsertInspeccionMutation.mutate({ id, orden });
-    const nextEstado = orden.estado === 'completada' ? 'en_cotizacion' as const : 'inspeccion_en_proceso' as const;
-    setInspRecord((prev) => (prev?.id === id ? { ...prev, ordenInspeccion: orden, estado: nextEstado } : prev));
-  }
+  const aceptadas = activeRecords.filter((r) => r.estado === 'aceptada' || r.estado === 'contratado').length;
+  const canceladas = cancelledRecords.length;
 
   // Opens the cotización modal instead of navigating immediately
   function handleContinuarCuantificacion(id: string) {
@@ -1181,12 +876,17 @@ export default function Solicitudes() {
     navigate(contratoId ? `/app/contratos?detail=${contratoId}` : '/app/contratos');
   }
 
-  // Called from CotizacionModal or sheet footer to reject
+  // Cancel solicitud (client doesn't continue, but can come back)
   function handleRechazar(id: string) {
-    rechazarMutation.mutate(id);
+    cancelarMutation.mutate(id);
     setInspRecord(null);
     setCotizandoRecord(null);
-    toast.info('Solicitud rechazada');
+    toast.info('Solicitud cancelada — el cliente puede retomar el trámite en cualquier momento');
+  }
+
+  function handleRetomar(id: string) {
+    retormarMutation.mutate(id);
+    toast.success('Solicitud reactivada');
   }
 
   return (
@@ -1226,10 +926,10 @@ export default function Solicitudes() {
       {/* ── KPIs ─────────────────────────────────────────────────────── */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { label: 'Total solicitudes', value: total, className: '' },
+          { label: 'Solicitudes activas', value: total, className: '' },
           { label: 'Pendientes de inspección', value: pendientesInsp, className: 'text-amber-600' },
           { label: 'En cotización', value: enCotizacion, className: 'text-blue-600' },
-          { label: 'Aceptadas', value: aceptadas + rechazadas, className: 'text-emerald-600' },
+          { label: 'Alta de contrato', value: aceptadas, className: 'text-emerald-600' },
         ].map((kpi) => (
           <Card key={kpi.label}>
             <CardContent className="pt-4 pb-4">
@@ -1240,16 +940,76 @@ export default function Solicitudes() {
         ))}
       </div>
 
+      {/* ── Tabs ─────────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-1 w-fit">
+        <button
+          type="button"
+          onClick={() => { setTab('activas'); setEstadoFiltro('todas'); setSearch(''); }}
+          className={cn(
+            'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+            tab === 'activas' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground',
+          )}
+        >
+          <ClipboardList className="h-4 w-4" />
+          Activas
+          {total > 0 && (
+            <span className={cn('ml-0.5 rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums', tab === 'activas' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground')}>
+              {total}
+            </span>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => { setTab('canceladas'); setSearch(''); }}
+          className={cn(
+            'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+            tab === 'canceladas' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground',
+          )}
+        >
+          <Ban className="h-4 w-4" />
+          Canceladas
+          {canceladas > 0 && (
+            <span className={cn('ml-0.5 rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums', tab === 'canceladas' ? 'bg-slate-200 text-slate-700' : 'bg-muted text-muted-foreground')}>
+              {canceladas}
+            </span>
+          )}
+        </button>
+      </div>
+
       {/* ── Toolbar ──────────────────────────────────────────────────── */}
-      <div className="relative max-w-sm">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          type="search"
-          placeholder="Buscar por folio, propietario o domicilio…"
-          className="pl-9"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Buscar por folio, propietario o domicilio…"
+            className="pl-9"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        {tab === 'activas' && (
+          <div className="flex items-center gap-1.5">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <div className="flex rounded-md border overflow-hidden">
+              {ESTADO_FILTER_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setEstadoFiltro(opt.value)}
+                  className={cn(
+                    'px-3 py-1.5 text-xs font-medium transition-colors border-r last:border-r-0',
+                    estadoFiltro === opt.value
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-background text-muted-foreground hover:bg-muted hover:text-foreground',
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Table ────────────────────────────────────────────────────── */}
@@ -1260,15 +1020,21 @@ export default function Solicitudes() {
           </div>
           <div>
             <p className="font-medium">
-              {records.length === 0 ? 'No hay solicitudes registradas' : 'Sin resultados para este filtro'}
+              {tab === 'canceladas'
+                ? 'No hay solicitudes canceladas'
+                : records.length === 0
+                  ? 'No hay solicitudes registradas'
+                  : 'Sin resultados para este filtro'}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              {records.length === 0
-                ? 'Cuando llegue un cliente a ventanilla, usa el botón "Nueva solicitud" para empezar.'
-                : 'Ajusta la búsqueda para encontrar solicitudes.'}
+              {tab === 'canceladas'
+                ? 'Las solicitudes canceladas por el cliente aparecerán aquí y pueden ser retomadas.'
+                : records.length === 0
+                  ? 'Cuando llegue un cliente a ventanilla, usa el botón "Nueva solicitud" para empezar.'
+                  : 'Ajusta la búsqueda o el filtro para encontrar solicitudes.'}
             </p>
           </div>
-          {records.length === 0 && (
+          {records.length === 0 && tab === 'activas' && (
             <Button type="button" onClick={() => navigate('/app/solicitudes/nueva')} className="bg-[#007BFF] hover:bg-blue-600 text-white">
               <ClipboardPlus className="mr-2 h-4 w-4" />
               Nueva solicitud
@@ -1309,48 +1075,63 @@ export default function Solicitudes() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1.5">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-8 gap-1.5"
-                        onClick={() => navigate(`/app/solicitudes/${r.id}/editar`)}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                        Editar
-                      </Button>
-                      {(r.estado === 'aceptada' || r.estado === 'contratado') ? (
+                      {tab === 'canceladas' ? (
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
-                          className="h-8 gap-1.5 border-emerald-500 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
-                          onClick={() => navigate(r.contratoId ? `/app/contratos?detail=${r.contratoId}` : '/app/contratos')}
+                          className="h-8 gap-1.5 border-emerald-500 text-emerald-700 hover:bg-emerald-50"
+                          onClick={() => handleRetomar(r.id)}
                         >
-                          <ArrowRight className="h-3.5 w-3.5" />
-                          Ver contrato
-                        </Button>
-                      ) : (r.estado === 'en_cotizacion' || r.estado === 'inspeccion_completada' || r.estado === 'cotizado') ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="h-8 gap-1.5 bg-blue-600 text-white hover:bg-blue-700"
-                          onClick={() => setCotizandoRecord(r)}
-                        >
-                          <FileText className="h-3.5 w-3.5" />
-                          Cuantificación
+                          <RotateCcw className="h-3.5 w-3.5" />
+                          Retomar trámite
                         </Button>
                       ) : (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-8 gap-1.5 border-slate-300 text-slate-700 hover:bg-slate-50 hover:text-slate-900"
-                          onClick={() => setInspRecord(r)}
-                        >
-                          <ClipboardList className="h-3.5 w-3.5" />
-                          Inspección
-                        </Button>
+                        <>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-8 gap-1.5"
+                            onClick={() => navigate(`/app/solicitudes/${r.id}/editar`)}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                            Editar
+                          </Button>
+                          {(r.estado === 'aceptada' || r.estado === 'contratado') ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-8 gap-1.5 border-emerald-500 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                              onClick={() => navigate(r.contratoId ? `/app/contratos?detail=${r.contratoId}` : '/app/contratos')}
+                            >
+                              <ArrowRight className="h-3.5 w-3.5" />
+                              Ver contrato
+                            </Button>
+                          ) : (r.estado === 'en_cotizacion' || r.estado === 'inspeccion_completada' || r.estado === 'cotizado') ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="h-8 gap-1.5 bg-blue-600 text-white hover:bg-blue-700"
+                              onClick={() => setCotizandoRecord(r)}
+                            >
+                              <FileText className="h-3.5 w-3.5" />
+                              Cuantificación
+                            </Button>
+                          ) : (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-8 gap-1.5 border-slate-300 text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                              onClick={() => setInspRecord(r)}
+                            >
+                              <ClipboardList className="h-3.5 w-3.5" />
+                              Inspección
+                            </Button>
+                          )}
+                        </>
                       )}
                     </div>
                   </td>
@@ -1366,7 +1147,6 @@ export default function Solicitudes() {
         record={inspRecord}
         open={!!inspRecord}
         onClose={() => setInspRecord(null)}
-        onSave={handleSaveOrden}
         onAceptar={handleContinuarCuantificacion}
         onRechazar={handleRechazar}
       />

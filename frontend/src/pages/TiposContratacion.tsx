@@ -33,7 +33,7 @@ import {
 const FALLBACK: TipoContratacion[] = [
   {
     id: 'tc01', codigo: 'DOM_HAB', nombre: 'Doméstico Habitacional', descripcion: 'Vivienda unifamiliar o multifamiliar',
-    requiereMedidor: true, activo: true,
+    requiereMedidor: true, esIndividualizacion: false, requiereInspeccion: true, activo: true,
     claseProceso: 'residencial', esContratoFormal: true, requiereSolicitudPrevia: true,
     diasCaducidadSolicitud: 30, organismoAprobacion: 'Gerencia Técnica',
     diasPlazoAprobacion: 15, periodicidadesPermitidas: 'mensual,bimestral',
@@ -41,7 +41,7 @@ const FALLBACK: TipoContratacion[] = [
   },
   {
     id: 'tc02', codigo: 'COM_PEQ', nombre: 'Comercial Pequeño', descripcion: 'Comercio local y restaurantes',
-    requiereMedidor: true, activo: true,
+    requiereMedidor: true, esIndividualizacion: false, requiereInspeccion: true, activo: true,
     claseProceso: 'comercial', esContratoFormal: true, requiereSolicitudPrevia: true,
     diasCaducidadSolicitud: 20, organismoAprobacion: 'Gerencia Comercial',
     diasPlazoAprobacion: 10, periodicidadesPermitidas: 'mensual',
@@ -49,7 +49,7 @@ const FALLBACK: TipoContratacion[] = [
   },
   {
     id: 'tc03', codigo: 'IND_MED', nombre: 'Industrial Mediano', descripcion: 'Industria manufacturera mediana',
-    requiereMedidor: true, activo: true,
+    requiereMedidor: true, esIndividualizacion: false, requiereInspeccion: true, activo: true,
     claseProceso: 'industrial', esContratoFormal: true, requiereSolicitudPrevia: true,
     diasCaducidadSolicitud: 45, organismoAprobacion: 'Dirección General',
     diasPlazoAprobacion: 30, periodicidadesPermitidas: 'mensual',
@@ -57,7 +57,7 @@ const FALLBACK: TipoContratacion[] = [
   },
   {
     id: 'tc04', codigo: 'GOB_MPAL', nombre: 'Gobierno Municipal', descripcion: 'Dependencias y servicios municipales',
-    requiereMedidor: true, activo: true,
+    requiereMedidor: true, esIndividualizacion: false, requiereInspeccion: true, activo: true,
     claseProceso: 'gubernamental', esContratoFormal: true, requiereSolicitudPrevia: false,
     diasCaducidadSolicitud: null, organismoAprobacion: 'Subdirección Comercial',
     diasPlazoAprobacion: 20, periodicidadesPermitidas: 'mensual,trimestral',
@@ -69,7 +69,7 @@ const FALLBACK: TipoContratacion[] = [
 
 type FormState = {
   codigo: string; nombre: string; descripcion: string;
-  requiereMedidor: boolean; claseProceso: string;
+  requiereMedidor: boolean; esIndividualizacion: boolean; claseProceso: string;
   esContratoFormal: boolean; requiereSolicitudPrevia: boolean;
   diasCaducidadSolicitud: string; organismoAprobacion: string;
   diasPlazoAprobacion: string; periodicidadesPermitidas: string;
@@ -78,7 +78,7 @@ type FormState = {
 
 const EMPTY_FORM: FormState = {
   codigo: '', nombre: '', descripcion: '',
-  requiereMedidor: true, claseProceso: '',
+  requiereMedidor: true, esIndividualizacion: false, claseProceso: '',
   esContratoFormal: true, requiereSolicitudPrevia: false,
   diasCaducidadSolicitud: '', organismoAprobacion: '',
   diasPlazoAprobacion: '', periodicidadesPermitidas: '',
@@ -91,6 +91,7 @@ function tipoToForm(t: TipoContratacion): FormState {
     nombre: t.nombre,
     descripcion: t.descripcion ?? '',
     requiereMedidor: t.requiereMedidor,
+    esIndividualizacion: t.esIndividualizacion ?? false,
     claseProceso: t.claseProceso ?? '',
     esContratoFormal: t.esContratoFormal,
     requiereSolicitudPrevia: t.requiereSolicitudPrevia,
@@ -165,6 +166,7 @@ const TiposContratacion = () => {
       nombre: form.nombre,
       descripcion: form.descripcion || undefined,
       requiereMedidor: form.requiereMedidor,
+      esIndividualizacion: form.esIndividualizacion,
       claseProceso: form.claseProceso || null,
       esContratoFormal: form.esContratoFormal,
       requiereSolicitudPrevia: form.requiereSolicitudPrevia,
@@ -300,6 +302,7 @@ const TiposContratacion = () => {
                 <td className="px-4 py-3.5 text-sm text-muted-foreground">{t.organismoAprobacion ?? '—'}</td>
                 <td className="px-4 py-3.5">
                   <div className="flex flex-wrap gap-1">
+                    {t.esIndividualizacion && <Badge className="text-[10px] px-1.5 py-0 bg-violet-100 text-violet-700 border-violet-300">Individualización</Badge>}
                     {t.requiereSolicitudPrevia && <Badge variant="outline" className="text-[10px] px-1.5 py-0">Solicitud previa</Badge>}
                     {t.esContratoFormal && <Badge variant="outline" className="text-[10px] px-1.5 py-0">Formal</Badge>}
                     {t.requiereMedidor && <Badge variant="outline" className="text-[10px] px-1.5 py-0">Medidor</Badge>}
@@ -386,8 +389,9 @@ const TiposContratacion = () => {
               </div>
 
               {/* Switches */}
-              <div className="mt-4 grid grid-cols-3 gap-3">
+              <div className="mt-4 grid grid-cols-2 gap-3">
                 {([
+                  { key: 'esIndividualizacion', label: 'Individualización' },
                   { key: 'esContratoFormal', label: 'Contrato formal' },
                   { key: 'requiereSolicitudPrevia', label: 'Solicitud previa' },
                   { key: 'requiereMedidor', label: 'Requiere medidor' },

@@ -21,20 +21,11 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { toast } from '@/components/ui/sonner';
 import DomicilioPickerForm from '@/components/contratacion/DomicilioPickerForm';
-import {
-  fetchAdministraciones,
-  fetchDistritos,
-  fetchGruposActividad,
-  fetchActividades,
-  fetchCatalogoSat,
-  actividadesVisiblesParaGrupo,
-  type DistritoCatalogo,
-  type CatalogoGrupoActividad,
-  type CatalogoActividad,
-} from '@/api/catalogos';
+import { fetchAdministraciones, fetchDistritos, fetchActividades, type DistritoCatalogo, type CatalogoActividad } from '@/api/catalogos';
 import { fetchTiposContratacion, fetchTipoContratacionConfiguracion, type TipoContratacion } from '@/api/tipos-contratacion';
 import { hasApi } from '@/api/contratos';
 import { cn } from '@/lib/utils';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import type { DomicilioFormValue, SolicitudEstado, SolicitudRecord, SolicitudState } from '@/types/solicitudes';
 import { SOLICITUD_STATE_EMPTY } from '@/types/solicitudes';
 import { deriveName, derivePredioResumen, useSolicitudesStore } from '@/hooks/useSolicitudesStore';
@@ -121,11 +112,10 @@ const MOCK_STEP_DATA: Partial<SolicitudState>[] = [
     personasVivienda: '4',
     tieneCertConexion: 'si',
   },
-  // 4 – Contratación (adminId/tipoContratacionId resolved at runtime; distritoId/grupoActividadId/actividadId pick first available)
+  // 4 – Contratación (adminId/tipoContratacionId resolved at runtime; distritoId/actividadId pick first available)
   {
     adminId: '1',
     distritoId: '__first__',
-    grupoActividadId: '__first__',
     actividadId: '__first__',
     contratoPadre: '',
   },
@@ -315,7 +305,7 @@ function canAdvance(step: number, form: SolicitudState): boolean {
     }
 
     case 4: // Contratación
-      return !!(form.adminId && form.tipoContratacionId && form.distritoId && form.grupoActividadId && form.actividadId);
+      return !!(form.adminId && form.tipoContratacionId && form.distritoId && form.actividadId);
 
     case 5: // Resumen
       return true;
@@ -797,13 +787,6 @@ function StepContratacion({ form, set }: { form: SolicitudState; set: (p: Partia
     staleTime: 60 * 60 * 1000,
   });
 
-  const { data: grupos = [], isLoading: gruposLoading } = useQuery({
-    queryKey: ['catalogos', 'grupos-actividad'],
-    queryFn: fetchGruposActividad,
-    enabled: useApi,
-    staleTime: 60 * 60 * 1000,
-  });
-
   const { data: actividades = [], isLoading: actividadesLoading } = useQuery({
     queryKey: ['catalogos', 'actividades'],
     queryFn: fetchActividades,
@@ -811,10 +794,7 @@ function StepContratacion({ form, set }: { form: SolicitudState; set: (p: Partia
     staleTime: 60 * 60 * 1000,
   });
 
-  const actividadesFiltradas: CatalogoActividad[] = actividadesVisiblesParaGrupo(
-    actividades,
-    form.grupoActividadId,
-  );
+  const actividadesFiltradas: CatalogoActividad[] = actividades;
 
   const tiposList: TipoContratacion[] = tiposRes?.data ?? [];
   const selectedTipo = tiposList.find((t) => t.id === form.tipoContratacionId);
@@ -833,141 +813,74 @@ function StepContratacion({ form, set }: { form: SolicitudState; set: (p: Partia
     <div className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Administración" required>
-          <Select
+          <SearchableSelect
             value={form.adminId}
             onValueChange={(v) => set({ adminId: v, tipoContratacionId: '', tipoContratacionCodigo: '' })}
             disabled={!useApi || adminsLoading || administraciones.length === 0}
-          >
-            <SelectTrigger className="h-9">
-              <SelectValue
-                placeholder={
-                  !useApi
-                    ? 'Catálogo no disponible'
-                    : adminsLoading
-                      ? 'Cargando…'
-                      : adminsError
-                        ? 'Error al cargar'
-                        : 'Seleccione administración…'
-                }
-              />
-            </SelectTrigger>
-            <SelectContent>
-              {administraciones.map((a) => (
-                <SelectItem key={a.id} value={a.id}>
-                  {a.nombre}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            placeholder={
+              !useApi ? 'Catálogo no disponible' : adminsLoading ? 'Cargando…' : adminsError ? 'Error al cargar' : 'Seleccione administración…'
+            }
+            searchPlaceholder="Buscar administración…"
+            options={administraciones.map((a) => ({ value: a.id, label: a.nombre }))}
+          />
         </Field>
 
         <Field label="Tipo de contratación" required>
-          <Select
+          <SearchableSelect
             value={form.tipoContratacionId}
             onValueChange={(v) => {
-              const t = tiposList.find((x) => x.id === v);
-              set({ tipoContratacionId: v, tipoContratacionCodigo: t?.codigo ?? '' });
+              const tipo = tiposList.find((t) => t.id === v);
+              set({
+                tipoContratacionId: v,
+                tipoContratacionCodigo: tipo?.codigo ?? '',
+                contratoPadre: tipo?.esIndividualizacion ? form.contratoPadre : '',
+              });
             }}
             disabled={!form.adminId || tiposLoading || tiposList.length === 0}
-          >
-            <SelectTrigger className="h-9">
-              <SelectValue
-                placeholder={
-                  !form.adminId
-                    ? 'Primero seleccione administración'
-                    : tiposLoading
-                      ? 'Cargando tipos…'
-                      : tiposError
-                        ? 'Error al cargar tipos'
-                        : tiposList.length === 0
-                          ? 'Sin tipos para esta administración'
-                          : 'Seleccione tipo…'
-                }
-              />
-            </SelectTrigger>
-            <SelectContent className="max-h-72">
-              {tiposList.map((t) => {
-                const label = t.descripcion?.trim() || t.nombre;
-                return (
-                  <SelectItem key={t.id} value={t.id}>
-                    {label}
-                    <span className="ml-1.5 font-mono text-xs text-muted-foreground">({t.codigo})</span>
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
+            placeholder={
+              !form.adminId ? 'Primero seleccione administración' : tiposLoading ? 'Cargando tipos…' : tiposError ? 'Error al cargar tipos' : tiposList.length === 0 ? 'Sin tipos disponibles' : 'Seleccione tipo…'
+            }
+            searchPlaceholder="Buscar tipo de contratación…"
+            options={tiposList.map((t) => ({
+              value: t.id,
+              label: `${t.descripcion?.trim() || t.nombre} (${t.codigo})`,
+            }))}
+          />
         </Field>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Field label="Distrito" required>
-          <Select
+          <SearchableSelect
             value={form.distritoId}
             onValueChange={(v) => set({ distritoId: v })}
             disabled={!useApi || distritosLoading || distritos.length === 0}
-          >
-            <SelectTrigger className="h-9">
-              <SelectValue placeholder={distritosLoading ? 'Cargando…' : 'Seleccione distrito…'} />
-            </SelectTrigger>
-            <SelectContent>
-              {distritos.map((d: DistritoCatalogo) => (
-                <SelectItem key={d.id} value={d.id}>{d.nombre}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-
-        <Field label="Grupo actividad" required>
-          <Select
-            value={form.grupoActividadId}
-            onValueChange={(v) => set({ grupoActividadId: v, actividadId: '' })}
-            disabled={!useApi || gruposLoading || grupos.length === 0}
-          >
-            <SelectTrigger className="h-9">
-              <SelectValue placeholder={gruposLoading ? 'Cargando…' : 'Seleccione grupo…'} />
-            </SelectTrigger>
-            <SelectContent>
-              {grupos.map((g: CatalogoGrupoActividad) => (
-                <SelectItem key={g.id} value={g.id}>
-                  {g.codigo} – {g.descripcion}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            placeholder={distritosLoading ? 'Cargando…' : 'Seleccione distrito…'}
+            searchPlaceholder="Buscar distrito…"
+            options={distritos.map((d: DistritoCatalogo) => ({ value: d.id, label: d.nombre }))}
+          />
         </Field>
 
         <Field label="Actividad" required>
-          <Select
+          <SearchableSelect
             value={form.actividadId}
             onValueChange={(v) => set({ actividadId: v })}
             disabled={!useApi || actividadesLoading || actividadesFiltradas.length === 0}
-          >
-            <SelectTrigger className="h-9">
-              <SelectValue placeholder={
-                !form.grupoActividadId
-                  ? 'Primero seleccione grupo'
-                  : actividadesLoading
-                    ? 'Cargando…'
-                    : actividadesFiltradas.length === 0
-                      ? 'Sin actividades para este grupo'
-                      : 'Seleccione actividad…'
-              } />
-            </SelectTrigger>
-            <SelectContent>
-              {actividadesFiltradas.map((a: CatalogoActividad) => (
-                <SelectItem key={a.id} value={a.id}>
-                  {a.descripcion?.trim() || a.codigo}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            placeholder={actividadesLoading ? 'Cargando…' : 'Seleccione actividad…'}
+            searchPlaceholder="Buscar por código o descripción…"
+            options={actividadesFiltradas.map((a: CatalogoActividad) => ({
+              value: a.id,
+              label: `${a.codigo} – ${a.descripcion}`,
+            }))}
+          />
         </Field>
       </div>
 
-      <Field label="Contrato padre (solo individualizaciones)">
-        <Input className="h-9" placeholder="Folio o número de contrato padre" value={form.contratoPadre} onChange={(e) => set({ contratoPadre: e.target.value })} />
-      </Field>
+      {selectedTipo?.esIndividualizacion && (
+        <Field label="Contrato padre" required>
+          <Input className="h-9" placeholder="Folio o número de contrato padre" value={form.contratoPadre} onChange={(e) => set({ contratoPadre: e.target.value })} />
+        </Field>
+      )}
 
       {selectedTipo && (
         <div className="rounded-md border bg-muted/30 px-3 py-2.5 text-sm">
@@ -1146,7 +1059,16 @@ function StepFiscal({
     <div className="space-y-5">
       <div className="space-y-2">
         <p className="text-sm font-medium">¿Requiere facturar? <span className="text-destructive">*</span></p>
-        <YesNo id="requiere-factura" value={form.requiereFactura} onChange={(v) => set({ requiereFactura: v, mismosDatosProp: '' })} />
+        <YesNo
+          id="requiere-factura"
+          value={form.requiereFactura}
+          onChange={(v) => set({
+            requiereFactura: v,
+            mismosDatosProp: '',
+            // When no invoice required, pre-fill with fiscal defaults for CEA's records
+            ...(v === 'no' ? { fiscalRegimenFiscal: '616', fiscalUsoCfdi: 'S01' } : {}),
+          })}
+        />
       </div>
 
       {form.requiereFactura === 'si' && (
@@ -1253,8 +1175,18 @@ function StepFiscal({
       )}
 
       {form.requiereFactura === 'no' && (
-        <div className="rounded-md border border-dashed bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-          No se generará factura para esta solicitud.
+        <div className="space-y-3 rounded-md border bg-muted/20 px-4 py-4">
+          <p className="text-sm font-medium text-muted-foreground">No se generará factura para esta solicitud. Se registrarán los datos fiscales por defecto:</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-0.5">
+              <p className="text-xs text-muted-foreground">Régimen fiscal</p>
+              <p className="text-sm font-medium">616 — Sin obligaciones fiscales</p>
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-xs text-muted-foreground">Uso del CFDI</p>
+              <p className="text-sm font-medium">S01 — Sin efectos fiscales</p>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -1575,25 +1507,13 @@ export default function SolicitudServicio() {
         });
         const distritoId = distritos?.[0]?.id ?? '';
 
-        // Resolve grupoActividad + actividad — pick first available, filter actividades by grupo
-        const grupos = await queryClient.fetchQuery({
-          queryKey: ['catalogos', 'grupos-actividad'],
-          queryFn: fetchGruposActividad,
-          staleTime: 60 * 60 * 1000,
-        });
-        const grupo =
-          grupos?.find((g) => g.id === 'GA_SIGE') ??
-          grupos?.find((g) => g.codigo === 'SIGE_EST') ??
-          grupos?.[0];
-        const grupoActividadId = grupo?.id ?? '';
-
+        // Resolve actividad — pick first available
         const actividades = await queryClient.fetchQuery({
           queryKey: ['catalogos', 'actividades'],
           queryFn: fetchActividades,
           staleTime: 60 * 60 * 1000,
         });
-        const visibles = actividadesVisiblesParaGrupo(actividades ?? [], grupoActividadId);
-        const actividadId = visibles[0]?.id ?? '';
+        const actividadId = (actividades ?? [])[0]?.id ?? '';
 
         patch = {
           ...patch,
@@ -1601,7 +1521,6 @@ export default function SolicitudServicio() {
           tipoContratacionId: chosenTipo.id,
           tipoContratacionCodigo: chosenTipo.codigo,
           distritoId,
-          grupoActividadId,
           actividadId,
         };
       }

@@ -143,4 +143,10 @@ export const aceptarSolicitud = (id: string) =>
 export const rechazarSolicitud = (id: string) =>
   apiRequest<SolicitudDto>(`/solicitudes/${id}/rechazar`, { method: 'POST' });
 
+export const cancelarSolicitud = (id: string) =>
+  apiRequest<SolicitudDto>(`/solicitudes/${id}/cancelar`, { method: 'POST' });
+
+export const retormarSolicitud = (id: string) =>
+  apiRequest<SolicitudDto>(`/solicitudes/${id}/retomar`, { method: 'POST' });
+
 export const deleteSolicitud = (id: string) => apiRequest<void>(`/solicitudes/${id}`, { method: 'DELETE' });

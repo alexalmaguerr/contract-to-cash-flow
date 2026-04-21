@@ -62,6 +62,19 @@ export class SolicitudesService {
     formData: object;
   }) {
     const folio = await this.generarFolio();
+
+    // Determine initial state: skip inspection if tipo doesn't require it
+    let estadoInicial = 'inspeccion_pendiente';
+    if (dto.tipoContratacionId) {
+      const tipo = await this.prisma.tipoContratacion.findUnique({
+        where: { id: dto.tipoContratacionId },
+        select: { requiereInspeccion: true },
+      });
+      if (tipo && !tipo.requiereInspeccion) {
+        estadoInicial = 'en_cotizacion';
+      }
+    }
+
     return this.prisma.solicitud.create({
       data: {
         folio,
@@ -74,7 +87,7 @@ export class SolicitudesService {
         claveCatastral: dto.claveCatastral ?? null,
         adminId: dto.adminId ?? null,
         tipoContratacionId: dto.tipoContratacionId ?? null,
-        estado: 'inspeccion_pendiente',
+        estado: estadoInicial,
         formData: dto.formData,
       },
       include: { inspeccion: true },

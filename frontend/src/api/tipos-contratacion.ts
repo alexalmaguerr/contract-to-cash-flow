@@ -6,6 +6,8 @@ export interface TipoContratacion {
   nombre: string;
   descripcion: string | null;
   requiereMedidor: boolean;
+  requiereInspeccion: boolean;
+  esIndividualizacion: boolean;
   activo: boolean;
   administracionId?: string | null;
   // P1/P6
@@ -69,6 +71,7 @@ export interface UpdateTipoContratacionDto {
   nombre?: string;
   descripcion?: string;
   requiereMedidor?: boolean;
+  esIndividualizacion?: boolean;
   activo?: boolean;
   claseProceso?: string | null;
   esContratoFormal?: boolean;

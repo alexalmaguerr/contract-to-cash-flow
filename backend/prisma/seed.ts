@@ -568,42 +568,6 @@ async function seedCatalogosContratacion() {
 }
 
 async function seedCatalogosActividadRelacionPS() {
-  // ─── Grupos de Actividad (19 grupos CIG2018) ────────────────────────────────
-  const grupos = [
-    { id: 'GA01', codigo: 'AGRIC', descripcion: 'Agricultura' },
-    { id: 'GA02', codigo: 'GANAD', descripcion: 'Ganadería' },
-    { id: 'GA03', codigo: 'AGRO', descripcion: 'Agroindustria' },
-    { id: 'GA04', codigo: 'PESCA', descripcion: 'Pesca y acuicultura' },
-    { id: 'GA05', codigo: 'MINER', descripcion: 'Minería' },
-    { id: 'GA06', codigo: 'MANUF', descripcion: 'Manufactura e industria' },
-    { id: 'GA07', codigo: 'CONST', descripcion: 'Construcción' },
-    { id: 'GA08', codigo: 'COMERC', descripcion: 'Comercio al por mayor' },
-    { id: 'GA09', codigo: 'COMERCM', descripcion: 'Comercio al por menor' },
-    { id: 'GA10', codigo: 'TRANSP', descripcion: 'Transporte y almacenamiento' },
-    { id: 'GA11', codigo: 'HOSPED', descripcion: 'Hospedaje y alimentos' },
-    { id: 'GA12', codigo: 'SERV_PROF', descripcion: 'Servicios profesionales' },
-    { id: 'GA13', codigo: 'SERV_GOB', descripcion: 'Servicios gubernamentales' },
-    { id: 'GA14', codigo: 'EDUC', descripcion: 'Educación' },
-    { id: 'GA15', codigo: 'SALUD', descripcion: 'Salud y asistencia social' },
-    { id: 'GA16', codigo: 'RECREAC', descripcion: 'Recreación y cultura' },
-    { id: 'GA17', codigo: 'RELIG', descripcion: 'Religioso y social' },
-    { id: 'GA18', codigo: 'HAB_PRIVADA', descripcion: 'Habitacional privada' },
-    { id: 'GA19', codigo: 'USO_MIX', descripcion: 'Uso mixto' },
-    {
-      id: 'GA_SIGE',
-      codigo: 'SIGE_EST',
-      descripcion: 'Tipo de establecimiento (catálogo operativo — hoja Actividad, SIGE)',
-    },
-  ];
-  for (const g of grupos) {
-    await (prisma as any).catalogoGrupoActividad.upsert({
-      where: { codigo: g.codigo },
-      update: { descripcion: g.descripcion },
-      create: g,
-    });
-  }
-  console.log('Grupos de actividad sembrados:', grupos.length);
-
   // ─── Actividades: catálogo operativo SIGE (hoja «Actividad», actipolid + texto) ─
   const sigeRows = loadCatalogoActividadSige();
   const actividades = sigeRows.map((r) => {
@@ -612,7 +576,7 @@ async function seedCatalogosActividadRelacionPS() {
       id: key,
       codigo: key,
       descripcion: r.actividad,
-      grupoId: 'GA_SIGE',
+      grupoId: null,
     };
   });
   for (const a of actividades) {

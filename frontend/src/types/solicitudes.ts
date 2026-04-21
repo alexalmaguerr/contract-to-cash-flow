@@ -217,7 +217,8 @@ export type SolicitudEstado =
   | 'aceptada'
   | 'rechazada'
   | 'cotizado'
-  | 'contratado';
+  | 'contratado'
+  | 'cancelada';
 
 export interface SolicitudRecord {
   id: string;

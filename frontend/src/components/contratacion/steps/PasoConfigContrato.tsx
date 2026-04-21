@@ -96,9 +96,11 @@ export default function PasoConfigContrato({ data, updateData }: StepProps) {
     setTipoOpen(false);
   };
 
-  const requiereContratoPadre = descripcionEsIndividualizacion(
-    selectedTipo?.descripcion ?? data.tipoContratacionDescripcion,
-  );
+  // Use the API flag when available; fall back to text-matching for legacy records
+  const requiereContratoPadre =
+    selectedTipo != null
+      ? (selectedTipo as any).esIndividualizacion ?? descripcionEsIndividualizacion(selectedTipo.descripcion ?? '')
+      : descripcionEsIndividualizacion(data.tipoContratacionDescripcion);
 
   return (
     <section aria-labelledby="paso-config" className="space-y-4">

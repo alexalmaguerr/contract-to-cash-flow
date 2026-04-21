@@ -1394,6 +1394,8 @@ model TipoContratacion {
   nombre                    String
   descripcion               String?
   requiereMedidor           Boolean                              @default(true)  @map("requiere_medidor")
+  requiereInspeccion        Boolean                              @default(true)  @map("requiere_inspeccion")
+  esIndividualizacion       Boolean                              @default(false) @map("es_individualizacion")
   claseProceso              String?                              @map("clase_proceso") // AN | CN | PB | BJ
   esContratoFormal          Boolean                              @default(true) @map("es_contrato_formal")
   requiereSolicitudPrevia   Boolean                              @default(false) @map("requiere_solicitud_previa")
