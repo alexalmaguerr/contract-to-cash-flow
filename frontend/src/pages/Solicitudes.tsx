@@ -675,12 +675,14 @@ function CotizacionModal({
   onClose,
   onAceptar,
   onRechazar,
+  onVerInspeccion,
 }: {
   record: SolicitudRecord | null;
   open: boolean;
   onClose: () => void;
   onAceptar: (id: string, contratoId?: string) => void;
   onRechazar: (id: string) => void;
+  onVerInspeccion: (record: SolicitudRecord) => void;
 }) {
   const [aceptando, setAceptando] = useState(false);
 
@@ -706,13 +708,27 @@ function CotizacionModal({
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Receipt className="h-5 w-5 text-blue-600" />
-            Cotización — {record.folio}
-          </DialogTitle>
-          <DialogDescription>
-            {record.propNombreCompleto} · {record.predioResumen}
-          </DialogDescription>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <DialogTitle className="flex items-center gap-2">
+                <Receipt className="h-5 w-5 text-blue-600" />
+                Cotización — {record.folio}
+              </DialogTitle>
+              <DialogDescription className="mt-1">
+                {record.propNombreCompleto} · {record.predioResumen}
+              </DialogDescription>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="shrink-0 gap-1.5 text-xs"
+              onClick={() => { onClose(); onVerInspeccion(record); }}
+            >
+              <ClipboardList className="h-3.5 w-3.5" />
+              Orden de inspección
+            </Button>
+          </div>
         </DialogHeader>
 
         {/* Validity notice */}
@@ -1157,6 +1173,7 @@ export default function Solicitudes() {
         onClose={() => setCotizandoRecord(null)}
         onAceptar={(id, contratoId) => handleConfirmarCotizacion(id, contratoId)}
         onRechazar={handleRechazar}
+        onVerInspeccion={(r) => { setCotizandoRecord(null); setInspRecord(r); }}
       />
     </div>
   );
