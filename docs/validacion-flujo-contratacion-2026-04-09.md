@@ -21,7 +21,7 @@ Documento de brechas entre el flujo operativo deseado (lista de pasos + notas SI
 | 3.2 Contrato padre | Implementado | `referenciaContratoAnterior` en `PasoConfigContrato` (obligatorio si el tipo catalogado es individualización/condominio). |
 | 4. Actividad | Implementado | Selector en `PasoConfigContrato` + `actividadId` en alta. |
 | 5. Tipo de contratación | Implementado | Catálogo por administración en `PasoConfigContrato`; `tipoContratacionId` en alta (además de `tipoContrato` / `tipoServicio` como strings operativos). |
-| 5.1 Clase de contratación | Implementado | Valor fijo **Alta nueva** (código `AN`); se envía como `tipoContrato` en el alta; en UI es solo lectura en `PasoConfigContrato` (sin catálogo desplegable). |
+| 5.1 Clase de contratación | Implementado | Valor fijo **Alta nueva** (código `AN`); se envía como `tipoContrato` en el alta; no se muestra en el paso 3 ni en el resumen (valor implícito en el asistente de registro). |
 | 6. Superficie, unidades, personas | Implementado | Campos opcionales en `PasoConfigContrato` y envío en `CreateContratoDto` (`superficiePredio`, `superficieConstruida`, `unidadesServidas`, `personasHabitanVivienda`). |
 | 7. Documentos recibidos | Implementado | Checklist desde `GET /tipos-contratacion/:id/configuracion` (`documentos`); validación de obligatorios en `POST /contratos`. |
 | 8. Factura contratación timbrada + convenio | Implementado (flag) | `POST /contratos/:id/factura-contratacion` genera `Timbrado` sin consumo + `CostoContrato` con conceptos del tipo; controlado por `FEATURE_FACTURACION_CONTRATACION`. Checkbox en wizard. |

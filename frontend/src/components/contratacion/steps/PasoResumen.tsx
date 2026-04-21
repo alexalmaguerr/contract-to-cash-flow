@@ -11,7 +11,7 @@ import {
   mergedVariablesCapturadasDisplay,
   variablesStepSatisfied,
 } from '@/components/contratacion/hooks/useWizardState';
-import { CLASES_CONTRATACION, TIPOS_PUNTO_SERVICIO } from '../wizard-catalogos-ui';
+import { TIPOS_PUNTO_SERVICIO } from '../wizard-catalogos-ui';
 
 function SectionBadge({ ok }: { ok: boolean }) {
   return (
@@ -153,9 +153,6 @@ export default function PasoResumen({ data, config }: StepProps) {
       ? config.nombre
       : data.tipoContratacionDescripcion?.trim() || data.tipoContratacionId?.trim() || '—';
 
-  const claseLabel =
-    CLASES_CONTRATACION.find((c) => c.cod === data.claseContratacion)?.descripcion ??
-    data.claseContratacion;
   const tipoPsLabel =
     TIPOS_PUNTO_SERVICIO.find((t) => t.id === data.tipoPuntoServicio)?.descripcion ??
     data.tipoPuntoServicio;
@@ -269,12 +266,6 @@ export default function PasoResumen({ data, config }: StepProps) {
               <dt className="text-muted-foreground">Tipo de contratación</dt>
               <dd>{tipoNombre}</dd>
             </div>
-            {data.claseContratacion ? (
-              <div>
-                <dt className="text-muted-foreground">Clase de contratación</dt>
-                <dd>{claseLabel}</dd>
-              </div>
-            ) : null}
             {data.tipoPuntoServicio ? (
               <div>
                 <dt className="text-muted-foreground">Tipo de punto de servicio</dt>

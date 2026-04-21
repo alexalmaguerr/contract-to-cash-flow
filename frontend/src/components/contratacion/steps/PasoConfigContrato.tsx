@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Check, ChevronsUpDown, Loader2 } from 'lucide-react';
 
@@ -28,21 +28,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import {
-  CLASE_CONTRATACION_ALTA_NUEVA_COD,
-  CLASES_CONTRATACION,
-  TIPOS_PUNTO_SERVICIO,
-} from '../wizard-catalogos-ui';
+import { TIPOS_PUNTO_SERVICIO } from '../wizard-catalogos-ui';
 import { descripcionEsIndividualizacion, type StepProps } from '../hooks/useWizardState';
 
 export default function PasoConfigContrato({ data, updateData }: StepProps) {
   const [tipoOpen, setTipoOpen] = useState(false);
-
-  useEffect(() => {
-    if (data.claseContratacion !== CLASE_CONTRATACION_ALTA_NUEVA_COD) {
-      updateData({ claseContratacion: CLASE_CONTRATACION_ALTA_NUEVA_COD });
-    }
-  }, [data.claseContratacion, updateData]);
 
   const actividadesQ = useQuery({
     queryKey: ['catalogos', 'actividades', 'wizard'],
@@ -269,43 +259,24 @@ export default function PasoConfigContrato({ data, updateData }: StepProps) {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        {/* ── Clase de contratación (fija: alta nueva) ───────────────── */}
-        <div className="space-y-2">
-          <Label htmlFor="wizard-clase">Clase de contratación</Label>
-          <Input
-            id="wizard-clase"
-            readOnly
-            aria-readonly="true"
-            tabIndex={-1}
-            className="bg-muted cursor-default"
-            value={
-              CLASES_CONTRATACION.find((c) => c.cod === CLASE_CONTRATACION_ALTA_NUEVA_COD)
-                ?.descripcion ?? 'Alta nueva'
-            }
-          />
-        </div>
-
-        {/* ── Tipo de punto de servicio ────────────────────────────────── */}
-        <div className="space-y-2">
-          <Label htmlFor="wizard-tps">Tipo de punto de servicio</Label>
-          <Select
-            value={data.tipoPuntoServicio ?? ''}
-            onValueChange={(v) => updateData({ tipoPuntoServicio: v })}
-          >
-            <SelectTrigger id="wizard-tps">
-              <SelectValue placeholder="Seleccione tipo…" />
-            </SelectTrigger>
-            <SelectContent>
-              {TIPOS_PUNTO_SERVICIO.map((t) => (
-                <SelectItem key={t.id} value={t.id}>
-                  <span className="font-mono text-xs text-muted-foreground">{t.id}</span>
-                  <span className="ml-2">{t.descripcion}</span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      <div className="space-y-2">
+        <Label htmlFor="wizard-tps">Tipo de punto de servicio</Label>
+        <Select
+          value={data.tipoPuntoServicio ?? ''}
+          onValueChange={(v) => updateData({ tipoPuntoServicio: v })}
+        >
+          <SelectTrigger id="wizard-tps">
+            <SelectValue placeholder="Seleccione tipo…" />
+          </SelectTrigger>
+          <SelectContent>
+            {TIPOS_PUNTO_SERVICIO.map((t) => (
+              <SelectItem key={t.id} value={t.id}>
+                <span className="font-mono text-xs text-muted-foreground">{t.id}</span>
+                <span className="ml-2">{t.descripcion}</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-2">
