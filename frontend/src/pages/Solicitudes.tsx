@@ -29,6 +29,9 @@ import {
   Ban,
   RotateCcw,
   Filter,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -546,32 +549,20 @@ function OrdenInspeccionSheet({
           {orden && <InspeccionView data={orden} />}
         </div>
 
-        {/* Footer actions — view mode after inspection is completed */}
-        {orden?.estado === 'completada' && record && (
+        {/* Footer actions */}
+        {record && (
           <div className="border-t px-6 py-4 space-y-3">
-            {(record.estado === 'en_cotizacion' || record.estado === 'inspeccion_completada') && (
-              <>
-                <p className="text-xs text-muted-foreground">La inspección fue completada. Puedes avanzar a cuantificación o cancelar la solicitud.</p>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="flex-1 border-slate-300 text-slate-600 hover:bg-slate-50 hover:text-slate-700"
-                    onClick={() => onRechazar(record.id)}
-                  >
-                    <Ban className="mr-1.5 h-4 w-4" />
-                    Cancelar solicitud
-                  </Button>
-                  <Button
-                    type="button"
-                    className="flex-1 bg-blue-600 text-white hover:bg-blue-700"
-                    onClick={() => onAceptar(record.id)}
-                  >
-                    <ArrowRight className="mr-1.5 h-4 w-4" />
-                    Continuar con cuantificación
-                  </Button>
-                </div>
-              </>
+            {(record.estado === 'en_cotizacion' || record.estado === 'inspeccion_completada' ||
+              record.estado === 'inspeccion_pendiente' || record.estado === 'inspeccion_en_proceso' ||
+              record.estado === 'borrador') && (
+              <Button
+                type="button"
+                className="w-full bg-blue-600 text-white hover:bg-blue-700"
+                onClick={() => onAceptar(record.id)}
+              >
+                <ArrowRight className="mr-1.5 h-4 w-4" />
+                Continuar con cuantificación
+              </Button>
             )}
             {(record.estado === 'aceptada' || record.estado === 'contratado') && (
               <div className="flex items-center gap-2 text-emerald-700">
@@ -711,27 +702,13 @@ function CotizacionModal({
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <DialogTitle className="flex items-center gap-2">
-                <Receipt className="h-5 w-5 text-blue-600" />
-                Cotización — {record.folio}
-              </DialogTitle>
-              <DialogDescription className="mt-1">
-                {record.propNombreCompleto} · {record.predioResumen}
-              </DialogDescription>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="shrink-0 gap-1.5 text-xs"
-              onClick={() => { onClose(); onVerInspeccion(record); }}
-            >
-              <ClipboardList className="h-3.5 w-3.5" />
-              Orden de inspección
-            </Button>
-          </div>
+          <DialogTitle className="flex items-center gap-2">
+            <Receipt className="h-5 w-5 text-blue-600" />
+            Cotización — {record.folio}
+          </DialogTitle>
+          <DialogDescription className="mt-1">
+            {record.propNombreCompleto} · {record.predioResumen}
+          </DialogDescription>
         </DialogHeader>
 
         {/* Validity notice */}
@@ -777,11 +754,11 @@ function CotizacionModal({
           <Button
             type="button"
             variant="outline"
-            className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
-            onClick={() => onRechazar(record.id)}
+            className="gap-1.5"
+            onClick={() => { onClose(); onVerInspeccion(record); }}
           >
-            <XCircle className="mr-1.5 h-4 w-4" />
-            Cancelar solicitud
+            <ClipboardList className="h-4 w-4" />
+            Orden de inspección
           </Button>
           <Button
             type="button"
@@ -813,6 +790,7 @@ export default function Solicitudes() {
   const [search, setSearch] = useState('');
   const [estadoFiltro, setEstadoFiltro] = useState<string>('todas');
   const [tab, setTab] = useState<'activas' | 'canceladas'>('activas');
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [inspRecord, setInspRecord] = useState<SolicitudRecord | null>(null);
   const [cotizandoRecord, setCotizandoRecord] = useState<SolicitudRecord | null>(null);
 
@@ -831,11 +809,14 @@ export default function Solicitudes() {
     queryFn: () => fetchTiposContratacion({ limit: 500 }),
     staleTime: 10 * 60 * 1000,
   });
-  // Map tipoContratacionId → requiereInspeccion (default true when unknown)
+  // Map tipoContratacionId → requiereInspeccion
+  // esIndividualizacion types never require inspection even if the DB column
+  // hasn't been updated yet (migration may be pending on the server).
   const tipoInspeccionMap = useMemo(() => {
     const map = new Map<string, boolean>();
     for (const t of tiposData?.data ?? []) {
-      map.set(t.id, t.requiereInspeccion ?? true);
+      const requiere = (t.requiereInspeccion ?? true) && !t.esIndividualizacion;
+      map.set(t.id, requiere);
     }
     return map;
   }, [tiposData]);
@@ -873,14 +854,19 @@ export default function Solicitudes() {
         return r.estado === estadoFiltro;
       });
     }
-    if (!q) return result;
-    return result.filter(
-      (r) =>
-        r.folio.toLowerCase().includes(q) ||
-        r.propNombreCompleto.toLowerCase().includes(q) ||
-        r.predioResumen.toLowerCase().includes(q),
-    );
-  }, [records, search, estadoFiltro, tab, activeRecords, cancelledRecords]);
+    if (q) {
+      result = result.filter(
+        (r) =>
+          r.folio.toLowerCase().includes(q) ||
+          r.propNombreCompleto.toLowerCase().includes(q) ||
+          r.predioResumen.toLowerCase().includes(q),
+      );
+    }
+    return [...result].sort((a, b) => {
+      const diff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      return sortOrder === 'desc' ? -diff : diff;
+    });
+  }, [records, search, estadoFiltro, tab, activeRecords, cancelledRecords, sortOrder]);
 
   // KPI counts
   const total = activeRecords.length;
@@ -1043,6 +1029,15 @@ export default function Solicitudes() {
             </div>
           </div>
         )}
+        <button
+          type="button"
+          onClick={() => setSortOrder((o) => (o === 'desc' ? 'asc' : 'desc'))}
+          className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          title={sortOrder === 'desc' ? 'Más recientes primero' : 'Más antiguos primero'}
+        >
+          {sortOrder === 'desc' ? <ArrowDown className="h-3.5 w-3.5" /> : <ArrowUp className="h-3.5 w-3.5" />}
+          Fecha
+        </button>
       </div>
 
       {/* ── Table ────────────────────────────────────────────────────── */}
@@ -1131,6 +1126,18 @@ export default function Solicitudes() {
                             <Pencil className="h-3.5 w-3.5" />
                             Editar
                           </Button>
+                          {r.estado !== 'aceptada' && r.estado !== 'contratado' && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-8 gap-1.5 border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
+                              onClick={() => handleRechazar(r.id)}
+                            >
+                              <Ban className="h-3.5 w-3.5" />
+                              Cancelar
+                            </Button>
+                          )}
                           {(r.estado === 'aceptada' || r.estado === 'contratado') ? (
                             <Button
                               type="button"

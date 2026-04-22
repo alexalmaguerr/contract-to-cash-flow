@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { fetchContrato, updateContrato, type UpdateContratoDto } from '@/api/contratos';
 import { toast } from '@/components/ui/sonner';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -215,19 +215,13 @@ export function ContratoEditDialog({ open, contratoId, onOpenChange, onSaved }: 
                 </div>
                 <div className="space-y-2">
                   <Label>Envío de factura</Label>
-                  <Select value={tipoEnvioFactura || '__empty'} onValueChange={(v) => setTipoEnvioFactura(v === '__empty' ? '' : v)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__empty">—</SelectItem>
-                      {TIPO_ENVIO_OPTIONS.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>
-                          {o.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    value={tipoEnvioFactura}
+                    onValueChange={setTipoEnvioFactura}
+                    placeholder="Seleccionar"
+                    searchPlaceholder="Buscar…"
+                    options={[{ value: '', label: '—' }, ...TIPO_ENVIO_OPTIONS]}
+                  />
                 </div>
                 <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
                   <div className="space-y-0.5">
@@ -277,19 +271,13 @@ export function ContratoEditDialog({ open, contratoId, onOpenChange, onSaved }: 
                 </div>
                 <div className="space-y-2">
                   <Label>Ciclo de facturación</Label>
-                  <Select value={cicloFacturacion || '__empty'} onValueChange={(v) => setCicloFacturacion(v === '__empty' ? '' : v)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__empty">—</SelectItem>
-                      {CICLO_OPTIONS.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>
-                          {o.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    value={cicloFacturacion}
+                    onValueChange={setCicloFacturacion}
+                    placeholder="Seleccionar"
+                    searchPlaceholder="Buscar…"
+                    options={[{ value: '', label: '—' }, ...CICLO_OPTIONS]}
+                  />
                 </div>
                 <div className="flex flex-col gap-3 rounded-lg border p-3">
                   <p className="text-xs font-medium text-muted-foreground">Indicadores de facturación</p>

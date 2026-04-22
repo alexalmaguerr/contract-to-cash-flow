@@ -877,16 +877,9 @@ function StepContratacion({ form, set }: { form: SolicitudState; set: (p: Partia
       </div>
 
       {selectedTipo?.esIndividualizacion && (
-        <Field label="Contrato padre" required>
+        <Field label="Contrato padre">
           <Input className="h-9" placeholder="Folio o número de contrato padre" value={form.contratoPadre} onChange={(e) => set({ contratoPadre: e.target.value })} />
         </Field>
-      )}
-
-      {selectedTipo && (
-        <div className="rounded-md border bg-muted/30 px-3 py-2.5 text-sm">
-          <span className="font-medium">{selectedTipo.descripcion?.trim() || selectedTipo.nombre}</span>
-          <span className="ml-2 font-mono text-xs text-muted-foreground">({selectedTipo.codigo})</span>
-        </div>
       )}
 
       {/* Variables de Contratación */}
