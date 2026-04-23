@@ -27,6 +27,15 @@ export default function PasoFacturacion({ data, updateData }: StepProps) {
     conceptosOverride: data.conceptosOverride,
   });
 
+  // Total de la cotización aprobada por el cliente (fuente de verdad cuando billing engine da $0)
+  const cotizacionTotal = useMemo(
+    () => (data.cotizacionPrevia ?? []).reduce((s, c) => s + c.subtotal, 0),
+    [data.cotizacionPrevia],
+  );
+
+  // Usa el total de la cotización cuando el motor de tarifas devuelve $0
+  const effectiveTotal = preview && preview.total > 0 ? preview.total : cotizacionTotal;
+
   const [selCatalogo, setSelCatalogo] = useState<string>('');
   const [selLectura, setSelLectura] = useState<string>('');
 
@@ -168,7 +177,7 @@ export default function PasoFacturacion({ data, updateData }: StepProps) {
                   <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Tipo</th>
                   <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">Cant.</th>
                   <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">Importe</th>
-                  <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">IVA</th>
+                  <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">Impuestos</th>
                 </tr>
               </thead>
               <tbody>
@@ -185,23 +194,28 @@ export default function PasoFacturacion({ data, updateData }: StepProps) {
                 ))}
               </tbody>
               <tfoot className="border-t bg-muted/20">
+                {preview.subtotal > 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-2 text-right text-sm text-muted-foreground">
+                      Subtotal
+                    </td>
+                    <td className="px-4 py-2 text-right tabular-nums font-semibold">{formatMxn(preview.subtotal)}</td>
+                  </tr>
+                ) : null}
                 <tr>
                   <td colSpan={4} className="px-4 py-2 text-right text-sm text-muted-foreground">
-                    Subtotal
+                    Impuestos
                   </td>
-                  <td className="px-4 py-2 text-right tabular-nums font-semibold">{formatMxn(preview.subtotal)}</td>
-                </tr>
-                <tr>
-                  <td colSpan={4} className="px-4 py-2 text-right text-sm text-muted-foreground">
-                    IVA
+                  <td className="px-4 py-2 text-right tabular-nums font-semibold text-muted-foreground">
+                    {formatMxn(preview.totalIva)}
+                    {preview.totalIva === 0 ? <span className="ml-1 text-xs">(por definir)</span> : null}
                   </td>
-                  <td className="px-4 py-2 text-right tabular-nums font-semibold">{formatMxn(preview.totalIva)}</td>
                 </tr>
                 <tr className="border-t">
                   <td colSpan={4} className="px-4 py-2.5 text-right font-semibold">
                     Total
                   </td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-base font-bold">{formatMxn(preview.total)}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums text-base font-bold">{formatMxn(effectiveTotal)}</td>
                 </tr>
               </tfoot>
             </table>
