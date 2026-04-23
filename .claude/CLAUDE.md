@@ -168,6 +168,8 @@ POST   /solicitudes/:id/aceptar      → crea Contrato + ProcesoContratacion
 POST   /solicitudes/:id/rechazar
 POST   /solicitudes/:id/cancelar     ✅ implementado
 POST   /solicitudes/:id/retomar      ✅ implementado
+POST   /solicitudes/:id/cotizacion-pdf  → guarda PDF en uploads/cotizaciones/
+GET    /solicitudes/:id/cotizacion-pdf  → descarga PDF (requiere JWT; usar openCotizacionPdf())
 
 # Contratos
 GET    /contratos
@@ -198,7 +200,8 @@ GET    /catalogos/sat?tipo=REGIMEN_FISCAL|USO_CFDI
 JSONB guardado en `solicitud.formData`. Contiene todos los campos del formulario:
 `adminId`, `tipoContratacionId`, `actividadId`, `distritoId`, `contratoPadre`,
 `propPaterno/Materno/Nombre/Rfc/Correo/Telefono`, `propTipoPersona`,
-`predioDir`, `variablesCapturadas`, `conceptosCuantificacionOverride`, `documentosRecibidos`, etc.
+`predioDir`, `variablesCapturadas`, `conceptosCuantificacionOverride`, `documentosRecibidos`,
+`cotizacionItems?` (ítems aprobados en cotización — guardados al aceptar para precarga en wizard), etc.
 
 ### `WizardData` (`hooks/useWizardState.ts`)
 Estado del wizard de alta. Campos clave:
@@ -208,6 +211,7 @@ Estado del wizard de alta. Campos clave:
 - `fiscalIgualTitular?` — checkbox "persona fiscal = titular"
 - `administracion`, `tipoContratacionId`, `actividadId`, `distritoId`
 - `variablesCapturadas`, `conceptosOverride`, `documentosRecibidos`
+- `cotizacionPrevia?` — ítems de cotización aprobada (mostrados en PasoFacturacion)
 
 ---
 
@@ -247,27 +251,39 @@ const mutation = useMutation({ mutationFn: apiCall, onSuccess: () => queryClient
 ### ✅ Implementado y funcionando
 - Flujo completo solicitud → inspección → cotización → aceptar → wizard de alta
 - Tipos INDIVIDUAL (esIndividualizacion): saltan inspección, van directo a cotización
-- Botón "Cancelar solicitud" en cada fila de la lista (no en modales)
+- Botón "Cancelar solicitud" + "Ver" en cada fila de la lista
 - Endpoints `POST /solicitudes/:id/cancelar` y `POST /solicitudes/:id/retomar`
 - Ordenamiento por fecha (asc/desc) en lista de solicitudes
 - Pre-carga bidireccional wizard ↔ solicitud: personas y configuración
   - Paso 0 Personas: modo lectura + Editar + sync back a solicitud
-  - Paso 1 Config: modo lectura + Editar + sync back a solicitud
+  - Paso 1 Config: modo lectura + Editar + sync back a solicitud (fillDemo cuando no hay solicitud)
 - Combobox con búsqueda para tipo de contratación en PasoConfigContrato
 - Vista previa de facturación en PasoFacturacion con conceptos de lectura periódica
+- **PasoFacturacion muestra "Cotización aprobada por cliente"** (ítems de cuantificación)
+  - Al aceptar cotización: `handleAceptar` guarda `cotizacionItems` en `solicitud.formData`
+  - Wizard precarga: lee `solForm.cotizacionItems`, fallback a `solDto.inspeccion`
+  - `VerSolicitudDialog`: auto-backfill `cotizacionItems` para solicitudes previas al fix
+- **PDF de cotización** generado con `@react-pdf/renderer`
+  - Template: `frontend/src/lib/cotizacion-pdf.tsx`
+  - Motor compartido: `frontend/src/lib/cotizacion.ts` (`calcularCotizacion`, `inspeccionDtoToOrdenData`)
+  - Backend: `POST/GET /solicitudes/:id/cotizacion-pdf` → guarda en `backend/uploads/cotizaciones/`
+  - Frontend: `openCotizacionPdf(id)` — fetch con JWT → blob URL (evita 401 de `window.open` directo)
+  - Botones en `VerSolicitudDialog`: "Descargar PDF" (servidor) + "Regenerar PDF" (local)
 - ContratoEditDialog para editar contratos existentes
+- `VerSolicitudDialog` con resumen completo: propietario, predio, estado, cuantificación, botones PDF
 
 ### 🔧 Pendiente / En progreso
 - Aplicar migración DB en servidor: `requiereInspeccion = false` para tipos INDIVIDUAL
   - Archivo: `backend/prisma/migrations/20260420150000_individual_no_requiere_inspeccion/migration.sql`
   - Servidor: 35.188.238.10:5433
-- Despliegue de endpoints `/cancelar` y `/retomar` en servidor
-- SearchableSelect pendiente de re-aplicar en: régimen fiscal/CFDI (PasoPersonas), tipo envío factura (PasoFacturacion)
+- SearchableSelect pendiente en: régimen fiscal/CFDI (PasoPersonas)
 
 ### ⚠️ Notas de comportamiento
 - `tipoInspeccionMap` en Solicitudes.tsx: usa `(t.requiereInspeccion ?? true) && !t.esIndividualizacion` para determinar si tipo requiere inspección (doble guarda hasta que corra migración)
-- El wizard requiere `procesoPrecargaId` (ID del ProcesoContratacion) para activar precarga, no el contratoId directo
-- `PasoConfigContrato` limpia `variablesCapturadas` al cambiar tipo de contratación — esto es intencional para evitar datos huérfanos
+- El wizard requiere `solicitudId` en la URL para activar precarga directa (`solicitudDirectaQ`)
+- `PasoConfigContrato` limpia `variablesCapturadas` al cambiar tipo de contratación — intencional para evitar datos huérfanos
+- PDFs guardados en `backend/uploads/cotizaciones/{id}.pdf` (en .gitignore); cuando se migre a bucket S3/GCS solo cambiar `uploadCotizacionPdf()` en `api/solicitudes.ts`
+- `SolicitudState.cotizacionItems` — nuevo campo JSONB opcional; guarda los ítems que se mostraron al cliente en la cotización
 
 ---
 

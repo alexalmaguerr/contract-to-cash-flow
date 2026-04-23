@@ -178,9 +178,22 @@ export async function uploadCotizacionPdf(solicitudId: string, pdfBlob: Blob): P
   return res.json() as Promise<{ url: string }>;
 }
 
-/** URL de descarga del PDF de cotización. */
-export function cotizacionPdfUrl(solicitudId: string): string {
+/**
+ * Descarga el PDF de cotización del servidor (con auth) y lo abre en nueva pestaña.
+ * window.open() directo no funciona porque el endpoint requiere JWT.
+ */
+export async function openCotizacionPdf(solicitudId: string): Promise<void> {
   const base = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:3001';
   const normalizeBase = (b: string) => { const r = b.replace(/\/$/, ''); return r.endsWith('/api') ? r : `${r}/api`; };
-  return `${normalizeBase(base)}/solicitudes/${solicitudId}/cotizacion-pdf`;
+  const apiBase = normalizeBase(base);
+  const token = localStorage.getItem('ctcf_access_token');
+  const res = await fetch(`${apiBase}/solicitudes/${solicitudId}/cotizacion-pdf`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+  // Revoke after a delay to allow the new tab to load
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }

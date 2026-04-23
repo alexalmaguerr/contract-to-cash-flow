@@ -57,7 +57,7 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
 import { calcularCotizacion, MATERIAL_LABEL as MAT_LABEL } from '@/lib/cotizacion';
-import { uploadCotizacionPdf, cotizacionPdfUrl } from '@/api/solicitudes';
+import { uploadCotizacionPdf, openCotizacionPdf } from '@/api/solicitudes';
 import { pdf } from '@react-pdf/renderer';
 import { CotizacionPdfDocument } from '@/lib/cotizacion-pdf';
 import type { SolicitudRecord, OrdenInspeccionData, SolicitudEstado } from '@/types/solicitudes';
@@ -752,13 +752,10 @@ function VerSolicitudDialog({
               variant="outline"
               size="sm"
               className="gap-1.5"
-              onClick={() => {
-                const url = cotizacionPdfUrl(record.id);
-                window.open(url, '_blank');
-              }}
+              onClick={() => openCotizacionPdf(record.id).catch(() => toast.error('PDF no encontrado — usa "Regenerar PDF"'))}
             >
               <Download className="h-3.5 w-3.5" />
-              Descargar PDF cotización
+              Descargar PDF
             </Button>
             {ordenData && conceptos.length > 0 && (
               <Button
