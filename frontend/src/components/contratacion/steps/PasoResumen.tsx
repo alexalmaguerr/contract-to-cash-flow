@@ -11,7 +11,7 @@ import {
   mergedVariablesCapturadasDisplay,
   variablesStepSatisfied,
 } from '@/components/contratacion/hooks/useWizardState';
-import { CLASES_CONTRATACION, TIPOS_PUNTO_SERVICIO } from '../wizard-catalogos-ui';
+import { TIPOS_PUNTO_SERVICIO } from '../wizard-catalogos-ui';
 
 function SectionBadge({ ok }: { ok: boolean }) {
   return (
@@ -153,9 +153,6 @@ export default function PasoResumen({ data, config }: StepProps) {
       ? config.nombre
       : data.tipoContratacionDescripcion?.trim() || data.tipoContratacionId?.trim() || '—';
 
-  const claseLabel =
-    CLASES_CONTRATACION.find((c) => c.cod === data.claseContratacion)?.descripcion ??
-    data.claseContratacion;
   const tipoPsLabel =
     TIPOS_PUNTO_SERVICIO.find((t) => t.id === data.tipoPuntoServicio)?.descripcion ??
     data.tipoPuntoServicio;
@@ -187,6 +184,14 @@ export default function PasoResumen({ data, config }: StepProps) {
             <div>
               <dt className="text-muted-foreground">Código</dt>
               <dd className="font-medium">{data.puntoServicioCodigo?.trim() || '—'}</dd>
+            </div>
+            <div className="sm:col-span-2">
+              <dt className="text-muted-foreground">Domicilio del predio</dt>
+              <dd className="font-medium break-words">
+                {data.predioDomicilioResumen?.trim() ||
+                  data.puntoServicioDireccion?.trim() ||
+                  '—'}
+              </dd>
             </div>
           </dl>
         </CardContent>
@@ -269,12 +274,6 @@ export default function PasoResumen({ data, config }: StepProps) {
               <dt className="text-muted-foreground">Tipo de contratación</dt>
               <dd>{tipoNombre}</dd>
             </div>
-            {data.claseContratacion ? (
-              <div>
-                <dt className="text-muted-foreground">Clase de contratación</dt>
-                <dd>{claseLabel}</dd>
-              </div>
-            ) : null}
             {data.tipoPuntoServicio ? (
               <div>
                 <dt className="text-muted-foreground">Tipo de punto de servicio</dt>

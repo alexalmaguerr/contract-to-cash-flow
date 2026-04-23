@@ -82,9 +82,15 @@ export interface PaginatedSolicitudes {
 
 // ── API calls ─────────────────────────────────────────────────────────────────
 
-export const fetchSolicitudes = (params?: { estado?: string; page?: number; limit?: number }) => {
+export const fetchSolicitudes = (params?: {
+  estado?: string;
+  contratoId?: string;
+  page?: number;
+  limit?: number;
+}) => {
   const sp = new URLSearchParams();
   if (params?.estado) sp.set('estado', params.estado);
+  if (params?.contratoId?.trim()) sp.set('contratoId', params.contratoId.trim());
   if (params?.page) sp.set('page', String(params.page));
   if (params?.limit) sp.set('limit', String(params.limit));
   const q = sp.toString();
@@ -114,6 +120,7 @@ export const updateSolicitud = (
   id: string,
   dto: {
     propNombreCompleto?: string;
+    propTipoPersona?: string;
     propRfc?: string;
     propCorreo?: string;
     propTelefono?: string;
@@ -136,9 +143,10 @@ export const upsertInspeccion = (solicitudId: string, inspeccion: OrdenInspeccio
   });
 
 export const aceptarSolicitud = (id: string) =>
-  apiRequest<{ solicitudId: string; contratoId: string }>(`/solicitudes/${id}/aceptar`, {
-    method: 'POST',
-  });
+  apiRequest<{ solicitudId: string; contratoId: string; folio: string; puntoServicioId?: string | null }>(
+    `/solicitudes/${id}/aceptar`,
+    { method: 'POST' },
+  );
 
 export const rechazarSolicitud = (id: string) =>
   apiRequest<SolicitudDto>(`/solicitudes/${id}/rechazar`, { method: 'POST' });

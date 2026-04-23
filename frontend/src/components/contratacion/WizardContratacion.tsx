@@ -3,11 +3,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Save } from 'lucide-react';
 import { createContrato, type CreateContratoDto, type CreateContratoResponseDto } from '@/api/contratos';
 import { fetchProceso } from '@/api/procesos-contratacion';
+import { fetchSolicitud, fetchSolicitudes, updateSolicitud, type SolicitudDto } from '@/api/solicitudes';
 import { toast } from '@/components/ui/sonner';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
   WIZARD_STEPS,
+  descripcionEsIndividualizacion,
   initialWizardData,
   mergeVariablesCapturadasRecord,
   useWizardState,
@@ -15,7 +17,6 @@ import {
   type WizardData,
 } from './hooks/useWizardState';
 import { useTipoContratacionConfig } from './hooks/useTipoContratacionConfig';
-import PasoServicioPoint from './steps/PasoServicioPoint';
 import PasoPersonas from './steps/PasoPersonas';
 import PasoConfigContrato from './steps/PasoConfigContrato';
 import PasoVariables from './steps/PasoVariables';
@@ -25,19 +26,31 @@ import PasoOrdenes from './steps/PasoOrdenes';
 import PasoResumen from './steps/PasoResumen';
 import { CLASE_CONTRATACION_ALTA_NUEVA_COD } from './wizard-catalogos-ui';
 import { regimenClaveFromStored } from '@/lib/sat-catalog-fallback';
+import { solicitudFormToWizardPersonas, wizardPersonasToSolicitudUpdate } from './solicitud-personas-wizard';
+import {
+  extractConceptosCuantificacionOverride,
+  solicitudVarsToWizardVars,
+} from './solicitud-variables-precarga';
+import type { SolicitudState } from '@/types/solicitudes';
+import { fetchTipoContratacion, type TipoContratacion } from '@/api/tipos-contratacion';
+import { formatPredioDomicilioFromForm } from './predio-domicilio-display';
 
 export interface WizardContratacionProps {
   onComplete: () => void;
   onCancel: () => void;
   /** Si viene de la URL u otra pantalla: precarga compatible con `GET /procesos-contratacion/:id`. */
   procesoPrecargaId?: string | null;
+  /** ID de solicitud directo — evita tener que lookupear por contratoId (más confiable). */
+  solicitudIdPrecarga?: string;
 }
 
 function buildCreateContratoDto(data: WizardData): CreateContratoDto {
   const fecha = new Date().toISOString().split('T')[0];
   const prop = data.propietario;
-  const nombreCompleto = [prop?.paterno, prop?.materno, prop?.nombre]
-    .filter(Boolean).join(' ').trim() || '';
+  const nombreCompleto =
+    prop?.tipoPersona === 'moral' && prop?.razonSocial?.trim()
+      ? prop.razonSocial.trim()
+      : [prop?.paterno, prop?.materno, prop?.nombre].filter(Boolean).join(' ').trim() || '';
   const tipoContrato =
     (data.claseContratacion ?? '').trim() || CLASE_CONTRATACION_ALTA_NUEVA_COD;
   const tipoServicio = (data.tipoPuntoServicio ?? '').trim() || 'AGUA';
@@ -106,7 +119,10 @@ function buildCreateContratoDto(data: WizardData): CreateContratoDto {
 
   // Backend requiere personaId O (nombre + rfc) — solo enviamos si tenemos ambos o personaId
   const pf = data.personaFiscal;
-  const pfNombre = [pf?.paterno, pf?.materno, pf?.nombre].filter(Boolean).join(' ').trim();
+  const pfNombre =
+    pf?.tipoPersona === 'moral' && pf?.razonSocial?.trim()
+      ? pf.razonSocial.trim()
+      : [pf?.paterno, pf?.materno, pf?.nombre].filter(Boolean).join(' ').trim();
   const pfRfc = pf?.rfc?.trim();
   if (pf && (pf.personaId || (pfNombre && pfRfc))) {
     dto.personaFiscal = {
@@ -142,13 +158,23 @@ function buildCreateContratoDto(data: WizardData): CreateContratoDto {
 function canCreateContract(data: WizardData): boolean {
   const prop = data.propietario;
   const fiscal = data.personaFiscal;
-  const tieneNombreProp = !!(prop?.nombre?.trim() || prop?.paterno?.trim() || prop?.personaId);
-  const tieneNombreFiscal = !!(fiscal?.nombre?.trim() || fiscal?.paterno?.trim() || fiscal?.rfc?.trim() || fiscal?.personaId);
+  const tieneNombreProp = !!(
+    prop?.nombre?.trim() ||
+    prop?.paterno?.trim() ||
+    prop?.personaId ||
+    (prop?.tipoPersona === 'moral' && prop?.razonSocial?.trim())
+  );
+  const tieneNombreFiscal = !!(
+    fiscal?.nombre?.trim() ||
+    fiscal?.paterno?.trim() ||
+    (fiscal?.tipoPersona === 'moral' && fiscal?.razonSocial?.trim()) ||
+    fiscal?.rfc?.trim() ||
+    fiscal?.personaId
+  );
   return !!data.puntoServicioId?.trim() && tieneNombreProp && tieneNombreFiscal;
 }
 
 const stepComponents = [
-  PasoServicioPoint,
   PasoPersonas,
   PasoConfigContrato,
   PasoVariables,
@@ -158,9 +184,10 @@ const stepComponents = [
   PasoResumen,
 ] as const;
 
-export function WizardContratacion({ onComplete, onCancel, procesoPrecargaId }: WizardContratacionProps) {
+export function WizardContratacion({ onComplete, onCancel, procesoPrecargaId, solicitudIdPrecarga }: WizardContratacionProps) {
   const queryClient = useQueryClient();
   const [guardandoBorrador, setGuardandoBorrador] = useState(false);
+  const [solicitudFlushPending, setSolicitudFlushPending] = useState(false);
   const {
     currentStep,
     data,
@@ -179,6 +206,50 @@ export function WizardContratacion({ onComplete, onCancel, procesoPrecargaId }: 
     enabled: Boolean(procesoPrecargaId?.trim()),
   });
 
+  const contratoIdPrecarga = procesoQ.data?.contratoId?.trim() ?? '';
+
+  const solicitudPorContratoQ = useQuery({
+    queryKey: ['solicitud', 'por-contrato', contratoIdPrecarga],
+    queryFn: async (): Promise<{
+      solicitud: SolicitudDto | null;
+      tipoSolicitud: TipoContratacion | null;
+    }> => {
+      const res = await fetchSolicitudes({ contratoId: contratoIdPrecarga, limit: 1, page: 1 });
+      const solicitud = res.data[0] ?? null;
+      const form = solicitud?.formData as SolicitudState | undefined;
+      const tid = form?.tipoContratacionId?.trim() || solicitud?.tipoContratacionId?.trim() || '';
+      if (!tid) return { solicitud, tipoSolicitud: null };
+      try {
+        const tipoSolicitud = await fetchTipoContratacion(tid);
+        return { solicitud, tipoSolicitud };
+      } catch {
+        return { solicitud, tipoSolicitud: null };
+      }
+    },
+    enabled: Boolean(procesoPrecargaId?.trim() && contratoIdPrecarga),
+  });
+
+  // Query directa por solicitudId — path más confiable cuando viene desde Solicitudes.tsx
+  const solicitudDirectaQ = useQuery({
+    queryKey: ['solicitud', 'directa', solicitudIdPrecarga],
+    queryFn: async (): Promise<{
+      solicitud: SolicitudDto | null;
+      tipoSolicitud: TipoContratacion | null;
+    }> => {
+      const solicitud = await fetchSolicitud(solicitudIdPrecarga!);
+      const form = solicitud?.formData as SolicitudState | undefined;
+      const tid = form?.tipoContratacionId?.trim() || solicitud?.tipoContratacionId?.trim() || '';
+      if (!tid) return { solicitud, tipoSolicitud: null };
+      try {
+        const tipoSolicitud = await fetchTipoContratacion(tid);
+        return { solicitud, tipoSolicitud };
+      } catch {
+        return { solicitud, tipoSolicitud: null };
+      }
+    },
+    enabled: Boolean(solicitudIdPrecarga?.trim()),
+  });
+
   const precargaAplicadaParaId = useRef<string | null>(null);
 
   useEffect(() => {
@@ -189,6 +260,11 @@ export function WizardContratacion({ onComplete, onCancel, procesoPrecargaId }: 
 
   useEffect(() => {
     if (!procesoPrecargaId?.trim() || !procesoQ.isSuccess || !procesoQ.data) return;
+    // Esperar la query directa si viene con solicitudIdPrecarga
+    if (solicitudIdPrecarga?.trim() && !solicitudDirectaQ.isFetched) return;
+    // Esperar query por contratoId si no hay solicitudId directo
+    const esperarSolicitud = !solicitudIdPrecarga?.trim() && Boolean(contratoIdPrecarga);
+    if (esperarSolicitud && !solicitudPorContratoQ.isFetched) return;
     if (precargaAplicadaParaId.current === procesoPrecargaId) return;
     precargaAplicadaParaId.current = procesoPrecargaId;
     const p = procesoQ.data;
@@ -203,6 +279,8 @@ export function WizardContratacion({ onComplete, onCancel, procesoPrecargaId }: 
     if (psFromExtra || psFromContrato) {
       patch.puntoServicioId = psFromExtra ?? psFromContrato ?? undefined;
     }
+    const codPs = p.contrato?.puntoServicio?.codigo?.trim();
+    if (codPs) patch.puntoServicioCodigo = codPs;
 
     const c = p.contrato;
     if (c?.tipoContratacion?.id) {
@@ -244,6 +322,26 @@ export function WizardContratacion({ onComplete, onCancel, procesoPrecargaId }: 
       }
     }
 
+    // Preferir query directa por solicitudId; caer a query por contratoId como fallback
+    const solBundle = solicitudDirectaQ.data ?? solicitudPorContratoQ.data;
+    const solDto = solBundle?.solicitud ?? null;
+    const tipoSolicitud = solBundle?.tipoSolicitud ?? null;
+    const solForm = solDto?.formData as SolicitudState | undefined;
+
+    if (solForm?.variablesCapturadas && typeof solForm.variablesCapturadas === 'object') {
+      const solW = solicitudVarsToWizardVars(solForm.variablesCapturadas);
+      patch.variablesCapturadas = {
+        ...solW,
+        ...(patch.variablesCapturadas ?? {}),
+      };
+      const qtyOverride = extractConceptosCuantificacionOverride(solForm);
+      if (qtyOverride?.length) patch.conceptosOverride = qtyOverride;
+      const vid = patch.variablesCapturadas?.conceptosLecturaPeriodicaIds;
+      if (typeof vid === 'string' && vid.trim()) {
+        patch.conceptosLecturaPeriodica = vid.split(',').map((s) => s.trim()).filter(Boolean);
+      }
+    }
+
     for (const rp of c?.personas ?? []) {
       const person = rp.persona;
       const pw = {
@@ -251,9 +349,70 @@ export function WizardContratacion({ onComplete, onCancel, procesoPrecargaId }: 
         nombre: person.nombre?.trim() || undefined,
         rfc: person.rfc?.trim() || undefined,
       };
-      if (rp.rol === 'PROPIETARIO') patch.propietario = pw;
-      if (rp.rol === 'FISCAL') patch.personaFiscal = pw;
+      if (!solForm) {
+        if (rp.rol === 'PROPIETARIO') patch.propietario = pw;
+        if (rp.rol === 'FISCAL') patch.personaFiscal = pw;
+      }
       if (rp.rol === 'CONTACTO') patch.personaContacto = pw;
+    }
+
+    if (solDto?.id && solForm) {
+      const adminSol = solForm.adminId?.trim() || solDto.adminId?.trim();
+      if (adminSol) patch.administracion = adminSol;
+
+      const solTipoId = solForm.tipoContratacionId?.trim() || solDto.tipoContratacionId?.trim();
+      if (solTipoId) {
+        patch.tipoContratacionId = solTipoId;
+        if (tipoSolicitud?.id === solTipoId) {
+          patch.tipoContratacionDescripcion =
+            tipoSolicitud.descripcion?.trim() || tipoSolicitud.nombre?.trim() || '';
+          patch.tipoEsIndividualizacion = tipoSolicitud.esIndividualizacion;
+        } else if (c?.tipoContratacion?.id === solTipoId && c.tipoContratacion.nombre) {
+          patch.tipoContratacionDescripcion = c.tipoContratacion.nombre;
+          patch.tipoEsIndividualizacion = undefined;
+        } else {
+          const cod = solForm.tipoContratacionCodigo?.trim();
+          patch.tipoContratacionDescripcion = cod || patch.tipoContratacionDescripcion || '';
+          patch.tipoEsIndividualizacion = undefined;
+        }
+      }
+
+      if (solForm.actividadId?.trim()) {
+        patch.actividadId = solForm.actividadId.trim();
+      }
+
+      const indivSol =
+        typeof patch.tipoEsIndividualizacion === 'boolean'
+          ? patch.tipoEsIndividualizacion
+          : descripcionEsIndividualizacion(patch.tipoContratacionDescripcion);
+      if (indivSol && solForm.distritoId?.trim()) {
+        patch.distritoId = solForm.distritoId.trim();
+      } else {
+        patch.distritoId = undefined;
+        if (patch.variablesCapturadas && 'distritoId' in patch.variablesCapturadas) {
+          const { distritoId: _omit, ...vcRest } = patch.variablesCapturadas;
+          patch.variablesCapturadas = Object.keys(vcRest).length ? vcRest : undefined;
+        }
+      }
+
+      if (solForm.contratoPadre?.trim()) {
+        patch.referenciaContratoAnterior = solForm.contratoPadre.trim();
+      }
+
+      const mapped = solicitudFormToWizardPersonas(solForm);
+      patch.propietario = mapped.propietario;
+      patch.personaFiscal = mapped.personaFiscal;
+      patch.fiscalIgualTitular = mapped.fiscalIgualTitular;
+      patch.solicitudId = solDto.id;
+      patch.solicitudFormSnapshot = solForm;
+
+      const domLine =
+        solDto.predioResumen?.trim() ||
+        formatPredioDomicilioFromForm(solForm.predioDir);
+      if (domLine) {
+        patch.predioDomicilioResumen = domLine;
+        patch.puntoServicioDireccion = domLine;
+      }
     }
 
     resetTo({
@@ -261,7 +420,18 @@ export function WizardContratacion({ onComplete, onCancel, procesoPrecargaId }: 
       ...patch,
       claseContratacion: CLASE_CONTRATACION_ALTA_NUEVA_COD,
     });
-  }, [procesoPrecargaId, procesoQ.isSuccess, procesoQ.data, resetTo]);
+  }, [
+    procesoPrecargaId,
+    solicitudIdPrecarga,
+    procesoQ.isSuccess,
+    procesoQ.data,
+    contratoIdPrecarga,
+    solicitudPorContratoQ.isFetched,
+    solicitudPorContratoQ.data,
+    solicitudDirectaQ.isFetched,
+    solicitudDirectaQ.data,
+    resetTo,
+  ]);
 
   const {
     data: config,
@@ -273,7 +443,8 @@ export function WizardContratacion({ onComplete, onCancel, procesoPrecargaId }: 
   );
 
   const variablesStepReady = useMemo(() => {
-    if (currentStep !== 3) return true;
+    const stepKey = WIZARD_STEPS[currentStep]?.key;
+    if (stepKey !== 'variables') return true;
     if (!data.tipoContratacionId?.trim()) return false;
     if (tipoConfigError) return false;
     if (tipoConfigPending || tipoConfigFetching) return false;
@@ -281,7 +452,7 @@ export function WizardContratacion({ onComplete, onCancel, procesoPrecargaId }: 
   }, [currentStep, data, config, tipoConfigPending, tipoConfigFetching, tipoConfigError]);
 
   const effectiveCanGoNext = useMemo(
-    () => (currentStep === 3 ? variablesStepReady : canGoNext),
+    () => (WIZARD_STEPS[currentStep]?.key === 'variables' ? variablesStepReady : canGoNext),
     [currentStep, variablesStepReady, canGoNext],
   );
 
@@ -315,12 +486,17 @@ export function WizardContratacion({ onComplete, onCancel, procesoPrecargaId }: 
     [data, updateData, config],
   );
 
-  const handlePrimary = useCallback(() => {
+  const handlePrimary = useCallback(async () => {
     if (isLastStep) {
       if (!canCreateContract(data)) {
         const prop = data.propietario;
         const fiscal = data.personaFiscal;
-        const missingProp = !(prop?.nombre?.trim() || prop?.paterno?.trim() || prop?.personaId);
+        const missingProp = !(
+          prop?.personaId ||
+          prop?.nombre?.trim() ||
+          prop?.paterno?.trim() ||
+          (prop?.tipoPersona === 'moral' && prop?.razonSocial?.trim())
+        );
         const missingFiscalRfc = !!(fiscal?.personaId == null && !(fiscal?.rfc?.trim()));
         const desc = !data.puntoServicioId
           ? 'Seleccione un punto de servicio.'
@@ -335,13 +511,43 @@ export function WizardContratacion({ onComplete, onCancel, procesoPrecargaId }: 
       createMutation.mutate(buildCreateContratoDto(data));
       return;
     }
+    const sid = data.solicitudId?.trim();
+    const currentStepKey = WIZARD_STEPS[currentStep]?.key;
+    if (currentStepKey === 'personas' && sid && data.solicitudFormSnapshot) {
+      setSolicitudFlushPending(true);
+      try {
+        const merged = wizardPersonasToSolicitudUpdate(
+          data.solicitudFormSnapshot,
+          data.propietario,
+          data.personaFiscal,
+          data.fiscalIgualTitular ?? false,
+        );
+        const dto = await updateSolicitud(sid, {
+          formData: merged.formData,
+          propNombreCompleto: merged.propNombreCompleto,
+          propTipoPersona: merged.propTipoPersona,
+          propRfc: merged.propRfc ?? undefined,
+          propCorreo: merged.propCorreo ?? undefined,
+          propTelefono: merged.propTelefono ?? undefined,
+        });
+        updateData({ solicitudFormSnapshot: dto.formData as SolicitudState });
+        await queryClient.invalidateQueries({ queryKey: ['solicitudes'] });
+        await queryClient.invalidateQueries({ queryKey: ['solicitud', 'por-contrato'] });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'No se pudo sincronizar la solicitud.';
+        toast.error('No se pudo guardar en la solicitud', { description: message });
+        return;
+      } finally {
+        setSolicitudFlushPending(false);
+      }
+    }
     next();
-  }, [isLastStep, data, next, createMutation]);
+  }, [isLastStep, currentStep, data, next, createMutation, updateData, queryClient]);
 
   const primaryDisabled =
     isLastStep
       ? !canCreateContract(data) || createMutation.isPending
-      : !effectiveCanGoNext || createMutation.isPending;
+      : !effectiveCanGoNext || createMutation.isPending || solicitudFlushPending;
 
   const primaryLabel = isLastStep
     ? createMutation.isPending
@@ -458,7 +664,11 @@ export function WizardContratacion({ onComplete, onCancel, procesoPrecargaId }: 
           <Button type="button" variant="outline" onClick={prev} disabled={isFirstStep || createMutation.isPending || guardandoBorrador}>
             Anterior
           </Button>
-          <Button type="button" onClick={handlePrimary} disabled={primaryDisabled || guardandoBorrador}>
+          <Button
+            type="button"
+            onClick={() => void handlePrimary()}
+            disabled={primaryDisabled || guardandoBorrador}
+          >
             {primaryLabel}
           </Button>
         </div>

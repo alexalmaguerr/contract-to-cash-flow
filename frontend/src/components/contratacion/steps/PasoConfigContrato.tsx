@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, ChevronsUpDown, Loader2 } from 'lucide-react';
 
 import { fetchActividades, fetchAdministraciones, fetchDistritos } from '@/api/catalogos';
 import { fetchTiposContratacion } from '@/api/tipos-contratacion';
+import { updateSolicitud } from '@/api/solicitudes';
 import { Button } from '@/components/ui/button';
 import {
   Command,
@@ -22,22 +23,24 @@ import {
 } from '@/components/ui/popover';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { cn } from '@/lib/utils';
-import {
-  CLASE_CONTRATACION_ALTA_NUEVA_COD,
-  CLASES_CONTRATACION,
-  TIPOS_PUNTO_SERVICIO,
-} from '../wizard-catalogos-ui';
+import { TIPOS_PUNTO_SERVICIO } from '../wizard-catalogos-ui';
 import { descripcionEsIndividualizacion, type StepProps } from '../hooks/useWizardState';
+import { toast } from '@/components/ui/sonner';
+import type { SolicitudState } from '@/types/solicitudes';
 
 export default function PasoConfigContrato({ data, updateData }: StepProps) {
   const [tipoOpen, setTipoOpen] = useState(false);
   const autoSelectTipoRef = useRef(false);
+  const [configSoloLectura, setConfigSoloLectura] = useState(true);
+  const queryClient = useQueryClient();
+
+  const solicitudId = data.solicitudId?.trim() ?? '';
+  const tieneSolicitud = Boolean(solicitudId && data.solicitudFormSnapshot);
 
   useEffect(() => {
-    if (data.claseContratacion !== CLASE_CONTRATACION_ALTA_NUEVA_COD) {
-      updateData({ claseContratacion: CLASE_CONTRATACION_ALTA_NUEVA_COD });
-    }
-  }, [data.claseContratacion, updateData]);
+    if (!solicitudId) setConfigSoloLectura(false);
+    else setConfigSoloLectura(true);
+  }, [solicitudId]);
 
   const actividadesQ = useQuery({
     queryKey: ['catalogos', 'actividades', 'wizard'],
@@ -77,13 +80,75 @@ export default function PasoConfigContrato({ data, updateData }: StepProps) {
   const tiposList = tiposQ.data?.data ?? [];
 
   const selectedTipo = tiposList.find((t) => t.id === data.tipoContratacionId);
+  const adminNombreDisplay = adminId ? administraciones.find((a) => a.id === adminId)?.nombre : undefined;
+  const tipoNombreDisplay =
+    selectedTipo
+      ? (selectedTipo.descripcion?.trim() || selectedTipo.nombre)
+      : data.tipoContratacionDescripcion || undefined;
+  const actividadNombreDisplay =
+    data.actividadId
+      ? (actividades.find((a) => a.id === data.actividadId)?.descripcion ||
+         actividades.find((a) => a.id === data.actividadId)?.codigo ||
+         data.actividadNombre)
+      : data.actividadNombre;
+  const distritoNombreDisplay =
+    data.distritoId
+      ? (distritosQ.data ?? []).find((d) => d.id === data.distritoId)?.nombre ?? data.distritoId
+      : undefined;
+
+  const syncConfigMutation = useMutation({
+    mutationFn: async () => {
+      if (!solicitudId || !data.solicitudFormSnapshot) return;
+      const snapshot = data.solicitudFormSnapshot as SolicitudState;
+      const updatedFormData: SolicitudState = {
+        ...snapshot,
+        adminId: data.administracion ?? snapshot.adminId,
+        tipoContratacionId: data.tipoContratacionId ?? snapshot.tipoContratacionId,
+        actividadId: data.actividadId ?? snapshot.actividadId,
+        distritoId: data.distritoId ?? snapshot.distritoId ?? '',
+        contratoPadre: data.referenciaContratoAnterior ?? snapshot.contratoPadre ?? '',
+      };
+      const dto = await updateSolicitud(solicitudId, {
+        adminId: data.administracion ?? undefined,
+        tipoContratacionId: data.tipoContratacionId ?? undefined,
+        formData: updatedFormData,
+      });
+      updateData({ solicitudFormSnapshot: dto.formData as SolicitudState });
+      await queryClient.invalidateQueries({ queryKey: ['solicitudes'] });
+    },
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : 'No se pudo actualizar la solicitud.';
+      toast.error('Error al guardar en solicitud', { description: message });
+    },
+  });
+
+  const handleToggleEditar = async () => {
+    if (!tieneSolicitud) return;
+    if (!configSoloLectura) {
+      try {
+        await syncConfigMutation.mutateAsync();
+        toast.success('Configuración guardada en la solicitud de servicio.');
+        setConfigSoloLectura(true);
+      } catch {
+        // error handled in mutation
+      }
+    } else {
+      setConfigSoloLectura(false);
+    }
+  };
 
   const onTipoChange = (tipoId: string) => {
     const row = tiposList.find((t) => t.id === tipoId);
     const desc = (row?.descripcion?.trim() || row?.nombre?.trim() || '') ?? '';
+    const esIndiv =
+      row != null
+        ? (row.esIndividualizacion ?? descripcionEsIndividualizacion(row.descripcion ?? ''))
+        : descripcionEsIndividualizacion(desc);
     updateData({
       tipoContratacionId: tipoId,
       tipoContratacionDescripcion: desc,
+      tipoEsIndividualizacion: esIndiv,
+      distritoId: esIndiv ? data.distritoId : undefined,
       documentosRecibidos: [],
       variablesCapturadas: {},
       conceptosOverride: undefined,
@@ -121,35 +186,100 @@ export default function PasoConfigContrato({ data, updateData }: StepProps) {
     });
   };
 
-  // Use the API flag when available; fall back to text-matching for legacy records
-  const requiereContratoPadre =
+  // Individualización: distrito y referencia al contrato padre (API o heurística por texto)
+  const esIndividualizacion =
     selectedTipo != null
-      ? (selectedTipo as any).esIndividualizacion ?? descripcionEsIndividualizacion(selectedTipo.descripcion ?? '')
-      : descripcionEsIndividualizacion(data.tipoContratacionDescripcion);
+      ? (selectedTipo.esIndividualizacion ?? descripcionEsIndividualizacion(selectedTipo.descripcion ?? ''))
+      : typeof data.tipoEsIndividualizacion === 'boolean'
+        ? data.tipoEsIndividualizacion
+        : descripcionEsIndividualizacion(data.tipoContratacionDescripcion);
+
+  const bloqueado = tieneSolicitud && configSoloLectura;
 
   return (
     <section aria-labelledby="paso-config" className="space-y-4">
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h2 id="paso-config" className="text-base font-semibold">
             Configuración del contrato
           </h2>
           <p className="text-sm text-muted-foreground">
             Tipo de contratación, actividad económica y referencias.
+            {tieneSolicitud ? (
+              <> Los valores fueron prellenados desde la solicitud de servicio.</>
+            ) : null}
           </p>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={fillDemo}
-          disabled={administracionesQ.isLoading}
-          className="shrink-0 text-xs"
-        >
-          Prellenar demo
-        </Button>
+        {tieneSolicitud ? (
+          <Button
+            type="button"
+            variant={configSoloLectura ? 'default' : 'outline'}
+            size="sm"
+            className="shrink-0 text-xs"
+            disabled={syncConfigMutation.isPending}
+            onClick={() => void handleToggleEditar()}
+          >
+            {syncConfigMutation.isPending
+              ? 'Guardando…'
+              : configSoloLectura
+                ? 'Editar'
+                : 'Guardar y bloquear'}
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={fillDemo}
+            disabled={administracionesQ.isLoading}
+            className="shrink-0 text-xs"
+          >
+            Prellenar demo
+          </Button>
+        )}
       </div>
 
+      {/* ── Vista de solo lectura ──────────────────────────────────────── */}
+      {bloqueado ? (
+        <div className="rounded-lg border bg-muted/20 p-4 space-y-3">
+          {adminNombreDisplay ? (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase">Administración</p>
+              <p className="text-sm">{adminNombreDisplay}</p>
+            </div>
+          ) : null}
+          {tipoNombreDisplay ? (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase">Tipo de contratación</p>
+              <p className="text-sm">{tipoNombreDisplay}</p>
+            </div>
+          ) : null}
+          {actividadNombreDisplay ? (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase">Actividad</p>
+              <p className="text-sm">{actividadNombreDisplay}</p>
+            </div>
+          ) : null}
+          {esIndividualizacion && distritoNombreDisplay ? (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase">Distrito</p>
+              <p className="text-sm">{distritoNombreDisplay}</p>
+            </div>
+          ) : null}
+          {data.referenciaContratoAnterior ? (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase">
+                {esIndividualizacion ? 'Contrato padre' : 'Referencia contrato anterior'}
+              </p>
+              <p className="text-sm font-mono">{data.referenciaContratoAnterior}</p>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {/* ── Campos editables (ocultos en solo lectura) ──────────────── */}
+      {bloqueado ? null : (
+        <>
       {/* ── Selector de administración (siempre visible) ──────────────── */}
       <div className="space-y-2">
         <Label>
@@ -162,6 +292,8 @@ export default function PasoConfigContrato({ data, updateData }: StepProps) {
               administracion: v,
               tipoContratacionId: undefined,
               tipoContratacionDescripcion: '',
+              tipoEsIndividualizacion: undefined,
+              distritoId: undefined,
               actividadNombre: undefined,
               documentosRecibidos: [],
               variablesCapturadas: {},
@@ -283,62 +415,80 @@ export default function PasoConfigContrato({ data, updateData }: StepProps) {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        {/* ── Clase de contratación (fija: alta nueva) ───────────────── */}
-        <div className="space-y-2">
-          <Label htmlFor="wizard-clase">Clase de contratación</Label>
-          <Input
-            id="wizard-clase"
-            readOnly
-            aria-readonly="true"
-            tabIndex={-1}
-            className="bg-muted cursor-default"
-            value={
-              CLASES_CONTRATACION.find((c) => c.cod === CLASE_CONTRATACION_ALTA_NUEVA_COD)
-                ?.descripcion ?? 'Alta nueva'
-            }
-          />
-        </div>
-
-        {/* ── Tipo de punto de servicio ────────────────────────────────── */}
-        <div className="space-y-2">
-          <Label>Tipo de punto de servicio</Label>
-          <SearchableSelect
-            value={data.tipoPuntoServicio ?? ''}
-            onValueChange={(v) => updateData({ tipoPuntoServicio: v })}
-            placeholder="Seleccione tipo…"
-            searchPlaceholder="Buscar tipo…"
-            options={TIPOS_PUNTO_SERVICIO.map((t) => ({ value: t.id, label: `${t.id} — ${t.descripcion}` }))}
-          />
-        </div>
+      <div className="space-y-2">
+        <Label htmlFor="wizard-tps">Tipo de punto de servicio</Label>
+        <SearchableSelect
+          value={data.tipoPuntoServicio ?? ''}
+          onValueChange={(v) => updateData({ tipoPuntoServicio: v })}
+          placeholder="Seleccione tipo…"
+          searchPlaceholder="Buscar tipo…"
+          options={TIPOS_PUNTO_SERVICIO.map((t) => ({ value: t.id, label: `${t.id} — ${t.descripcion}` }))}
+        />
       </div>
+
+      {esIndividualizacion ? (
+        <div className="space-y-2">
+          <Label htmlFor="wizard-distrito">
+            Distrito (catálogo) <span className="text-destructive">*</span>
+          </Label>
+          {distritosQ.isLoading ? (
+            <div className="flex h-10 items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              Cargando distritos…
+            </div>
+          ) : distritosQ.isError ? (
+            <p className="text-sm text-destructive">No se pudieron cargar los distritos.</p>
+          ) : (
+            <Select
+              value={data.distritoId ?? ''}
+              onValueChange={(v) => updateData({ distritoId: v || undefined })}
+            >
+              <SelectTrigger id="wizard-distrito" aria-label="Distrito">
+                <SelectValue placeholder="Seleccione distrito…" />
+              </SelectTrigger>
+              <SelectContent>
+                {(distritosQ.data ?? []).map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.nombre}
+                    <span className="ml-1.5 font-mono text-[10px] text-muted-foreground">{d.zonaId}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <p className="text-xs text-muted-foreground">
+            El identificador de distrito se envía en <span className="font-mono">variablesCapturadas</span> al crear el contrato.
+          </p>
+        </div>
+      ) : null}
 
       <div className="space-y-2">
-        <Label htmlFor="wizard-distrito">Distrito (catálogo)</Label>
-        {distritosQ.isLoading ? (
-          <div className="flex h-10 items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-            Cargando distritos…
-          </div>
-        ) : distritosQ.isError ? (
-          <p className="text-sm text-destructive">No se pudieron cargar los distritos.</p>
-        ) : (
-          <SearchableSelect
-            value={data.distritoId ?? ''}
-            onValueChange={(v) => updateData({ distritoId: v || undefined })}
-            placeholder="Seleccione distrito (opcional)…"
-            searchPlaceholder="Buscar distrito…"
-            options={(distritosQ.data ?? []).map((d) => ({
-              value: d.id,
-              label: d.zonaId ? `${d.nombre} — ${d.zonaId}` : d.nombre,
-            }))}
-          />
+        <Label htmlFor="wizard-ref">
+          {esIndividualizacion ? (
+            <>
+              Contrato padre / referencia <span className="text-destructive">*</span>
+            </>
+          ) : (
+            <>Referencia contrato anterior (opcional)</>
+          )}
+        </Label>
+        <Input
+          id="wizard-ref"
+          value={data.referenciaContratoAnterior ?? ''}
+          onChange={(e) => updateData({ referenciaContratoAnterior: e.target.value })}
+          placeholder="Número o folio del contrato padre"
+          aria-required={esIndividualizacion}
+        />
+        {esIndividualizacion && (
+          <p className="text-xs text-amber-700 dark:text-amber-500">
+            Tipo catalogado como individualización: la referencia al contrato padre es obligatoria.
+          </p>
         )}
-        <p className="text-xs text-muted-foreground">
-          El identificador de distrito se envía en <span className="font-mono">variablesCapturadas</span> al crear el contrato.
-        </p>
       </div>
+        </>
+      )}
 
+      {/* ── Predio y ocupación (siempre visible) ─────────────────────── */}
       <div className="space-y-4 rounded-lg border border-dashed p-4">
         <div>
           <h3 className="text-sm font-medium">Predio y ocupación (opcional)</h3>
@@ -436,30 +586,6 @@ export default function PasoConfigContrato({ data, updateData }: StepProps) {
             />
           </div>
         </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="wizard-ref">
-          {requiereContratoPadre ? (
-            <>
-              Contrato padre / referencia <span className="text-destructive">*</span>
-            </>
-          ) : (
-            <>Referencia contrato anterior (opcional)</>
-          )}
-        </Label>
-        <Input
-          id="wizard-ref"
-          value={data.referenciaContratoAnterior ?? ''}
-          onChange={(e) => updateData({ referenciaContratoAnterior: e.target.value })}
-          placeholder="Número o folio del contrato padre"
-          aria-required={requiereContratoPadre}
-        />
-        {requiereContratoPadre && (
-          <p className="text-xs text-amber-700 dark:text-amber-500">
-            Tipo catalogado como individualización: la referencia al contrato padre es obligatoria.
-          </p>
-        )}
       </div>
     </section>
   );
