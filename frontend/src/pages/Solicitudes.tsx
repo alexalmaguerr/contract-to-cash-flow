@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -6,6 +6,7 @@ import {
   aceptarSolicitud as apiAceptarSolicitud,
   cancelarSolicitud as apiCancelarSolicitud,
   retormarSolicitud as apiRetormarSolicitud,
+  updateSolicitud as apiUpdateSolicitud,
   type SolicitudDto,
   type SolicitudInspeccionDto,
 } from '@/api/solicitudes';
@@ -605,11 +606,23 @@ function VerSolicitudDialog({
   open: boolean;
   onClose: () => void;
 }) {
+  const ordenData = record?.ordenInspeccion ?? undefined;
+  const conceptos = ordenData ? calcularCotizacion(ordenData) : [];
+
+  // Auto-backfill cotizacionItems for solicitudes accepted before the persistent-save fix
+  useEffect(() => {
+    if (!record || !open) return;
+    if (record.estado !== 'aceptada' && record.estado !== 'contratado') return;
+    const alreadySaved = Array.isArray(record.formData?.cotizacionItems) && record.formData.cotizacionItems!.length > 0;
+    if (alreadySaved || conceptos.length === 0) return;
+    apiUpdateSolicitud(record.id, {
+      formData: { ...record.formData, cotizacionItems: conceptos },
+    }).catch(() => {});
+  }, [record?.id, open]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!record) return null;
 
   const fd = record.formData;
-  const ordenData = record.ordenInspeccion;
-  const conceptos = ordenData ? calcularCotizacion(ordenData) : [];
   const total = conceptos.reduce((s, c) => s + c.subtotal, 0);
   const mxn = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
 
@@ -887,6 +900,13 @@ function CotizacionModal({
     try {
       // Backend /aceptar creates the Contrato and links it to this Solicitud
       const res = await apiAceptarSolicitud(record!.id);
+
+      // Persist cotizacionItems to solicitud.formData so the wizard can preload them
+      if (conceptos.length > 0) {
+        apiUpdateSolicitud(record!.id, {
+          formData: { ...record!.formData, cotizacionItems: conceptos },
+        }).catch(() => { /* silent - wizard will fallback to inspeccion data */ });
+      }
 
       // Generate and upload PDF in background (non-blocking)
       if (ordenData && conceptos.length > 0) {

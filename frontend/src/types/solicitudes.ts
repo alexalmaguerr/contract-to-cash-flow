@@ -74,6 +74,8 @@ export interface SolicitudState {
    * Si se persisten, el paso Facturación del alta aplica estas cantidades con tarifas vigentes al día.
    */
   conceptosCuantificacionOverride?: { conceptoCobroId: string; cantidad: number }[];
+  /** Ítems de cotización aprobados por el cliente al aceptar (persist para precarga en wizard). */
+  cotizacionItems?: { descripcion: string; cantidad: number; unidad: string; precioUnitario: number; subtotal: number }[];
   variablesTexto: string;
   documentosRecibidos: string[];
   documentosTexto: string;

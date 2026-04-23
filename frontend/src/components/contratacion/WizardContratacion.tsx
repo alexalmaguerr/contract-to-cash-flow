@@ -407,8 +407,10 @@ export function WizardContratacion({ onComplete, onCancel, procesoPrecargaId, so
       patch.solicitudId = solDto.id;
       patch.solicitudFormSnapshot = solForm;
 
-      // Cotización aprobada: computed from inspeccion data for display in Facturación
-      if (solDto.inspeccion) {
+      // Cotización aprobada: prefer persisted items, fall back to computing from inspeccion
+      if (Array.isArray(solForm?.cotizacionItems) && solForm!.cotizacionItems!.length > 0) {
+        patch.cotizacionPrevia = solForm!.cotizacionItems;
+      } else if (solDto.inspeccion) {
         const ordenData = inspeccionDtoToOrdenData(solDto.inspeccion as Record<string, unknown>);
         const items = calcularCotizacion(ordenData);
         if (items.length > 0) patch.cotizacionPrevia = items;
