@@ -158,3 +158,29 @@ export const retormarSolicitud = (id: string) =>
   apiRequest<SolicitudDto>(`/solicitudes/${id}/retomar`, { method: 'POST' });
 
 export const deleteSolicitud = (id: string) => apiRequest<void>(`/solicitudes/${id}`, { method: 'DELETE' });
+
+// ── PDF cotización ─────────────────────────────────────────────────────────────
+
+/** Sube el PDF de cotización al servidor y lo guarda en uploads/cotizaciones/{id}.pdf */
+export async function uploadCotizacionPdf(solicitudId: string, pdfBlob: Blob): Promise<{ url: string }> {
+  const base = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:3001';
+  const normalizeBase = (b: string) => { const r = b.replace(/\/$/, ''); return r.endsWith('/api') ? r : `${r}/api`; };
+  const apiBase = normalizeBase(base);
+  const token = localStorage.getItem('ctcf_access_token');
+  const form = new FormData();
+  form.append('file', pdfBlob, `cotizacion-${solicitudId}.pdf`);
+  const res = await fetch(`${apiBase}/solicitudes/${solicitudId}/cotizacion-pdf`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+  if (!res.ok) throw new Error(`Error al guardar PDF: HTTP ${res.status}`);
+  return res.json() as Promise<{ url: string }>;
+}
+
+/** URL de descarga del PDF de cotización. */
+export function cotizacionPdfUrl(solicitudId: string): string {
+  const base = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:3001';
+  const normalizeBase = (b: string) => { const r = b.replace(/\/$/, ''); return r.endsWith('/api') ? r : `${r}/api`; };
+  return `${normalizeBase(base)}/solicitudes/${solicitudId}/cotizacion-pdf`;
+}

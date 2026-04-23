@@ -32,6 +32,7 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Download,
 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -55,6 +56,9 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
 import { calcularCotizacion, MATERIAL_LABEL as MAT_LABEL } from '@/lib/cotizacion';
+import { uploadCotizacionPdf, cotizacionPdfUrl } from '@/api/solicitudes';
+import { pdf } from '@react-pdf/renderer';
+import { CotizacionPdfDocument } from '@/lib/cotizacion-pdf';
 import type { SolicitudRecord, OrdenInspeccionData, SolicitudEstado } from '@/types/solicitudes';
 
 // ── DTO → local record mappers ────────────────────────────────────────────────
@@ -727,6 +731,54 @@ function VerSolicitudDialog({
               Sin datos de inspección / cuantificación registrados.
             </div>
           )}
+
+          {/* Botón PDF */}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => {
+                const url = cotizacionPdfUrl(record.id);
+                window.open(url, '_blank');
+              }}
+            >
+              <Download className="h-3.5 w-3.5" />
+              Descargar PDF cotización
+            </Button>
+            {ordenData && conceptos.length > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={async () => {
+                  try {
+                    const doc = (
+                      <CotizacionPdfDocument
+                        record={record}
+                        ordenData={ordenData}
+                        conceptos={conceptos}
+                      />
+                    );
+                    const blob = await pdf(doc).toBlob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `cotizacion-${record.folio}.pdf`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  } catch {
+                    toast.error('No se pudo generar el PDF');
+                  }
+                }}
+              >
+                <Download className="h-3.5 w-3.5" />
+                Regenerar PDF
+              </Button>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
@@ -835,6 +887,21 @@ function CotizacionModal({
     try {
       // Backend /aceptar creates the Contrato and links it to this Solicitud
       const res = await apiAceptarSolicitud(record!.id);
+
+      // Generate and upload PDF in background (non-blocking)
+      if (ordenData && conceptos.length > 0) {
+        const doc = (
+          <CotizacionPdfDocument
+            record={record!}
+            ordenData={ordenData}
+            conceptos={conceptos}
+          />
+        );
+        pdf(doc).toBlob().then((blob) =>
+          uploadCotizacionPdf(record!.id, blob).catch(() => { /* silent - PDF is optional */ })
+        ).catch(() => { /* silent */ });
+      }
+
       onAceptar(record!.id, res.contratoId);
     } catch (err) {
       setAceptando(false);
