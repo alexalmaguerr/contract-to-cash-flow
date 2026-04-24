@@ -60,6 +60,7 @@ import { calcularCotizacion, MATERIAL_LABEL as MAT_LABEL } from '@/lib/cotizacio
 import { uploadCotizacionPdf, openCotizacionPdf } from '@/api/solicitudes';
 import { pdf } from '@react-pdf/renderer';
 import { CotizacionPdfDocument } from '@/lib/cotizacion-pdf';
+import { CobroAguaPdfDocument } from '@/lib/cobro-agua-pdf';
 import type { SolicitudRecord, OrdenInspeccionData, SolicitudEstado } from '@/types/solicitudes';
 
 // ── DTO → local record mappers ────────────────────────────────────────────────
@@ -608,6 +609,8 @@ function VerSolicitudDialog({
 }) {
   const ordenData = record?.ordenInspeccion ?? undefined;
   const conceptos = ordenData ? calcularCotizacion(ordenData) : [];
+  const [generandoCotizPdf, setGenerandoCotizPdf] = useState(false);
+  const [generandoCobroPdf, setGenerandoCobroPdf] = useState(false);
 
   // Auto-backfill cotizacionItems for solicitudes accepted before the persistent-save fix
   useEffect(() => {
@@ -745,41 +748,65 @@ function VerSolicitudDialog({
             </div>
           )}
 
-          {/* Botón PDF — intenta servidor, genera client-side si no existe */}
+          {/* Botones PDF */}
           {conceptos.length > 0 && ordenData ? (
-            <div className="flex justify-end pt-2">
+            <div className="flex flex-wrap justify-end gap-2 pt-2">
               <Button
                 type="button"
+                variant="outline"
                 size="sm"
                 className="gap-1.5"
+                disabled={generandoCotizPdf}
                 onClick={async () => {
-                  // 1. Intenta desde el servidor (PDF guardado al aceptar)
+                  setGenerandoCotizPdf(true);
                   try {
                     await openCotizacionPdf(record.id);
-                    return;
                   } catch {
-                    // 404 u otro error → generar ahora mismo
-                  }
-                  // 2. Genera client-side
-                  try {
-                    const doc = (
-                      <CotizacionPdfDocument
-                        record={record}
-                        ordenData={ordenData}
-                        conceptos={conceptos}
-                      />
-                    );
-                    const blob = await pdf(doc).toBlob();
-                    const url = URL.createObjectURL(blob);
-                    window.open(url, '_blank');
-                    setTimeout(() => URL.revokeObjectURL(url), 10_000);
-                  } catch {
-                    toast.error('No se pudo generar el PDF');
+                    try {
+                      const blob = await pdf(
+                        <CotizacionPdfDocument record={record} ordenData={ordenData} conceptos={conceptos} />
+                      ).toBlob();
+                      const url = URL.createObjectURL(blob);
+                      window.open(url, '_blank');
+                      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+                    } catch {
+                      toast.error('No se pudo generar el PDF de cotización');
+                    }
+                  } finally {
+                    setGenerandoCotizPdf(false);
                   }
                 }}
               >
                 <Download className="h-3.5 w-3.5" />
-                Descargar PDF cotización
+                {generandoCotizPdf ? 'Generando…' : 'PDF cotización'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                disabled={generandoCobroPdf}
+                onClick={async () => {
+                  setGenerandoCobroPdf(true);
+                  try {
+                    const vars = record.formData.variablesCapturadas ?? {};
+                    const consumoM3 = parseFloat(vars.consumoM3 ?? vars.consumo_m3 ?? vars.m3 ?? '15') || 15;
+                    const meses = parseInt(vars.meses ?? vars.numeroPeriodos ?? '6', 10) || 6;
+                    const blob = await pdf(
+                      <CobroAguaPdfDocument record={record} consumoM3={consumoM3} meses={meses} periodoInicio={new Date()} />
+                    ).toBlob();
+                    const url = URL.createObjectURL(blob);
+                    window.open(url, '_blank');
+                    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+                  } catch {
+                    toast.error('No se pudo generar el PDF de cobro');
+                  } finally {
+                    setGenerandoCobroPdf(false);
+                  }
+                }}
+              >
+                <Download className="h-3.5 w-3.5" />
+                {generandoCobroPdf ? 'Generando…' : 'Detalle del cobro del agua'}
               </Button>
             </div>
           ) : null}
@@ -878,6 +905,7 @@ function CotizacionModal({
 }) {
   const [aceptando, setAceptando] = useState(false);
   const [generandoPdf, setGenerandoPdf] = useState(false);
+  const [generandoCobroPdf, setGenerandoCobroPdf] = useState(false);
 
   if (!record) return null;
 
@@ -1009,6 +1037,40 @@ function CotizacionModal({
             >
               <Download className="h-3.5 w-3.5" />
               {generandoPdf ? 'Generando…' : 'Descargar PDF'}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              disabled={generandoCobroPdf}
+              onClick={async () => {
+                setGenerandoCobroPdf(true);
+                try {
+                  const vars = record.formData.variablesCapturadas ?? {};
+                  const consumoM3 = parseFloat(vars.consumoM3 ?? vars.consumo_m3 ?? vars.m3 ?? '15') || 15;
+                  const meses = parseInt(vars.meses ?? vars.numeroPeriodos ?? '6', 10) || 6;
+                  const doc = (
+                    <CobroAguaPdfDocument
+                      record={record}
+                      consumoM3={consumoM3}
+                      meses={meses}
+                      periodoInicio={new Date()}
+                    />
+                  );
+                  const blob = await pdf(doc).toBlob();
+                  const url = URL.createObjectURL(blob);
+                  window.open(url, '_blank');
+                  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+                } catch {
+                  toast.error('No se pudo generar el PDF de cobro');
+                } finally {
+                  setGenerandoCobroPdf(false);
+                }
+              }}
+            >
+              <Download className="h-3.5 w-3.5" />
+              {generandoCobroPdf ? 'Generando…' : 'Detalle del cobro del agua'}
             </Button>
             <Button
               type="button"
