@@ -169,57 +169,59 @@ export default function PasoFacturacion({ data, updateData }: StepProps) {
         </div>
       ) : preview ? (
         <>
-          <div className="rounded-md border overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-muted/50 border-b text-xs">
-                  <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Concepto</th>
-                  <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Tipo</th>
-                  <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">Cant.</th>
-                  <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">Importe</th>
-                  <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">Impuestos</th>
-                </tr>
-              </thead>
-              <tbody>
-                {preview.items.map((c) => (
-                  <tr key={c.conceptoCobroId} className="border-t">
-                    <td className="px-4 py-2.5 font-medium">{c.nombre}</td>
-                    <td className="px-4 py-2.5 text-muted-foreground text-xs">{c.tipo}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums">{c.cantidad}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums">{formatMxn(c.importe)}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">
-                      {formatMxn(c.ivaImporte)}
-                    </td>
+          {preview.items.length > 0 ? (
+            <div className="rounded-md border overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-muted/50 border-b text-xs">
+                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Concepto</th>
+                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Tipo</th>
+                    <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">Cant.</th>
+                    <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">Importe</th>
+                    <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">Impuestos</th>
                   </tr>
-                ))}
-              </tbody>
-              <tfoot className="border-t bg-muted/20">
-                {preview.subtotal > 0 ? (
+                </thead>
+                <tbody>
+                  {preview.items.map((c) => (
+                    <tr key={c.conceptoCobroId} className="border-t">
+                      <td className="px-4 py-2.5 font-medium">{c.nombre}</td>
+                      <td className="px-4 py-2.5 text-muted-foreground text-xs">{c.tipo}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums">{c.cantidad}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums">{formatMxn(c.importe)}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">
+                        {formatMxn(c.ivaImporte)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="border-t bg-muted/20">
+                  {preview.subtotal > 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-4 py-2 text-right text-sm text-muted-foreground">
+                        Subtotal
+                      </td>
+                      <td className="px-4 py-2 text-right tabular-nums font-semibold">{formatMxn(preview.subtotal)}</td>
+                    </tr>
+                  ) : null}
                   <tr>
                     <td colSpan={4} className="px-4 py-2 text-right text-sm text-muted-foreground">
-                      Subtotal
+                      Impuestos
                     </td>
-                    <td className="px-4 py-2 text-right tabular-nums font-semibold">{formatMxn(preview.subtotal)}</td>
+                    <td className="px-4 py-2 text-right tabular-nums font-semibold text-muted-foreground">
+                      {formatMxn(preview.totalIva)}
+                      {preview.totalIva === 0 ? <span className="ml-1 text-xs">(por definir)</span> : null}
+                    </td>
                   </tr>
-                ) : null}
-                <tr>
-                  <td colSpan={4} className="px-4 py-2 text-right text-sm text-muted-foreground">
-                    Impuestos
-                  </td>
-                  <td className="px-4 py-2 text-right tabular-nums font-semibold text-muted-foreground">
-                    {formatMxn(preview.totalIva)}
-                    {preview.totalIva === 0 ? <span className="ml-1 text-xs">(por definir)</span> : null}
-                  </td>
-                </tr>
-                <tr className="border-t">
-                  <td colSpan={4} className="px-4 py-2.5 text-right font-semibold">
-                    Total
-                  </td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-base font-bold">{formatMxn(effectiveTotal)}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+                  <tr className="border-t">
+                    <td colSpan={4} className="px-4 py-2.5 text-right font-semibold">
+                      Total
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-base font-bold">{formatMxn(effectiveTotal)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          ) : null}
           {isFetching ? (
             <p className="text-xs text-muted-foreground">Actualizando importes…</p>
           ) : null}

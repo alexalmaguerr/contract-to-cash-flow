@@ -877,6 +877,7 @@ function CotizacionModal({
   onVerInspeccion: (record: SolicitudRecord) => void;
 }) {
   const [aceptando, setAceptando] = useState(false);
+  const [generandoPdf, setGenerandoPdf] = useState(false);
 
   if (!record) return null;
 
@@ -977,16 +978,49 @@ function CotizacionModal({
         <p className="text-xs text-muted-foreground">* Los precios son estimados y pueden ajustarse según las condiciones del terreno.</p>
 
         {/* Actions */}
-        <div className="flex items-center justify-end gap-3 pt-1">
-          <Button
-            type="button"
-            variant="outline"
-            className="gap-1.5"
-            onClick={() => { onClose(); onVerInspeccion(record); }}
-          >
-            <ClipboardList className="h-4 w-4" />
-            Orden de inspección
-          </Button>
+        <div className="flex items-center justify-between gap-3 pt-1">
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              disabled={generandoPdf}
+              onClick={async () => {
+                setGenerandoPdf(true);
+                try {
+                  const doc = (
+                    <CotizacionPdfDocument
+                      record={record}
+                      ordenData={ordenData}
+                      conceptos={conceptos}
+                    />
+                  );
+                  const blob = await pdf(doc).toBlob();
+                  const url = URL.createObjectURL(blob);
+                  window.open(url, '_blank');
+                  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+                } catch {
+                  toast.error('No se pudo generar el PDF');
+                } finally {
+                  setGenerandoPdf(false);
+                }
+              }}
+            >
+              <Download className="h-3.5 w-3.5" />
+              {generandoPdf ? 'Generando…' : 'Descargar PDF'}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => { onClose(); onVerInspeccion(record); }}
+            >
+              <ClipboardList className="h-4 w-4" />
+              Orden de inspección
+            </Button>
+          </div>
           <Button
             type="button"
             disabled={aceptando}
