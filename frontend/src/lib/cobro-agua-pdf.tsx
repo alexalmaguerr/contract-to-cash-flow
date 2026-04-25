@@ -12,22 +12,12 @@
  */
 import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
 import type { SolicitudRecord } from '@/types/solicitudes';
-
-// ── Constantes de tarifas aproximadas (CEA Querétaro 2025-2026) ───────────────
-
-/** Precio por m³ de agua por tipo de servicio (estimado) */
-const TARIFA_AGUA: Record<string, number> = {
-  domestico: 36.77,
-  no_domestico: 65.0,
-  comercial: 65.0,
-  industrial: 85.0,
-  baldio: 20.0,
-};
-
-const TARIFA_AGUA_DEFAULT = 36.77;
-const ALCANTARILLADO_RATE = 0.10;  // 10 % de agua
-const SANEAMIENTO_RATE    = 0.12;  // 12 % de agua
-const RECARGO_TASA        = 0.015; // 1.5 % mensual sobre saldo vencido
+import {
+  calcularCargoPeriodo,
+  resolveAdministracion,
+  resolveTipoTarifa,
+  RECARGO_MENSUAL,
+} from '@/lib/tarifas';
 
 const MESES_ES = [
   'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
@@ -52,9 +42,11 @@ export interface FilaCobro {
 
 export interface CobroAguaPdfProps {
   record: SolicitudRecord;
-  administracionNombre?: string;
+  administracionNombre?: string;  // nombre legible (para mostrar)
+  administracionCatalogo?: string; // nombre exacto en catálogo CSV (para lookup)
   tipoContratacionNombre?: string;
-  tipoServicio?: string;  // 'Doméstico medio', etc.
+  tipoTarifa?: string;    // nombre exacto en catálogo CSV; si omite se resuelve desde tipoContratacionNombre
+  tipoServicio?: string;  // texto a mostrar en el encabezado
   tarifa?: string;
   tipo?: string;          // 'Individual', 'General', etc.
   consumoM3?: number;
@@ -69,21 +61,25 @@ export interface CobroAguaPdfProps {
 function generarFilas(
   consumoM3: number,
   unidades: number,
-  tipoServicio: string,
+  administracion: string,
+  tipoTarifa: string,
   periodoInicio: Date,
   numMeses: number,
 ): FilaCobro[] {
-  const tarifaAgua = TARIFA_AGUA[tipoServicio.toLowerCase()] ?? TARIFA_AGUA_DEFAULT;
   const filas: FilaCobro[] = [];
   let serviciosVencidos = 0;
 
   for (let i = 0; i < numMeses; i++) {
     const fecha = new Date(periodoInicio.getFullYear(), periodoInicio.getMonth() + i, 1);
-    const agua = consumoM3 * unidades * tarifaAgua;
-    const alcantarillado = agua * ALCANTARILLADO_RATE;
-    const saneamiento = agua * SANEAMIENTO_RATE;
+
+    // Usar tarifas reales del catálogo
+    const cargo = calcularCargoPeriodo(administracion, tipoTarifa, consumoM3, unidades);
+    const agua = cargo?.agua ?? consumoM3 * unidades * 36.77;
+    const alcantarillado = cargo?.alcantarillado ?? agua * 0.10;
+    const saneamiento = cargo?.saneamiento ?? agua * 0.12;
+
     const serviciosPeriodo = agua + alcantarillado + saneamiento;
-    const recargos = i === 0 ? 0 : serviciosVencidos * RECARGO_TASA;
+    const recargos = i === 0 ? 0 : serviciosVencidos * RECARGO_MENSUAL;
     const totalPeriodo = serviciosPeriodo + recargos;
 
     filas.push({
@@ -100,7 +96,6 @@ function generarFilas(
       totalPeriodo,
     });
 
-    // El vencido del siguiente mes es lo que se debía este mes
     serviciosVencidos = serviciosPeriodo;
   }
 
@@ -215,7 +210,9 @@ const s = StyleSheet.create({
 export function CobroAguaPdfDocument({
   record,
   administracionNombre,
+  administracionCatalogo,
   tipoContratacionNombre,
+  tipoTarifa: tipoTarifaProp,
   tipoServicio,
   tarifa,
   tipo,
@@ -241,11 +238,15 @@ export function CobroAguaPdfDocument({
 
   const periodoInicio = periodoInicioProp ?? new Date();
 
-  const tipoSvc = tipoServicio
-    ?? vars.tipoServicio
-    ?? (fd.usoDomestico === 'si' ? 'domestico' : 'no_domestico');
+  // Resolver administración y tipo de tarifa para lookup en catálogo CSV
+  const adminCatalogo = administracionCatalogo
+    ?? resolveAdministracion(administracionNombre)
+    ?? 'QUERÉTARO';
+  const tipoTarifaResuelto = tipoTarifaProp
+    ?? resolveTipoTarifa(tipoContratacionNombre, adminCatalogo)
+    ?? 'DOMÉSTICA MEDIO';
 
-  const filas: FilaCobro[] = filasProp ?? generarFilas(consumoM3, unidades, tipoSvc, periodoInicio, rawMeses);
+  const filas: FilaCobro[] = filasProp ?? generarFilas(consumoM3, unidades, adminCatalogo, tipoTarifaResuelto, periodoInicio, rawMeses);
 
   // Totales
   const totAgua          = filas.reduce((s, f) => s + f.agua, 0);

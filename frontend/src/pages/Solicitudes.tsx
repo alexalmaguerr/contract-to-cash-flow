@@ -602,10 +602,12 @@ function VerSolicitudDialog({
   record,
   open,
   onClose,
+  tipoContratacionNombre,
 }: {
   record: SolicitudRecord | null;
   open: boolean;
   onClose: () => void;
+  tipoContratacionNombre?: string;
 }) {
   const ordenData = record?.ordenInspeccion ?? undefined;
   // Conceptos: primero desde inspección (si existe), luego desde cotizacionItems guardados al aceptar
@@ -797,7 +799,7 @@ function VerSolicitudDialog({
                     const consumoM3 = parseFloat(vars.consumoM3 ?? vars.consumo_m3 ?? vars.m3 ?? '15') || 15;
                     const meses = parseInt(vars.meses ?? vars.numeroPeriodos ?? '6', 10) || 6;
                     const blob = await pdf(
-                      <CobroAguaPdfDocument record={record} consumoM3={consumoM3} meses={meses} periodoInicio={new Date()} />
+                      <CobroAguaPdfDocument record={record} tipoContratacionNombre={tipoContratacionNombre} consumoM3={consumoM3} meses={meses} periodoInicio={new Date()} />
                     ).toBlob();
                     const url = URL.createObjectURL(blob);
                     window.open(url, '_blank');
@@ -899,6 +901,7 @@ function CotizacionModal({
   onAceptar,
   onRechazar,
   onVerInspeccion,
+  tipoContratacionNombre,
 }: {
   record: SolicitudRecord | null;
   open: boolean;
@@ -906,6 +909,7 @@ function CotizacionModal({
   onAceptar: (id: string, contratoId?: string) => void;
   onRechazar: (id: string) => void;
   onVerInspeccion: (record: SolicitudRecord) => void;
+  tipoContratacionNombre?: string;
 }) {
   const [aceptando, setAceptando] = useState(false);
   const [generandoPdf, setGenerandoPdf] = useState(false);
@@ -960,7 +964,7 @@ function CotizacionModal({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="w-[90vw] max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Receipt className="h-5 w-5 text-blue-600" />
@@ -1057,6 +1061,7 @@ function CotizacionModal({
                   const doc = (
                     <CobroAguaPdfDocument
                       record={record}
+                      tipoContratacionNombre={tipoContratacionNombre}
                       consumoM3={consumoM3}
                       meses={meses}
                       periodoInicio={new Date()}
@@ -1146,6 +1151,13 @@ export default function Solicitudes() {
       const requiere = (t.requiereInspeccion ?? true) && !t.esIndividualizacion;
       map.set(t.id, requiere);
     }
+    return map;
+  }, [tiposData]);
+
+  // Map tipoContratacionId → nombre (for PDF generation)
+  const tipoNombreMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const t of tiposData?.data ?? []) map.set(t.id, t.nombre);
     return map;
   }, [tiposData]);
 
@@ -1528,6 +1540,7 @@ export default function Solicitudes() {
         record={verRecord}
         open={!!verRecord}
         onClose={() => setVerRecord(null)}
+        tipoContratacionNombre={verRecord ? tipoNombreMap.get(verRecord.tipoContratacionId) : undefined}
       />
 
       {/* ── Inspection Sheet ──────────────────────────────────────────── */}
@@ -1546,6 +1559,7 @@ export default function Solicitudes() {
         onAceptar={(id, contratoId) => handleConfirmarCotizacion(id, contratoId)}
         onRechazar={handleRechazar}
         onVerInspeccion={(r) => { setCotizandoRecord(null); setInspRecord(r); }}
+        tipoContratacionNombre={cotizandoRecord ? tipoNombreMap.get(cotizandoRecord.tipoContratacionId) : undefined}
       />
     </div>
   );
