@@ -15,6 +15,42 @@ import type { StepProps } from '../hooks/useWizardState';
 import { variableStorageKey } from '../hooks/useWizardState';
 import { useTipoContratacionConfig } from '../hooks/useTipoContratacionConfig';
 
+// ── Opciones para códigos reservados ────────────────────────────────────────
+
+const DIAMETROS = ["1/2\"", "3/4\"", "1\"", "1.5\"", "2\"", "3\"", "4\""];
+
+const OPCIONES_RESERVADAS: Record<string, { label: string; value: string }[]> = {
+  DIAMETRO_TOMA:      DIAMETROS.map((d) => ({ value: d, label: d })),
+  DIAMETRO_DESCARGA:  DIAMETROS.map((d) => ({ value: d, label: d })),
+  MATERIAL_CALLE: [
+    { value: 'concreto',           label: 'Concreto hidráulico' },
+    { value: 'losa',               label: 'Losa' },
+    { value: 'adoquin',            label: 'Adoquín' },
+    { value: 'concreto_asfaltico', label: 'Concreto asfáltico' },
+    { value: 'empedrado',          label: 'Empedrado' },
+    { value: 'tierra',             label: 'Terracería / tierra' },
+  ],
+  MATERIAL_BANQUETA: [
+    { value: 'concreto',   label: 'Concreto' },
+    { value: 'asfalto',    label: 'Asfalto' },
+    { value: 'adoquin',    label: 'Adoquín' },
+    { value: 'adocreto',   label: 'Adocreto' },
+    { value: 'empedrado',  label: 'Empedrado' },
+    { value: 'tierra',     label: 'Terracería / tierra' },
+    { value: 'cantera',    label: 'Cantera' },
+  ],
+  TIPO_MEDIDOR: [
+    { value: 'velocidad',   label: 'Velocidad ½"' },
+    { value: 'volumetrico', label: 'Volumétrico ½"' },
+    { value: 'mayor',       label: 'Mayor que ½" (pago único)' },
+  ],
+  PLAN_PAGO_MEDIDOR: [
+    { value: 'contado', label: 'Contado' },
+    { value: '12parc',  label: '12 parcialidades' },
+    { value: '24parc',  label: '24 parcialidades' },
+  ],
+};
+
 function parseListaOpciones(valoresPosibles: unknown): string[] {
   if (valoresPosibles == null) return [];
   if (Array.isArray(valoresPosibles)) {
@@ -138,6 +174,63 @@ export default function PasoVariables({ data, updateData, config }: StepProps) {
           const def = row.valorDefecto?.trim();
           const rawVal = vc[key];
           const lista = tipo === 'LISTA' ? parseListaOpciones(tv.valoresPosibles) : [];
+
+          // ── Códigos reservados → UI especializada ─────────────────────
+          const opcionesReservadas = OPCIONES_RESERVADAS[tv.codigo?.toUpperCase?.() ?? ''];
+          if (opcionesReservadas) {
+            const valStr = rawVal != null && String(rawVal).length > 0 ? String(rawVal) : def ?? '';
+            const selectValue = valStr.length > 0 ? valStr : '__none__';
+            return (
+              <div key={row.id} className="space-y-2">
+                <Label htmlFor={`var-${key}`}>{label}</Label>
+                <Select
+                  value={selectValue}
+                  onValueChange={(v) => setVar(key, v === '__none__' ? undefined : v)}
+                >
+                  <SelectTrigger id={`var-${key}`}>
+                    <SelectValue placeholder="Seleccione…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {!row.obligatorio && (
+                      <SelectItem value="__none__">
+                        <span className="text-muted-foreground">(vacío)</span>
+                      </SelectItem>
+                    )}
+                    {opcionesReservadas.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            );
+          }
+
+          // METROS_TOMA / METROS_DESCARGA / UNIDADES_SERVIDAS → número con placeholder útil
+          const esMetros = ['METROS_TOMA', 'METROS_DESCARGA'].includes(tv.codigo?.toUpperCase?.() ?? '');
+          if (esMetros && tipo !== 'NUMERO') {
+            // Forzar comportamiento numérico aunque esté configurado como TEXTO
+            const numStr = rawVal !== undefined ? String(rawVal) : def ?? '';
+            return (
+              <div key={row.id} className="space-y-2">
+                <Label htmlFor={`var-${key}`}>{label}</Label>
+                <Input
+                  id={`var-${key}`}
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  step={0.1}
+                  value={numStr}
+                  placeholder="metros lineales"
+                  onChange={(e) => {
+                    const t = e.target.value.trim();
+                    setVar(key, t === '' ? undefined : Number(t));
+                  }}
+                />
+              </div>
+            );
+          }
 
           if (tipo === 'BOOLEANO') {
             const checked =

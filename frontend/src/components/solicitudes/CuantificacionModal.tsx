@@ -46,6 +46,38 @@ import type { SolicitudRecord, OrdenInspeccionData } from '@/types/solicitudes';
 
 const DIAMETROS_TOMA = ["1/2\"", "3/4\"", "1\"", "1.5\"", "2\"", "3\"", "4\""];
 
+// Materiales del catálogo CSV (claves que entiende cotizacion-tarifas.ts)
+const MATERIALES_CALLE = [
+  { value: 'concreto',           label: 'Concreto hidráulico' },
+  { value: 'losa',               label: 'Losa' },
+  { value: 'adoquin',            label: 'Adoquín' },
+  { value: 'concreto_asfaltico', label: 'Concreto asfáltico' },
+  { value: 'empedrado',          label: 'Empedrado' },
+  { value: 'tierra',             label: 'Terracería / tierra' },
+];
+
+const MATERIALES_BANQUETA = [
+  { value: 'concreto',           label: 'Concreto' },
+  { value: 'asfalto',            label: 'Asfalto' },
+  { value: 'adoquin',            label: 'Adoquín' },
+  { value: 'adocreto',           label: 'Adocreto' },
+  { value: 'empedrado',          label: 'Empedrado' },
+  { value: 'tierra',             label: 'Terracería / tierra' },
+  { value: 'cantera',            label: 'Cantera' },
+];
+
+const TIPOS_MEDIDOR = [
+  { value: 'velocidad',   label: 'Velocidad ½"' },
+  { value: 'volumetrico', label: 'Volumétrico ½"' },
+  { value: 'mayor',       label: 'Mayor que ½" (pago único)' },
+];
+
+const PLANES_PAGO_MEDIDOR = [
+  { value: 'contado',    label: 'Contado' },
+  { value: '12parc',     label: '12 parcialidades' },
+  { value: '24parc',     label: '24 parcialidades' },
+];
+
 const FORMAS_PAGO = [
   { value: 'contado',   label: 'Contado' },
   { value: '3_meses',   label: '3 meses' },
@@ -102,6 +134,14 @@ export interface CuantificacionData {
   diametroDescarga: string;
   tarifa: string;
   unidadesServidas: number;
+  // Materiales y longitudes (de inspección o capturadas manual)
+  matCalle: string;
+  matBanqueta: string;
+  mlToma: number;
+  mlDescarga: number;
+  // Medidor
+  tipoMedidor: string;
+  planPagoMedidor: string;
   // Agua
   incluirAgua: boolean;
   tipoAgua: 'individual' | 'condominal';
@@ -186,8 +226,14 @@ export function CuantificacionModal({
   const [observaciones, setObservaciones]     = useState('');
   const [fechaVigencia, setFechaVigencia]     = useState(vigenciaDefault.toISOString().slice(0, 10));
   const [formaPago, setFormaPago]             = useState('contado');
-  const [diametroToma, setDiametroToma]       = useState(insp?.diametroToma ?? '');
-  const [diametroDescarga, setDiametroDescarga] = useState('');
+  const [diametroToma, setDiametroToma]       = useState(diametroTomaDefault);
+  const [diametroDescarga, setDiametroDescarga] = useState(diametroDescargaDefault);
+  const [matCalle, setMatCalle]               = useState(matCalleDefault);
+  const [matBanqueta, setMatBanqueta]         = useState(matBanquetaDefault);
+  const [mlToma, setMlToma]                   = useState(String(mlTomaDefault || ''));
+  const [mlDescarga, setMlDescarga]           = useState(String(mlDescargaDefault || ''));
+  const [tipoMedidor, setTipoMedidor]         = useState(String(vc.TIPO_MEDIDOR ?? 'velocidad'));
+  const [planPagoMedidor, setPlanPagoMedidor] = useState(String(vc.PLAN_PAGO_MEDIDOR ?? 'contado'));
   const [tarifa, setTarifa]                   = useState(tarifaDefault);
   const [unidades, setUnidades]               = useState(String(unidadesDefault));
   const [incluirAgua, setIncluirAgua]           = useState(true);
@@ -232,11 +278,16 @@ export function CuantificacionModal({
     return rows;
   }, [incluirAgua, consumoM3, unidades, adminCatalogo, tarifa, numMeses, periodoInicio, aplicaAgua, aplicaAlcantarillado, aplicaSaneamiento]);
 
-  // Pre-llenar desde inspección cuando cambia el record
+  // Re-aplicar defaults cuando cambia el record (por si el modal se reutiliza)
   useEffect(() => {
-    if (!insp) return;
-    if (insp.diametroToma) setDiametroToma(insp.diametroToma);
-  }, [insp]);
+    if (diametroTomaDefault)    setDiametroToma(diametroTomaDefault);
+    if (diametroDescargaDefault) setDiametroDescarga(diametroDescargaDefault);
+    if (matCalleDefault)    setMatCalle(matCalleDefault);
+    if (matBanquetaDefault) setMatBanqueta(matBanquetaDefault);
+    if (mlTomaDefault > 0)     setMlToma(String(mlTomaDefault));
+    if (mlDescargaDefault > 0) setMlDescarga(String(mlDescargaDefault));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [record?.id]);
 
   // Pre-llenar tarifa cuando carga el catálogo
   useEffect(() => {
@@ -247,11 +298,20 @@ export function CuantificacionModal({
 
   const requiresCert = fd?.tieneCertConexion === 'si';
 
-  // Campos de solo-lectura de la inspección
-  const longToma      = insp?.metrosRupturaAguaCalle ?? insp?.metrosRupturaCalle;
-  const longDescarga  = insp?.metrosRupturaDrenajeCalle;
-  const matCalle      = insp?.materialCalle;
-  const matBanqueta   = insp?.materialBanqueta;
+  // variablesCapturadas de la solicitud (códigos reservados)
+  const vc = (fd?.variablesCapturadas ?? {}) as Record<string, unknown>;
+
+  // Defaults: inspección tiene prioridad, luego variablesCapturadas, luego vacío
+  const matCalleDefault    = insp?.materialCalle    ?? String(vc.MATERIAL_CALLE    ?? '');
+  const matBanquetaDefault = insp?.materialBanqueta ?? String(vc.MATERIAL_BANQUETA ?? '');
+  const mlTomaDefault      = parseFloat(String(
+    insp?.metrosRupturaAguaCalle ?? insp?.metrosRupturaCalle ?? vc.METROS_TOMA ?? '0'
+  )) || 0;
+  const mlDescargaDefault  = parseFloat(String(
+    insp?.metrosRupturaDrenajeCalle ?? vc.METROS_DESCARGA ?? '0'
+  )) || 0;
+  const diametroTomaDefault   = insp?.diametroToma ?? String(vc.DIAMETRO_TOMA    ?? '');
+  const diametroDescargaDefault =                      String(vc.DIAMETRO_DESCARGA ?? '');
 
   // Dirección del predio
   const domicilio = useMemo(() => {
@@ -285,6 +345,12 @@ export function CuantificacionModal({
       diametroDescarga,
       tarifa,
       unidadesServidas: parseInt(unidades, 10) || 1,
+      matCalle,
+      matBanqueta,
+      mlToma:   parseFloat(mlToma)    || 0,
+      mlDescarga: parseFloat(mlDescarga) || 0,
+      tipoMedidor,
+      planPagoMedidor,
       incluirAgua,
       tipoAgua,
       periodoInicio,
@@ -398,10 +464,11 @@ export function CuantificacionModal({
           <Separator />
 
           {/* ── Requerimientos ─────────────────────────────────────────── */}
-          <SectionTitle>Requerimientos</SectionTitle>
+          <SectionTitle>Requerimientos de conexión</SectionTitle>
 
           <div className="grid grid-cols-2 gap-x-6 gap-y-3">
 
+            {/* Diámetros */}
             <Field label="Diámetro de la toma">
               <Select value={diametroToma} onValueChange={setDiametroToma}>
                 <SelectTrigger><SelectValue placeholder="Seleccionar…" /></SelectTrigger>
@@ -412,16 +479,6 @@ export function CuantificacionModal({
                 </SelectContent>
               </Select>
             </Field>
-
-            {tieneInspeccion && longToma !== undefined ? (
-              <Field label="Longitud de la toma (m)">
-                <Input value={longToma ?? ''} readOnly className="bg-muted/40" />
-              </Field>
-            ) : (
-              <Field label="Longitud de la toma (m)" hint="Sin datos de inspección">
-                <Input placeholder="m.l." disabled />
-              </Field>
-            )}
 
             <Field label="Diámetro de la descarga">
               <Select value={diametroDescarga} onValueChange={setDiametroDescarga}>
@@ -434,17 +491,103 @@ export function CuantificacionModal({
               </Select>
             </Field>
 
-            {tieneInspeccion && longDescarga !== undefined ? (
-              <Field label="Longitud de la descarga (m)">
-                <Input value={longDescarga ?? ''} readOnly className="bg-muted/40" />
-              </Field>
-            ) : (
-              <Field label="Longitud de la descarga (m)" hint="Sin datos de inspección">
-                <Input placeholder="m.l." disabled />
-              </Field>
-            )}
+            {/* Material calle */}
+            <Field
+              label="Material de la calle"
+              hint={tieneInspeccion ? 'Datos de inspección' : undefined}
+            >
+              {tieneInspeccion ? (
+                <Input value={matCalle} readOnly className="bg-muted/40 capitalize" />
+              ) : (
+                <Select value={matCalle} onValueChange={setMatCalle}>
+                  <SelectTrigger><SelectValue placeholder="Seleccionar…" /></SelectTrigger>
+                  <SelectContent>
+                    {MATERIALES_CALLE.map((m) => (
+                      <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </Field>
 
-            <Field label="Tarifa">
+            {/* Material banqueta */}
+            <Field
+              label="Material de la banqueta"
+              hint={tieneInspeccion ? 'Datos de inspección' : undefined}
+            >
+              {tieneInspeccion ? (
+                <Input value={matBanqueta} readOnly className="bg-muted/40 capitalize" />
+              ) : (
+                <Select value={matBanqueta} onValueChange={setMatBanqueta}>
+                  <SelectTrigger><SelectValue placeholder="Seleccionar…" /></SelectTrigger>
+                  <SelectContent>
+                    {MATERIALES_BANQUETA.map((m) => (
+                      <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </Field>
+
+            {/* Longitud toma */}
+            <Field
+              label="Longitud de la toma (m.l.)"
+              hint={tieneInspeccion ? 'Datos de inspección' : undefined}
+            >
+              <Input
+                type="number"
+                min={0}
+                step={0.1}
+                value={mlToma}
+                readOnly={tieneInspeccion}
+                className={tieneInspeccion ? 'bg-muted/40' : ''}
+                onChange={(e) => { if (!tieneInspeccion) setMlToma(e.target.value); }}
+                placeholder="0"
+              />
+            </Field>
+
+            {/* Longitud descarga */}
+            <Field
+              label="Longitud de la descarga (m.l.)"
+              hint={tieneInspeccion ? 'Datos de inspección' : undefined}
+            >
+              <Input
+                type="number"
+                min={0}
+                step={0.1}
+                value={mlDescarga}
+                readOnly={tieneInspeccion}
+                className={tieneInspeccion ? 'bg-muted/40' : ''}
+                onChange={(e) => { if (!tieneInspeccion) setMlDescarga(e.target.value); }}
+                placeholder="0"
+              />
+            </Field>
+
+            {/* Medidor */}
+            <Field label="Tipo de medidor">
+              <Select value={tipoMedidor} onValueChange={setTipoMedidor}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {TIPOS_MEDIDOR.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+
+            <Field label="Plan de pago del medidor">
+              <Select value={planPagoMedidor} onValueChange={setPlanPagoMedidor}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PLANES_PAGO_MEDIDOR.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+
+            {/* Tarifa agua periódica y unidades */}
+            <Field label="Tarifa periódica de agua">
               <Select value={tarifa} onValueChange={setTarifa}>
                 <SelectTrigger><SelectValue placeholder="Seleccionar…" /></SelectTrigger>
                 <SelectContent>

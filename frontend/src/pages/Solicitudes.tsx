@@ -1094,47 +1094,74 @@ function calcularCotizacionDesdeCuantificacion(
   const conceptos: ConceptoCotizacion[] = [];
   const admin = cuant.adminNombre || 'QUERÉTARO';
 
+  // Materiales: cuant tiene prioridad (capturados en el form), fallback a inspección
+  const matCalle    = cuant.matCalle    || insp?.materialCalle    || '';
+  const matBanqueta = cuant.matBanqueta || insp?.materialBanqueta || '';
+
+  // Metros: cuant tiene prioridad, fallback a inspección
+  const mlToma = cuant.mlToma > 0
+    ? cuant.mlToma
+    : parseFloat(insp?.metrosRupturaAguaCalle ?? insp?.metrosRupturaCalle ?? '0') || 0;
+  const mlDescarga = cuant.mlDescarga > 0
+    ? cuant.mlDescarga
+    : parseFloat(insp?.metrosRupturaDrenajeCalle ?? '0') || 0;
+
   // ── 1. Derechos de conexión a red de agua ───────────────────────────────────
-  if (insp) {
-    const matCalle    = insp.materialCalle    ?? '';
-    const matBanqueta = insp.materialBanqueta ?? '';
-    const mlAgua = parseFloat(insp.metrosRupturaAguaCalle ?? insp.metrosRupturaCalle ?? '0') || 0;
-    const mlDrenaje = parseFloat(insp.metrosRupturaDrenajeCalle ?? '0') || 0;
-
-    if (mlAgua > 0) {
-      const r = calcularDerechosAgua(admin, matCalle, matBanqueta, mlAgua);
-      if (r) {
-        const matLabel = `${resolveMatCalle(matCalle)}-${resolveMatBanqueta(matBanqueta)}`;
-        conceptos.push({
-          descripcion: `Derechos de conexión red de agua (${matLabel}, ${mlAgua} ml)`,
-          cantidad: 1, unidad: 'servicio',
-          precioUnitario: r.precioNeto, subtotal: r.precioNeto, tasa: r.tasa,
-        });
-      }
+  if (mlToma > 0 && matCalle) {
+    const r = calcularDerechosAgua(admin, matCalle, matBanqueta, mlToma);
+    if (r) {
+      const matLabel = `${resolveMatCalle(matCalle)}-${resolveMatBanqueta(matBanqueta)}`;
+      conceptos.push({
+        descripcion: `Derechos de conexión red de agua (${matLabel}, ${mlToma} ml)`,
+        cantidad: 1, unidad: 'servicio',
+        precioUnitario: r.precioNeto, subtotal: r.precioNeto, tasa: r.tasa,
+      });
     }
+  }
 
-    // ── 2. Derechos de conexión a red de drenaje ──────────────────────────────
-    if (mlDrenaje > 0) {
-      const r = calcularDerechosDrenaje(admin, matCalle, matBanqueta, mlDrenaje);
-      if (r) {
-        const matLabel = `${resolveMatCalle(matCalle)}-${resolveMatBanqueta(matBanqueta)}`;
-        conceptos.push({
-          descripcion: `Derechos de conexión red de drenaje (${matLabel}, ${mlDrenaje} ml)`,
-          cantidad: 1, unidad: 'servicio',
-          precioUnitario: r.precioNeto, subtotal: r.precioNeto, tasa: r.tasa,
-        });
-      }
+  // ── 2. Derechos de conexión a red de drenaje ──────────────────────────────
+  if (mlDescarga > 0 && matCalle) {
+    const r = calcularDerechosDrenaje(admin, matCalle, matBanqueta, mlDescarga);
+    if (r) {
+      const matLabel = `${resolveMatCalle(matCalle)}-${resolveMatBanqueta(matBanqueta)}`;
+      conceptos.push({
+        descripcion: `Derechos de conexión red de drenaje (${matLabel}, ${mlDescarga} ml)`,
+        cantidad: 1, unidad: 'servicio',
+        precioUnitario: r.precioNeto, subtotal: r.precioNeto, tasa: r.tasa,
+      });
     }
   }
 
   // ── 3. Instalación de medidor ────────────────────────────────────────────────
   if (cuant.diametroToma) {
     const r = calcularInstalacionMedidor(admin, cuant.diametroToma);
-    const precio = r?.precioNeto ?? 984.11; // fallback 1/2" si no resuelve
+    const precio = r?.precioNeto ?? 984.11;
     conceptos.push({
       descripcion: `Instalación de medidor ${cuant.diametroToma}`,
       cantidad: 1, unidad: 'pieza',
       precioUnitario: precio, subtotal: precio, tasa: r?.tasa ?? 0.16,
+    });
+  }
+
+  // ── 4. Medidor (pieza física) ─────────────────────────────────────────────
+  if (cuant.tipoMedidor && cuant.tipoMedidor !== 'mayor') {
+    // Buscar precio en tarifas-contratacion.json via clave compuesta
+    const claveKey = `${cuant.tipoMedidor === 'velocidad' ? 'velocidad' : 'volumetrico'}_1/2_${cuant.planPagoMedidor}` as const;
+    // Precios hardcoded del JSON (Feb-2026) como fallback directo
+    const PRECIOS_MEDIDOR: Record<string, number> = {
+      'velocidad_1/2_contado':    789.34,
+      'velocidad_1/2_12parc':     853.99,
+      'velocidad_1/2_24parc':     940.30,
+      'volumetrico_1/2_contado':  1025.53,
+      'volumetrico_1/2_12parc':   1109.52,
+    };
+    const precio = PRECIOS_MEDIDOR[claveKey] ?? 789.34;
+    const tipoLabel = cuant.tipoMedidor === 'velocidad' ? 'Velocidad ½"' : 'Volumétrico ½"';
+    const planLabel = { contado: 'contado', '12parc': '12 parc.', '24parc': '24 parc.' }[cuant.planPagoMedidor] ?? '';
+    conceptos.push({
+      descripcion: `Medidor ${tipoLabel} (${planLabel})`,
+      cantidad: 1, unidad: 'pieza',
+      precioUnitario: precio, subtotal: precio, tasa: 0.16,
     });
   }
 
