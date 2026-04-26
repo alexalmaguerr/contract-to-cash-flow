@@ -67,6 +67,13 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
 import { calcularCotizacion, MATERIAL_LABEL as MAT_LABEL } from '@/lib/cotizacion';
+import {
+  calcularDerechosAgua,
+  calcularDerechosDrenaje,
+  calcularInstalacionMedidor,
+  resolveMatCalle,
+  resolveMatBanqueta,
+} from '@/lib/cotizacion-tarifas';
 import { uploadCotizacionPdf, openCotizacionPdf } from '@/api/solicitudes';
 import { pdf } from '@react-pdf/renderer';
 import { CotizacionPdfDocument } from '@/lib/cotizacion-pdf';
@@ -1066,110 +1073,69 @@ function VerSolicitudDialog({
 
 // ── Cotización pricing engine ─────────────────────────────────────────────────
 
-const PRECIO_CALLE: Record<string, number> = {
-  concreto_hidraulico: 850,
-  concreto_asfaltico: 650,
-  tierra: 180,
-  adoquin: 520,
-  otro: 400,
-};
-
-const PRECIO_BANQUETA: Record<string, number> = {
-  concreto_hidraulico: 750,
-  tierra: 150,
-  adoquin: 480,
-  otro: 350,
-};
-
-const PRECIO_TOMA: Record<string, number> = {
-  '1/2"': 3200, '3/4"': 4100, '1"': 5800,
-  '1.5"': 8500, '2"': 12000, '3"': 18000, '4"': 28000,
-};
-
 interface ConceptoCotizacion {
   descripcion: string;
   cantidad: number;
   unidad: string;
   precioUnitario: number;
   subtotal: number;
-}
-
-function calcularCotizacion(orden: OrdenInspeccionData): ConceptoCotizacion[] {
-  const conceptos: ConceptoCotizacion[] = [];
-
-  // Derechos de conexión (fixed)
-  conceptos.push({ descripcion: 'Derechos de conexión', cantidad: 1, unidad: 'servicio', precioUnitario: 1200, subtotal: 1200 });
-
-  // Ruptura y reposición de calle (agua + drenaje, con fallback a legacy)
-  const mlCalleAgua = parseFloat(orden.metrosRupturaAguaCalle ?? orden.metrosRupturaCalle ?? '0') || 0;
-  const mlCalleDrenaje = parseFloat(orden.metrosRupturaDrenajeCalle ?? '0') || 0;
-  const mlCalle = mlCalleAgua + mlCalleDrenaje;
-  if (mlCalle > 0) {
-    const pu = PRECIO_CALLE[orden.materialCalle ?? ''] ?? 400;
-    conceptos.push({ descripcion: `Reposición de calle (${MATERIAL_LABEL[orden.materialCalle ?? ''] ?? 'N/A'})`, cantidad: mlCalle, unidad: 'ml', precioUnitario: pu, subtotal: mlCalle * pu });
-  }
-
-  // Ruptura y reposición de banqueta (agua + drenaje, con fallback a legacy)
-  const mlBanquetaAgua = parseFloat(orden.metrosRupturaAguaBanqueta ?? orden.metrosRupturaBanqueta ?? '0') || 0;
-  const mlBanquetaDrenaje = parseFloat(orden.metrosRupturaDrenajeBanqueta ?? '0') || 0;
-  const mlBanqueta = mlBanquetaAgua + mlBanquetaDrenaje;
-  if (mlBanqueta > 0) {
-    const pu = PRECIO_BANQUETA[orden.materialBanqueta ?? ''] ?? 350;
-    conceptos.push({ descripcion: `Reposición de banqueta (${MATERIAL_LABEL[orden.materialBanqueta ?? ''] ?? 'N/A'})`, cantidad: mlBanqueta, unidad: 'ml', precioUnitario: pu, subtotal: mlBanqueta * pu });
-  }
-
-  // Instalación de toma
-  if (orden.diametroToma) {
-    const pu = PRECIO_TOMA[orden.diametroToma] ?? 5800;
-    conceptos.push({ descripcion: `Instalación de toma ${orden.diametroToma}`, cantidad: 1, unidad: 'pieza', precioUnitario: pu, subtotal: pu });
-  }
-
-  // Medidor (solo si no existe)
-  if (orden.medidorExistente === 'no') {
-    conceptos.push({ descripcion: 'Suministro e instalación de medidor', cantidad: 1, unidad: 'pieza', precioUnitario: 2800, subtotal: 2800 });
-  }
-
-  return conceptos;
+  tasa?: number;    // IVA rate (0 = exento, 0.16 = 16%)
 }
 
 /**
  * Calcula los conceptos de cotización usando los datos capturados en CuantificacionModal.
- * El diámetro de toma viene del formulario; materiales y metros vienen de la inspección (si existe).
+ * Materiales y metros lineales se toman de la inspección (si existe).
+ * Precios reales del catálogo CSV Feb-2026 via cotizacion-tarifas.ts.
  */
 function calcularCotizacionDesdeCuantificacion(
   cuant: CuantificacionData,
   insp?: OrdenInspeccionData,
 ): ConceptoCotizacion[] {
   const conceptos: ConceptoCotizacion[] = [];
+  const admin = cuant.adminNombre || 'QUERÉTARO';
 
-  // Derechos de conexión (fijo)
-  conceptos.push({ descripcion: 'Derechos de conexión', cantidad: 1, unidad: 'servicio', precioUnitario: 1200, subtotal: 1200 });
+  // ── 1. Derechos de conexión a red de agua ───────────────────────────────────
+  if (insp) {
+    const matCalle    = insp.materialCalle    ?? '';
+    const matBanqueta = insp.materialBanqueta ?? '';
+    const mlAgua = parseFloat(insp.metrosRupturaAguaCalle ?? insp.metrosRupturaCalle ?? '0') || 0;
+    const mlDrenaje = parseFloat(insp.metrosRupturaDrenajeCalle ?? '0') || 0;
 
-  // Instalación de toma (diámetro del formulario de cuantificación)
-  if (cuant.diametroToma) {
-    const pu = PRECIO_TOMA[cuant.diametroToma] ?? 5800;
-    conceptos.push({ descripcion: `Instalación de toma ${cuant.diametroToma}`, cantidad: 1, unidad: 'pieza', precioUnitario: pu, subtotal: pu });
+    if (mlAgua > 0) {
+      const r = calcularDerechosAgua(admin, matCalle, matBanqueta, mlAgua);
+      if (r) {
+        const matLabel = `${resolveMatCalle(matCalle)}-${resolveMatBanqueta(matBanqueta)}`;
+        conceptos.push({
+          descripcion: `Derechos de conexión red de agua (${matLabel}, ${mlAgua} ml)`,
+          cantidad: 1, unidad: 'servicio',
+          precioUnitario: r.precioNeto, subtotal: r.precioNeto, tasa: r.tasa,
+        });
+      }
+    }
+
+    // ── 2. Derechos de conexión a red de drenaje ──────────────────────────────
+    if (mlDrenaje > 0) {
+      const r = calcularDerechosDrenaje(admin, matCalle, matBanqueta, mlDrenaje);
+      if (r) {
+        const matLabel = `${resolveMatCalle(matCalle)}-${resolveMatBanqueta(matBanqueta)}`;
+        conceptos.push({
+          descripcion: `Derechos de conexión red de drenaje (${matLabel}, ${mlDrenaje} ml)`,
+          cantidad: 1, unidad: 'servicio',
+          precioUnitario: r.precioNeto, subtotal: r.precioNeto, tasa: r.tasa,
+        });
+      }
+    }
   }
 
-  // Materiales y metros desde inspección (si existe)
-  if (insp) {
-    const mlCalle = (parseFloat(insp.metrosRupturaAguaCalle ?? insp.metrosRupturaCalle ?? '0') || 0)
-                  + (parseFloat(insp.metrosRupturaDrenajeCalle ?? '0') || 0);
-    if (mlCalle > 0) {
-      const pu = PRECIO_CALLE[insp.materialCalle ?? ''] ?? 400;
-      conceptos.push({ descripcion: `Reposición de calle (${MATERIAL_LABEL[insp.materialCalle ?? ''] ?? 'N/A'})`, cantidad: mlCalle, unidad: 'ml', precioUnitario: pu, subtotal: mlCalle * pu });
-    }
-
-    const mlBanqueta = (parseFloat(insp.metrosRupturaAguaBanqueta ?? insp.metrosRupturaBanqueta ?? '0') || 0)
-                     + (parseFloat(insp.metrosRupturaDrenajeBanqueta ?? '0') || 0);
-    if (mlBanqueta > 0) {
-      const pu = PRECIO_BANQUETA[insp.materialBanqueta ?? ''] ?? 350;
-      conceptos.push({ descripcion: `Reposición de banqueta (${MATERIAL_LABEL[insp.materialBanqueta ?? ''] ?? 'N/A'})`, cantidad: mlBanqueta, unidad: 'ml', precioUnitario: pu, subtotal: mlBanqueta * pu });
-    }
-
-    if (insp.medidorExistente === 'no') {
-      conceptos.push({ descripcion: 'Suministro e instalación de medidor', cantidad: 1, unidad: 'pieza', precioUnitario: 2800, subtotal: 2800 });
-    }
+  // ── 3. Instalación de medidor ────────────────────────────────────────────────
+  if (cuant.diametroToma) {
+    const r = calcularInstalacionMedidor(admin, cuant.diametroToma);
+    const precio = r?.precioNeto ?? 984.11; // fallback 1/2" si no resuelve
+    conceptos.push({
+      descripcion: `Instalación de medidor ${cuant.diametroToma}`,
+      cantidad: 1, unidad: 'pieza',
+      precioUnitario: precio, subtotal: precio, tasa: r?.tasa ?? 0.16,
+    });
   }
 
   return conceptos;

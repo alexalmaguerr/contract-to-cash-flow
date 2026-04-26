@@ -90,6 +90,7 @@ function monthLabel(yyyymm: string): string {
 
 export interface CuantificacionData {
   folioCuantificacion: string;
+  adminNombre: string;       // nombre legible para lookups de tarifas
   noCertConexion: string;
   elabora: string;
   observaciones: string;
@@ -273,6 +274,7 @@ export function CuantificacionModal({
   function buildData(): CuantificacionData {
     return {
       folioCuantificacion: folio,
+      adminNombre,
       noCertConexion,
       elabora,
       observaciones,

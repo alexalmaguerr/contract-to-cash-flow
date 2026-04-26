@@ -1,0 +1,1887 @@
+{
+  "QUERÉTARO": {
+    "longitud": {
+      "agua": {
+        "LOSA-CANTERA": {
+          "precioBase": 11532.49571,
+          "precioProporcional": 1323.3425,
+          "tasa": 0.16
+        },
+        "CONCRETO-CONCRETO": {
+          "precioBase": 11606.00032,
+          "precioProporcional": 1295.4756,
+          "tasa": 0.16
+        },
+        "CONCRETO-ASFALTO": {
+          "precioBase": 11160.56236,
+          "precioProporcional": 1145.70994,
+          "tasa": 0.16
+        },
+        "CONCRETO-ADOCRETO": {
+          "precioBase": 8880.17897,
+          "precioProporcional": 908.8197,
+          "tasa": 0.16
+        },
+        "CONCRETO-EMPEDRADO": {
+          "precioBase": 8312.87468,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "LOSA-ADOQUIN": {
+          "precioBase": 13438.63251,
+          "precioProporcional": 1525.63152,
+          "tasa": 0.16
+        },
+        "CONCRETO-TERRACERIA": {
+          "precioBase": 8108.02381,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-TERRACERÍA": {
+          "precioBase": 8108.02381,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-EMPEDRADO": {
+          "precioBase": 0.01,
+          "precioProporcional": 0,
+          "tasa": 0.16
+        },
+        "ADOQUIN-ADOQUIN": {
+          "precioBase": 0.01,
+          "precioProporcional": 0,
+          "tasa": 0.16
+        }
+      },
+      "drenaje": {
+        "ADOQUIN-ADOQUIN": {
+          "precioBase": 0.01,
+          "precioProporcional": 0,
+          "tasa": 0.16
+        },
+        "CONCRETO-ADOCRETO": {
+          "precioBase": 16089.21972,
+          "precioProporcional": 1646.61146,
+          "tasa": 0.16
+        },
+        "CONCRETO-ASFALTO": {
+          "precioBase": 17968.54896,
+          "precioProporcional": 1844.59831,
+          "tasa": 0.16
+        },
+        "CONCRETO-CONCRETO": {
+          "precioBase": 17092.61176,
+          "precioProporcional": 1872.28144,
+          "tasa": 0.16
+        },
+        "CONCRETO-EMPEDRADO": {
+          "precioBase": 15462.62531,
+          "precioProporcional": 1685.15815,
+          "tasa": 0.16
+        },
+        "LOSA-ADOQUIN": {
+          "precioBase": 21702.46448,
+          "precioProporcional": 2527.45618,
+          "tasa": 0.16
+        },
+        "LOSA-CANTERA": {
+          "precioBase": 20894.74605,
+          "precioProporcional": 2397.64486,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-EMPEDRADO": {
+          "precioBase": 0.00001,
+          "precioProporcional": 0.00001,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-TERRACERÍA": {
+          "precioBase": 15726.77712,
+          "precioProporcional": 1757.25753,
+          "tasa": 0.16
+        }
+      }
+    },
+    "medidor": {
+      "instalacion": {
+        "2": {
+          "precio": 2426.91,
+          "tasa": 0.16
+        },
+        "3": {
+          "precio": 2730.27,
+          "tasa": 0.16
+        },
+        "4": {
+          "precio": 2932.51,
+          "tasa": 0.16
+        },
+        "1/2-3/4-1": {
+          "precio": 984.11,
+          "tasa": 0.16
+        }
+      },
+      "medidorTipos": {
+        "velocidad_1/2_12parc": {
+          "precio": 853.99,
+          "tasa": 0.16
+        },
+        "velocidad_1/2_24parc": {
+          "precio": 940.3,
+          "tasa": 0.16
+        },
+        "velocidad_1/2_contado": {
+          "precio": 789.34,
+          "tasa": 0.16
+        },
+        "volumetrico_1/2_12parc": {
+          "precio": 1109.52,
+          "tasa": 0.16
+        },
+        "volumetrico_1/2_contado": {
+          "precio": 1025.53,
+          "tasa": 0.16
+        }
+      }
+    }
+  },
+  "SANTA ROSA JÁUREGUI": {
+    "longitud": {
+      "agua": {
+        "LOSA-CANTERA": {
+          "precioBase": 11532.49571,
+          "precioProporcional": 1323.3425,
+          "tasa": 0.16
+        },
+        "CONCRETO-CONCRETO": {
+          "precioBase": 11606.00032,
+          "precioProporcional": 1295.4756,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-EMPEDRADO": {
+          "precioBase": 1.05245,
+          "precioProporcional": 0.01081,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-TERRACERÍA": {
+          "precioBase": 8108.02381,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "CONCRETO-TERRACERIA": {
+          "precioBase": 8108.02381,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "ADOQUIN-ADOQUIN": {
+          "precioBase": 1.05245,
+          "precioProporcional": 0.01081,
+          "tasa": 0.16
+        },
+        "LOSA-ADOQUIN": {
+          "precioBase": 13438.63251,
+          "precioProporcional": 1525.63152,
+          "tasa": 0.16
+        },
+        "CONCRETO-EMPEDRADO": {
+          "precioBase": 8312.87468,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "CONCRETO-ADOCRETO": {
+          "precioBase": 8880.17897,
+          "precioProporcional": 908.8197,
+          "tasa": 0.16
+        },
+        "CONCRETO-ASFALTO": {
+          "precioBase": 11160.56236,
+          "precioProporcional": 1145.70994,
+          "tasa": 0.16
+        }
+      },
+      "drenaje": {
+        "ADOQUIN-ADOQUIN": {
+          "precioBase": 0.01067,
+          "precioProporcional": 0.01067,
+          "tasa": 0.16
+        },
+        "CONCRETO-ADOCRETO": {
+          "precioBase": 16089.21972,
+          "precioProporcional": 1646.61146,
+          "tasa": 0.16
+        },
+        "CONCRETO-ASFALTO": {
+          "precioBase": 17968.54896,
+          "precioProporcional": 1844.59831,
+          "tasa": 0.16
+        },
+        "CONCRETO-CONCRETO": {
+          "precioBase": 17092.61176,
+          "precioProporcional": 1872.28144,
+          "tasa": 0.16
+        },
+        "CONCRETO-EMPEDRADO": {
+          "precioBase": 15462.62531,
+          "precioProporcional": 1685.15815,
+          "tasa": 0.16
+        },
+        "LOSA-ADOQUIN": {
+          "precioBase": 21702.46448,
+          "precioProporcional": 2527.45618,
+          "tasa": 0.16
+        },
+        "LOSA-CANTERA": {
+          "precioBase": 20894.74605,
+          "precioProporcional": 2397.64486,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-EMPEDRADO": {
+          "precioBase": 0.00001,
+          "precioProporcional": 0.00001,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-TERRACERÍA": {
+          "precioBase": 15726.77712,
+          "precioProporcional": 1757.25753,
+          "tasa": 0.16
+        }
+      }
+    },
+    "medidor": {
+      "instalacion": {
+        "2": {
+          "precio": 2426.91,
+          "tasa": 0.16
+        },
+        "3": {
+          "precio": 2730.27,
+          "tasa": 0.16
+        },
+        "4": {
+          "precio": 2932.51,
+          "tasa": 0.16
+        },
+        "1/2-3/4-1": {
+          "precio": 984.11,
+          "tasa": 0.16
+        }
+      },
+      "medidorTipos": {
+        "velocidad_1/2_12parc": {
+          "precio": 853.99,
+          "tasa": 0.16
+        },
+        "velocidad_1/2_24parc": {
+          "precio": 940.3,
+          "tasa": 0.16
+        },
+        "velocidad_1/2_contado": {
+          "precio": 789.34,
+          "tasa": 0.16
+        },
+        "volumetrico_1/2_12parc": {
+          "precio": 1109.52,
+          "tasa": 0.16
+        },
+        "volumetrico_1/2_contado": {
+          "precio": 1025.53,
+          "tasa": 0.16
+        }
+      }
+    }
+  },
+  "CORREGIDORA": {
+    "longitud": {
+      "agua": {
+        "ADOQUIN-ADOQUIN": {
+          "precioBase": 1.05245,
+          "precioProporcional": 0.01081,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-TERRACERÍA": {
+          "precioBase": 8108.02381,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "LOSA-CANTERA": {
+          "precioBase": 11532.49571,
+          "precioProporcional": 1323.3425,
+          "tasa": 0.16
+        },
+        "CONCRETO-TERRACERIA": {
+          "precioBase": 8108.02381,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "LOSA-ADOQUIN": {
+          "precioBase": 13438.63251,
+          "precioProporcional": 1525.63152,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-EMPEDRADO": {
+          "precioBase": 1.05245,
+          "precioProporcional": 0.01081,
+          "tasa": 0.16
+        },
+        "CONCRETO-EMPEDRADO": {
+          "precioBase": 8312.87468,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "CONCRETO-ADOCRETO": {
+          "precioBase": 8880.17897,
+          "precioProporcional": 908.8197,
+          "tasa": 0.16
+        },
+        "CONCRETO-ASFALTO": {
+          "precioBase": 11160.56236,
+          "precioProporcional": 1145.70994,
+          "tasa": 0.16
+        },
+        "CONCRETO-CONCRETO": {
+          "precioBase": 11606.00032,
+          "precioProporcional": 1295.4756,
+          "tasa": 0.16
+        }
+      },
+      "drenaje": {
+        "ADOQUIN-ADOQUIN": {
+          "precioBase": 0.01067,
+          "precioProporcional": 0.01067,
+          "tasa": 0.16
+        },
+        "CONCRETO-ADOCRETO": {
+          "precioBase": 16089.21972,
+          "precioProporcional": 1646.61146,
+          "tasa": 0.16
+        },
+        "CONCRETO-ASFALTO": {
+          "precioBase": 17968.54896,
+          "precioProporcional": 1844.59831,
+          "tasa": 0.16
+        },
+        "CONCRETO-CONCRETO": {
+          "precioBase": 17092.61176,
+          "precioProporcional": 1872.28144,
+          "tasa": 0.16
+        },
+        "CONCRETO-EMPEDRADO": {
+          "precioBase": 15462.62531,
+          "precioProporcional": 1685.15815,
+          "tasa": 0.16
+        },
+        "LOSA-ADOQUIN": {
+          "precioBase": 21702.46448,
+          "precioProporcional": 2527.45618,
+          "tasa": 0.16
+        },
+        "LOSA-CANTERA": {
+          "precioBase": 20894.74605,
+          "precioProporcional": 2397.64486,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-EMPEDRADO": {
+          "precioBase": 0.00001,
+          "precioProporcional": 0.00001,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-TERRACERÍA": {
+          "precioBase": 15726.77712,
+          "precioProporcional": 1757.25753,
+          "tasa": 0.16
+        }
+      }
+    },
+    "medidor": {
+      "instalacion": {
+        "2": {
+          "precio": 2426.91,
+          "tasa": 0.16
+        },
+        "3": {
+          "precio": 2730.27,
+          "tasa": 0.16
+        },
+        "4": {
+          "precio": 2932.51,
+          "tasa": 0.16
+        },
+        "1/2-3/4-1": {
+          "precio": 984.11,
+          "tasa": 0.16
+        }
+      },
+      "medidorTipos": {
+        "velocidad_1/2_12parc": {
+          "precio": 853.99,
+          "tasa": 0.16
+        },
+        "velocidad_1/2_24parc": {
+          "precio": 940.3,
+          "tasa": 0.16
+        },
+        "velocidad_1/2_contado": {
+          "precio": 789.34,
+          "tasa": 0.16
+        },
+        "volumetrico_1/2_12parc": {
+          "precio": 1109.52,
+          "tasa": 0.16
+        },
+        "volumetrico_1/2_contado": {
+          "precio": 1025.53,
+          "tasa": 0.16
+        }
+      }
+    }
+  },
+  "PEDRO ESCOBEDO": {
+    "longitud": {
+      "agua": {
+        "CONCRETO-ADOCRETO": {
+          "precioBase": 8880.17897,
+          "precioProporcional": 908.8197,
+          "tasa": 0.16
+        },
+        "LOSA-CANTERA": {
+          "precioBase": 11532.49571,
+          "precioProporcional": 1323.3425,
+          "tasa": 0.16
+        },
+        "CONCRETO-ASFALTO": {
+          "precioBase": 11160.56236,
+          "precioProporcional": 1145.70994,
+          "tasa": 0.16
+        },
+        "CONCRETO-CONCRETO": {
+          "precioBase": 11606.00032,
+          "precioProporcional": 1295.4756,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-TERRACERÍA": {
+          "precioBase": 8108.02381,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "CONCRETO-TERRACERIA": {
+          "precioBase": 8108.02381,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "LOSA-ADOQUIN": {
+          "precioBase": 13438.63251,
+          "precioProporcional": 1525.63152,
+          "tasa": 0.16
+        },
+        "CONCRETO-EMPEDRADO": {
+          "precioBase": 8312.87468,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-EMPEDRADO": {
+          "precioBase": 1.05245,
+          "precioProporcional": 0.01081,
+          "tasa": 0.16
+        },
+        "ADOQUIN-ADOQUIN": {
+          "precioBase": 1.05245,
+          "precioProporcional": 0.01081,
+          "tasa": 0.16
+        }
+      },
+      "drenaje": {
+        "ADOQUIN-ADOQUIN": {
+          "precioBase": 0.01067,
+          "precioProporcional": 0.01067,
+          "tasa": 0.16
+        },
+        "CONCRETO-ADOCRETO": {
+          "precioBase": 16089.21972,
+          "precioProporcional": 1646.61146,
+          "tasa": 0.16
+        },
+        "CONCRETO-ASFALTO": {
+          "precioBase": 17968.54896,
+          "precioProporcional": 1844.59831,
+          "tasa": 0.16
+        },
+        "CONCRETO-CONCRETO": {
+          "precioBase": 17092.61176,
+          "precioProporcional": 1872.28144,
+          "tasa": 0.16
+        },
+        "CONCRETO-EMPEDRADO": {
+          "precioBase": 15462.62531,
+          "precioProporcional": 1685.15815,
+          "tasa": 0.16
+        },
+        "LOSA-ADOQUIN": {
+          "precioBase": 21702.46448,
+          "precioProporcional": 2527.45618,
+          "tasa": 0.16
+        },
+        "LOSA-CANTERA": {
+          "precioBase": 20894.74605,
+          "precioProporcional": 2397.64486,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-EMPEDRADO": {
+          "precioBase": 0.00001,
+          "precioProporcional": 0.00001,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-TERRACERÍA": {
+          "precioBase": 15726.77712,
+          "precioProporcional": 1757.25753,
+          "tasa": 0.16
+        }
+      }
+    },
+    "medidor": {
+      "instalacion": {
+        "2": {
+          "precio": 2426.91,
+          "tasa": 0.16
+        },
+        "3": {
+          "precio": 2730.27,
+          "tasa": 0.16
+        },
+        "4": {
+          "precio": 2932.51,
+          "tasa": 0.16
+        },
+        "1/2-3/4-1": {
+          "precio": 984.11,
+          "tasa": 0.16
+        }
+      },
+      "medidorTipos": {
+        "velocidad_1/2_12parc": {
+          "precio": 853.99,
+          "tasa": 0.16
+        },
+        "velocidad_1/2_24parc": {
+          "precio": 940.3,
+          "tasa": 0.16
+        },
+        "velocidad_1/2_contado": {
+          "precio": 789.34,
+          "tasa": 0.16
+        },
+        "volumetrico_1/2_12parc": {
+          "precio": 1109.52,
+          "tasa": 0.16
+        },
+        "volumetrico_1/2_contado": {
+          "precio": 1025.53,
+          "tasa": 0.16
+        }
+      }
+    }
+  },
+  "TEQUISQUIAPAN": {
+    "longitud": {
+      "agua": {
+        "TERRACERÍA-EMPEDRADO": {
+          "precioBase": 1.05245,
+          "precioProporcional": 0.01081,
+          "tasa": 0.16
+        },
+        "CONCRETO-TERRACERIA": {
+          "precioBase": 8108.02381,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "CONCRETO-ADOCRETO": {
+          "precioBase": 8880.17897,
+          "precioProporcional": 908.8197,
+          "tasa": 0.16
+        },
+        "LOSA-CANTERA": {
+          "precioBase": 11532.49571,
+          "precioProporcional": 1323.3425,
+          "tasa": 0.16
+        },
+        "CONCRETO-ASFALTO": {
+          "precioBase": 11160.56236,
+          "precioProporcional": 1145.70994,
+          "tasa": 0.16
+        },
+        "CONCRETO-CONCRETO": {
+          "precioBase": 11606.00032,
+          "precioProporcional": 1295.4756,
+          "tasa": 0.16
+        },
+        "LOSA-ADOQUIN": {
+          "precioBase": 13438.63251,
+          "precioProporcional": 1525.63152,
+          "tasa": 0.16
+        },
+        "ADOQUIN-ADOQUIN": {
+          "precioBase": 1.05245,
+          "precioProporcional": 0.01081,
+          "tasa": 0.16
+        },
+        "CONCRETO-EMPEDRADO": {
+          "precioBase": 8312.87468,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-TERRACERÍA": {
+          "precioBase": 8108.02381,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        }
+      },
+      "drenaje": {
+        "ADOQUIN-ADOQUIN": {
+          "precioBase": 0.01067,
+          "precioProporcional": 0.01067,
+          "tasa": 0.16
+        },
+        "CONCRETO-ADOCRETO": {
+          "precioBase": 16089.21972,
+          "precioProporcional": 1646.61146,
+          "tasa": 0.16
+        },
+        "CONCRETO-ASFALTO": {
+          "precioBase": 17968.54896,
+          "precioProporcional": 1844.59831,
+          "tasa": 0.16
+        },
+        "CONCRETO-CONCRETO": {
+          "precioBase": 17092.61176,
+          "precioProporcional": 1872.28144,
+          "tasa": 0.16
+        },
+        "CONCRETO-EMPEDRADO": {
+          "precioBase": 15462.62531,
+          "precioProporcional": 1685.15815,
+          "tasa": 0.16
+        },
+        "LOSA-ADOQUIN": {
+          "precioBase": 21702.46448,
+          "precioProporcional": 2527.45618,
+          "tasa": 0.16
+        },
+        "LOSA-CANTERA": {
+          "precioBase": 20894.74605,
+          "precioProporcional": 2397.64486,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-EMPEDRADO": {
+          "precioBase": 0.00001,
+          "precioProporcional": 0.00001,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-TERRACERÍA": {
+          "precioBase": 15726.77712,
+          "precioProporcional": 1757.25753,
+          "tasa": 0.16
+        }
+      }
+    },
+    "medidor": {
+      "instalacion": {
+        "2": {
+          "precio": 2426.91,
+          "tasa": 0.16
+        },
+        "3": {
+          "precio": 2730.27,
+          "tasa": 0.16
+        },
+        "4": {
+          "precio": 2932.51,
+          "tasa": 0.16
+        },
+        "1/2-3/4-1": {
+          "precio": 984.11,
+          "tasa": 0.16
+        }
+      },
+      "medidorTipos": {
+        "velocidad_1/2_12parc": {
+          "precio": 853.99,
+          "tasa": 0.16
+        },
+        "velocidad_1/2_24parc": {
+          "precio": 940.3,
+          "tasa": 0.16
+        },
+        "velocidad_1/2_contado": {
+          "precio": 789.34,
+          "tasa": 0.16
+        },
+        "volumetrico_1/2_12parc": {
+          "precio": 1109.52,
+          "tasa": 0.16
+        },
+        "volumetrico_1/2_contado": {
+          "precio": 1025.53,
+          "tasa": 0.16
+        }
+      }
+    }
+  },
+  "EZEQUIEL MONTES": {
+    "longitud": {
+      "agua": {
+        "CONCRETO-EMPEDRADO": {
+          "precioBase": 8312.87468,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-TERRACERÍA": {
+          "precioBase": 8108.02381,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-EMPEDRADO": {
+          "precioBase": 1.05245,
+          "precioProporcional": 0.01081,
+          "tasa": 0.16
+        },
+        "CONCRETO-ADOCRETO": {
+          "precioBase": 8880.17897,
+          "precioProporcional": 908.8197,
+          "tasa": 0.16
+        },
+        "LOSA-CANTERA": {
+          "precioBase": 11532.49571,
+          "precioProporcional": 1323.3425,
+          "tasa": 0.16
+        },
+        "CONCRETO-ASFALTO": {
+          "precioBase": 11160.56236,
+          "precioProporcional": 1145.70994,
+          "tasa": 0.16
+        },
+        "CONCRETO-CONCRETO": {
+          "precioBase": 11606.00032,
+          "precioProporcional": 1295.4756,
+          "tasa": 0.16
+        },
+        "CONCRETO-TERRACERIA": {
+          "precioBase": 8108.02381,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "ADOQUIN-ADOQUIN": {
+          "precioBase": 1.05245,
+          "precioProporcional": 0.01081,
+          "tasa": 0.16
+        },
+        "LOSA-ADOQUIN": {
+          "precioBase": 13438.63251,
+          "precioProporcional": 1525.63152,
+          "tasa": 0.16
+        }
+      },
+      "drenaje": {
+        "ADOQUIN-ADOQUIN": {
+          "precioBase": 0.01067,
+          "precioProporcional": 0.01067,
+          "tasa": 0.16
+        },
+        "CONCRETO-ADOCRETO": {
+          "precioBase": 16089.21972,
+          "precioProporcional": 1646.61146,
+          "tasa": 0.16
+        },
+        "CONCRETO-ASFALTO": {
+          "precioBase": 17968.54896,
+          "precioProporcional": 1844.59831,
+          "tasa": 0.16
+        },
+        "CONCRETO-CONCRETO": {
+          "precioBase": 17092.61176,
+          "precioProporcional": 1872.28144,
+          "tasa": 0.16
+        },
+        "CONCRETO-EMPEDRADO": {
+          "precioBase": 15462.62531,
+          "precioProporcional": 1685.15815,
+          "tasa": 0.16
+        },
+        "LOSA-ADOQUIN": {
+          "precioBase": 21702.46448,
+          "precioProporcional": 2527.45618,
+          "tasa": 0.16
+        },
+        "LOSA-CANTERA": {
+          "precioBase": 20894.74605,
+          "precioProporcional": 2397.64486,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-EMPEDRADO": {
+          "precioBase": 0.00001,
+          "precioProporcional": 0.00001,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-TERRACERÍA": {
+          "precioBase": 15726.77712,
+          "precioProporcional": 1757.25753,
+          "tasa": 0.16
+        }
+      }
+    },
+    "medidor": {
+      "instalacion": {
+        "2": {
+          "precio": 2426.91,
+          "tasa": 0.16
+        },
+        "3": {
+          "precio": 2730.27,
+          "tasa": 0.16
+        },
+        "4": {
+          "precio": 2932.51,
+          "tasa": 0.16
+        },
+        "1/2-3/4-1": {
+          "precio": 984.11,
+          "tasa": 0.16
+        }
+      },
+      "medidorTipos": {
+        "velocidad_1/2_12parc": {
+          "precio": 853.99,
+          "tasa": 0.16
+        },
+        "velocidad_1/2_24parc": {
+          "precio": 940.3,
+          "tasa": 0.16
+        },
+        "velocidad_1/2_contado": {
+          "precio": 789.34,
+          "tasa": 0.16
+        },
+        "volumetrico_1/2_12parc": {
+          "precio": 1109.52,
+          "tasa": 0.16
+        },
+        "volumetrico_1/2_contado": {
+          "precio": 1025.53,
+          "tasa": 0.16
+        }
+      }
+    }
+  },
+  "AMEALCO DE BONFIL": {
+    "longitud": {
+      "agua": {
+        "CONCRETO-EMPEDRADO": {
+          "precioBase": 8312.87468,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "ADOQUIN-ADOQUIN": {
+          "precioBase": 1.05245,
+          "precioProporcional": 0.01081,
+          "tasa": 0.16
+        },
+        "LOSA-ADOQUIN": {
+          "precioBase": 13438.63251,
+          "precioProporcional": 1525.63152,
+          "tasa": 0.16
+        },
+        "CONCRETO-TERRACERIA": {
+          "precioBase": 8108.02381,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "CONCRETO-CONCRETO": {
+          "precioBase": 11606.00032,
+          "precioProporcional": 1295.4756,
+          "tasa": 0.16
+        },
+        "CONCRETO-ASFALTO": {
+          "precioBase": 11160.56236,
+          "precioProporcional": 1145.70994,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-TERRACERÍA": {
+          "precioBase": 8108.02381,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-EMPEDRADO": {
+          "precioBase": 1.05245,
+          "precioProporcional": 0.01081,
+          "tasa": 0.16
+        },
+        "LOSA-CANTERA": {
+          "precioBase": 11532.49571,
+          "precioProporcional": 1323.3425,
+          "tasa": 0.16
+        },
+        "CONCRETO-ADOCRETO": {
+          "precioBase": 8880.17897,
+          "precioProporcional": 908.8197,
+          "tasa": 0.16
+        }
+      },
+      "drenaje": {
+        "ADOQUIN-ADOQUIN": {
+          "precioBase": 0.01067,
+          "precioProporcional": 0.01067,
+          "tasa": 0.16
+        },
+        "CONCRETO-ADOCRETO": {
+          "precioBase": 16089.21972,
+          "precioProporcional": 1646.61146,
+          "tasa": 0.16
+        },
+        "CONCRETO-ASFALTO": {
+          "precioBase": 17968.54896,
+          "precioProporcional": 1844.59831,
+          "tasa": 0.16
+        },
+        "CONCRETO-CONCRETO": {
+          "precioBase": 17092.61176,
+          "precioProporcional": 1872.28144,
+          "tasa": 0.16
+        },
+        "CONCRETO-EMPEDRADO": {
+          "precioBase": 15462.62531,
+          "precioProporcional": 1685.15815,
+          "tasa": 0.16
+        },
+        "LOSA-ADOQUIN": {
+          "precioBase": 21702.46448,
+          "precioProporcional": 2527.45618,
+          "tasa": 0.16
+        },
+        "LOSA-CANTERA": {
+          "precioBase": 20894.74605,
+          "precioProporcional": 2397.64486,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-EMPEDRADO": {
+          "precioBase": 0.00001,
+          "precioProporcional": 0.00001,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-TERRACERÍA": {
+          "precioBase": 15726.77712,
+          "precioProporcional": 1757.25753,
+          "tasa": 0.16
+        }
+      }
+    },
+    "medidor": {
+      "instalacion": {
+        "2": {
+          "precio": 2426.91,
+          "tasa": 0.16
+        },
+        "3": {
+          "precio": 2730.27,
+          "tasa": 0.16
+        },
+        "4": {
+          "precio": 2932.51,
+          "tasa": 0.16
+        },
+        "1/2-3/4-1": {
+          "precio": 984.11,
+          "tasa": 0.16
+        }
+      },
+      "medidorTipos": {
+        "velocidad_1/2_12parc": {
+          "precio": 853.99,
+          "tasa": 0.16
+        },
+        "velocidad_1/2_24parc": {
+          "precio": 940.3,
+          "tasa": 0.16
+        },
+        "velocidad_1/2_contado": {
+          "precio": 789.34,
+          "tasa": 0.16
+        },
+        "volumetrico_1/2_12parc": {
+          "precio": 1109.52,
+          "tasa": 0.16
+        },
+        "volumetrico_1/2_contado": {
+          "precio": 1025.53,
+          "tasa": 0.16
+        }
+      }
+    }
+  },
+  "HUIMILPAN": {
+    "longitud": {
+      "agua": {
+        "TERRACERÍA-TERRACERÍA": {
+          "precioBase": 8108.02381,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-EMPEDRADO": {
+          "precioBase": 1.05245,
+          "precioProporcional": 0.01081,
+          "tasa": 0.16
+        },
+        "CONCRETO-EMPEDRADO": {
+          "precioBase": 8312.87468,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "CONCRETO-ADOCRETO": {
+          "precioBase": 8880.17897,
+          "precioProporcional": 908.8197,
+          "tasa": 0.16
+        },
+        "LOSA-CANTERA": {
+          "precioBase": 11532.49571,
+          "precioProporcional": 1323.3425,
+          "tasa": 0.16
+        },
+        "CONCRETO-ASFALTO": {
+          "precioBase": 11160.56236,
+          "precioProporcional": 1145.70994,
+          "tasa": 0.16
+        },
+        "CONCRETO-CONCRETO": {
+          "precioBase": 11606.00032,
+          "precioProporcional": 1295.4756,
+          "tasa": 0.16
+        },
+        "CONCRETO-TERRACERIA": {
+          "precioBase": 8108.02381,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "ADOQUIN-ADOQUIN": {
+          "precioBase": 1.05245,
+          "precioProporcional": 0.01081,
+          "tasa": 0.16
+        },
+        "LOSA-ADOQUIN": {
+          "precioBase": 13438.63251,
+          "precioProporcional": 1525.63152,
+          "tasa": 0.16
+        }
+      },
+      "drenaje": {
+        "ADOQUIN-ADOQUIN": {
+          "precioBase": 0.01067,
+          "precioProporcional": 0.01067,
+          "tasa": 0.16
+        },
+        "CONCRETO-ADOCRETO": {
+          "precioBase": 16089.21972,
+          "precioProporcional": 1646.61146,
+          "tasa": 0.16
+        },
+        "CONCRETO-ASFALTO": {
+          "precioBase": 17968.54896,
+          "precioProporcional": 1844.59831,
+          "tasa": 0.16
+        },
+        "CONCRETO-CONCRETO": {
+          "precioBase": 17092.61176,
+          "precioProporcional": 1872.28144,
+          "tasa": 0.16
+        },
+        "CONCRETO-EMPEDRADO": {
+          "precioBase": 15462.62531,
+          "precioProporcional": 1685.15815,
+          "tasa": 0.16
+        },
+        "LOSA-ADOQUIN": {
+          "precioBase": 21702.46448,
+          "precioProporcional": 2527.45618,
+          "tasa": 0.16
+        },
+        "LOSA-CANTERA": {
+          "precioBase": 20894.74605,
+          "precioProporcional": 2397.64486,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-EMPEDRADO": {
+          "precioBase": 0.00001,
+          "precioProporcional": 0.00001,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-TERRACERÍA": {
+          "precioBase": 15726.77712,
+          "precioProporcional": 1757.25753,
+          "tasa": 0.16
+        }
+      }
+    },
+    "medidor": {
+      "instalacion": {
+        "2": {
+          "precio": 2426.91,
+          "tasa": 0.16
+        },
+        "3": {
+          "precio": 2730.27,
+          "tasa": 0.16
+        },
+        "4": {
+          "precio": 2932.51,
+          "tasa": 0.16
+        },
+        "1/2-3/4-1": {
+          "precio": 984.11,
+          "tasa": 0.16
+        }
+      },
+      "medidorTipos": {
+        "velocidad_1/2_12parc": {
+          "precio": 853.99,
+          "tasa": 0.16
+        },
+        "velocidad_1/2_24parc": {
+          "precio": 940.3,
+          "tasa": 0.16
+        },
+        "velocidad_1/2_contado": {
+          "precio": 789.34,
+          "tasa": 0.16
+        },
+        "volumetrico_1/2_12parc": {
+          "precio": 1109.52,
+          "tasa": 0.16
+        },
+        "volumetrico_1/2_contado": {
+          "precio": 1025.53,
+          "tasa": 0.16
+        }
+      }
+    }
+  },
+  "CADEREYTA DE MONTES-SAN JOAQUÍN": {
+    "longitud": {
+      "agua": {
+        "CONCRETO-ADOCRETO": {
+          "precioBase": 8880.17897,
+          "precioProporcional": 908.8197,
+          "tasa": 0.16
+        },
+        "LOSA-CANTERA": {
+          "precioBase": 11532.49571,
+          "precioProporcional": 1323.3425,
+          "tasa": 0.16
+        },
+        "CONCRETO-ASFALTO": {
+          "precioBase": 11160.56236,
+          "precioProporcional": 1145.70994,
+          "tasa": 0.16
+        },
+        "CONCRETO-TERRACERIA": {
+          "precioBase": 8108.02381,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "CONCRETO-CONCRETO": {
+          "precioBase": 11606.00032,
+          "precioProporcional": 1295.4756,
+          "tasa": 0.16
+        },
+        "ADOQUIN-ADOQUIN": {
+          "precioBase": 1.05245,
+          "precioProporcional": 0.01081,
+          "tasa": 0.16
+        },
+        "LOSA-ADOQUIN": {
+          "precioBase": 13438.63251,
+          "precioProporcional": 1525.63152,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-TERRACERÍA": {
+          "precioBase": 8108.02381,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "CONCRETO-EMPEDRADO": {
+          "precioBase": 8312.87468,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-EMPEDRADO": {
+          "precioBase": 1.05245,
+          "precioProporcional": 0.01081,
+          "tasa": 0.16
+        }
+      },
+      "drenaje": {
+        "ADOQUIN-ADOQUIN": {
+          "precioBase": 0.01067,
+          "precioProporcional": 0.01067,
+          "tasa": 0.16
+        },
+        "CONCRETO-ADOCRETO": {
+          "precioBase": 16089.21972,
+          "precioProporcional": 1646.61146,
+          "tasa": 0.16
+        },
+        "CONCRETO-ASFALTO": {
+          "precioBase": 17968.54896,
+          "precioProporcional": 1844.59831,
+          "tasa": 0.16
+        },
+        "CONCRETO-CONCRETO": {
+          "precioBase": 17092.61176,
+          "precioProporcional": 1872.28144,
+          "tasa": 0.16
+        },
+        "CONCRETO-EMPEDRADO": {
+          "precioBase": 15462.62531,
+          "precioProporcional": 1685.15815,
+          "tasa": 0.16
+        },
+        "LOSA-ADOQUIN": {
+          "precioBase": 21702.46448,
+          "precioProporcional": 2527.45618,
+          "tasa": 0.16
+        },
+        "LOSA-CANTERA": {
+          "precioBase": 20894.74605,
+          "precioProporcional": 2397.64486,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-EMPEDRADO": {
+          "precioBase": 0.00001,
+          "precioProporcional": 0.00001,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-TERRACERÍA": {
+          "precioBase": 15726.77712,
+          "precioProporcional": 1757.25753,
+          "tasa": 0.16
+        }
+      }
+    },
+    "medidor": {
+      "instalacion": {
+        "2": {
+          "precio": 2426.91,
+          "tasa": 0.16
+        },
+        "3": {
+          "precio": 2730.27,
+          "tasa": 0.16
+        },
+        "4": {
+          "precio": 2932.51,
+          "tasa": 0.16
+        },
+        "1/2-3/4-1": {
+          "precio": 984.11,
+          "tasa": 0.16
+        }
+      },
+      "medidorTipos": {
+        "velocidad_1/2_12parc": {
+          "precio": 853.99,
+          "tasa": 0.16
+        },
+        "velocidad_1/2_24parc": {
+          "precio": 940.3,
+          "tasa": 0.16
+        },
+        "velocidad_1/2_contado": {
+          "precio": 789.34,
+          "tasa": 0.16
+        },
+        "volumetrico_1/2_12parc": {
+          "precio": 1109.52,
+          "tasa": 0.16
+        },
+        "volumetrico_1/2_contado": {
+          "precio": 1025.53,
+          "tasa": 0.16
+        }
+      }
+    }
+  },
+  "COLÓN-TOLIMÁN": {
+    "longitud": {
+      "agua": {
+        "TERRACERÍA-EMPEDRADO": {
+          "precioBase": 1.05245,
+          "precioProporcional": 0.01081,
+          "tasa": 0.16
+        },
+        "CONCRETO-CONCRETO": {
+          "precioBase": 11606.00032,
+          "precioProporcional": 1295.4756,
+          "tasa": 0.16
+        },
+        "LOSA-ADOQUIN": {
+          "precioBase": 13438.63251,
+          "precioProporcional": 1525.63152,
+          "tasa": 0.16
+        },
+        "CONCRETO-TERRACERIA": {
+          "precioBase": 8108.02381,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "ADOQUIN-ADOQUIN": {
+          "precioBase": 1.05245,
+          "precioProporcional": 0.01081,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-TERRACERÍA": {
+          "precioBase": 8108.02381,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "CONCRETO-EMPEDRADO": {
+          "precioBase": 8312.87468,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "LOSA-CANTERA": {
+          "precioBase": 11532.49571,
+          "precioProporcional": 1323.3425,
+          "tasa": 0.16
+        },
+        "CONCRETO-ADOCRETO": {
+          "precioBase": 8880.17897,
+          "precioProporcional": 908.8197,
+          "tasa": 0.16
+        },
+        "CONCRETO-ASFALTO": {
+          "precioBase": 11160.56236,
+          "precioProporcional": 1145.70994,
+          "tasa": 0.16
+        }
+      },
+      "drenaje": {
+        "ADOQUIN-ADOQUIN": {
+          "precioBase": 0.01067,
+          "precioProporcional": 0.01067,
+          "tasa": 0.16
+        },
+        "CONCRETO-ADOCRETO": {
+          "precioBase": 16089.21972,
+          "precioProporcional": 1646.61146,
+          "tasa": 0.16
+        },
+        "CONCRETO-ASFALTO": {
+          "precioBase": 17968.54896,
+          "precioProporcional": 1844.59831,
+          "tasa": 0.16
+        },
+        "CONCRETO-CONCRETO": {
+          "precioBase": 17092.61176,
+          "precioProporcional": 1872.28144,
+          "tasa": 0.16
+        },
+        "CONCRETO-EMPEDRADO": {
+          "precioBase": 15462.62531,
+          "precioProporcional": 1685.15815,
+          "tasa": 0.16
+        },
+        "LOSA-ADOQUIN": {
+          "precioBase": 21702.46448,
+          "precioProporcional": 2527.45618,
+          "tasa": 0.16
+        },
+        "LOSA-CANTERA": {
+          "precioBase": 20894.74605,
+          "precioProporcional": 2397.64486,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-EMPEDRADO": {
+          "precioBase": 0.00001,
+          "precioProporcional": 0.00001,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-TERRACERÍA": {
+          "precioBase": 15726.77712,
+          "precioProporcional": 1757.25753,
+          "tasa": 0.16
+        }
+      }
+    },
+    "medidor": {
+      "instalacion": {
+        "2": {
+          "precio": 2426.91,
+          "tasa": 0.16
+        },
+        "3": {
+          "precio": 2730.27,
+          "tasa": 0.16
+        },
+        "4": {
+          "precio": 2932.51,
+          "tasa": 0.16
+        },
+        "1/2-3/4-1": {
+          "precio": 984.11,
+          "tasa": 0.16
+        }
+      },
+      "medidorTipos": {
+        "velocidad_1/2_12parc": {
+          "precio": 853.99,
+          "tasa": 0.16
+        },
+        "velocidad_1/2_24parc": {
+          "precio": 940.3,
+          "tasa": 0.16
+        },
+        "velocidad_1/2_contado": {
+          "precio": 789.34,
+          "tasa": 0.16
+        },
+        "volumetrico_1/2_12parc": {
+          "precio": 1109.52,
+          "tasa": 0.16
+        },
+        "volumetrico_1/2_contado": {
+          "precio": 1025.53,
+          "tasa": 0.16
+        }
+      }
+    }
+  },
+  "JALPAN DE SERRA-LANDA DE MATAMOROS-ARROYO SECO": {
+    "longitud": {
+      "agua": {
+        "CONCRETO-ADOCRETO": {
+          "precioBase": 8880.17897,
+          "precioProporcional": 908.8197,
+          "tasa": 0.16
+        },
+        "LOSA-CANTERA": {
+          "precioBase": 11532.49571,
+          "precioProporcional": 1323.3425,
+          "tasa": 0.16
+        },
+        "CONCRETO-ASFALTO": {
+          "precioBase": 11160.56236,
+          "precioProporcional": 1145.70994,
+          "tasa": 0.16
+        },
+        "CONCRETO-CONCRETO": {
+          "precioBase": 11606.00032,
+          "precioProporcional": 1295.4756,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-TERRACERÍA": {
+          "precioBase": 8108.02381,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "CONCRETO-TERRACERIA": {
+          "precioBase": 8108.02381,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "LOSA-ADOQUIN": {
+          "precioBase": 13438.63251,
+          "precioProporcional": 1525.63152,
+          "tasa": 0.16
+        },
+        "CONCRETO-EMPEDRADO": {
+          "precioBase": 8312.87468,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-EMPEDRADO": {
+          "precioBase": 1.05245,
+          "precioProporcional": 0.01081,
+          "tasa": 0.16
+        },
+        "ADOQUIN-ADOQUIN": {
+          "precioBase": 1.05245,
+          "precioProporcional": 0.01081,
+          "tasa": 0.16
+        }
+      },
+      "drenaje": {
+        "ADOQUIN-ADOQUIN": {
+          "precioBase": 0.01067,
+          "precioProporcional": 0.01067,
+          "tasa": 0.16
+        },
+        "CONCRETO-ADOCRETO": {
+          "precioBase": 16089.21972,
+          "precioProporcional": 1646.61146,
+          "tasa": 0.16
+        },
+        "CONCRETO-ASFALTO": {
+          "precioBase": 17968.54896,
+          "precioProporcional": 1844.59831,
+          "tasa": 0.16
+        },
+        "CONCRETO-CONCRETO": {
+          "precioBase": 17092.61176,
+          "precioProporcional": 1872.28144,
+          "tasa": 0.16
+        },
+        "CONCRETO-EMPEDRADO": {
+          "precioBase": 15462.62531,
+          "precioProporcional": 1685.15815,
+          "tasa": 0.16
+        },
+        "LOSA-ADOQUIN": {
+          "precioBase": 21702.46448,
+          "precioProporcional": 2527.45618,
+          "tasa": 0.16
+        },
+        "LOSA-CANTERA": {
+          "precioBase": 20894.74605,
+          "precioProporcional": 2397.64486,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-EMPEDRADO": {
+          "precioBase": 0.00001,
+          "precioProporcional": 0.00001,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-TERRACERÍA": {
+          "precioBase": 15726.77712,
+          "precioProporcional": 1757.25753,
+          "tasa": 0.16
+        }
+      }
+    },
+    "medidor": {
+      "instalacion": {
+        "2": {
+          "precio": 2426.91,
+          "tasa": 0.16
+        },
+        "3": {
+          "precio": 2730.27,
+          "tasa": 0.16
+        },
+        "4": {
+          "precio": 2932.51,
+          "tasa": 0.16
+        },
+        "1/2-3/4-1": {
+          "precio": 984.11,
+          "tasa": 0.16
+        }
+      },
+      "medidorTipos": {
+        "velocidad_1/2_12parc": {
+          "precio": 853.99,
+          "tasa": 0.16
+        },
+        "velocidad_1/2_24parc": {
+          "precio": 940.3,
+          "tasa": 0.16
+        },
+        "velocidad_1/2_contado": {
+          "precio": 789.34,
+          "tasa": 0.16
+        },
+        "volumetrico_1/2_12parc": {
+          "precio": 1109.52,
+          "tasa": 0.16
+        },
+        "volumetrico_1/2_contado": {
+          "precio": 1025.53,
+          "tasa": 0.16
+        }
+      }
+    }
+  },
+  "EL MARQUÉS": {
+    "longitud": {
+      "agua": {
+        "CONCRETO-TERRACERIA": {
+          "precioBase": 8108.02381,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "LOSA-ADOQUIN": {
+          "precioBase": 13438.63251,
+          "precioProporcional": 1525.63152,
+          "tasa": 0.16
+        },
+        "CONCRETO-EMPEDRADO": {
+          "precioBase": 8312.87468,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "LOSA-CANTERA": {
+          "precioBase": 11532.49571,
+          "precioProporcional": 1323.3425,
+          "tasa": 0.16
+        },
+        "CONCRETO-ADOCRETO": {
+          "precioBase": 8880.17897,
+          "precioProporcional": 908.8197,
+          "tasa": 0.16
+        },
+        "ADOQUIN-ADOQUIN": {
+          "precioBase": 1.05245,
+          "precioProporcional": 0.01081,
+          "tasa": 0.16
+        },
+        "CONCRETO-CONCRETO": {
+          "precioBase": 11606.00032,
+          "precioProporcional": 1295.4756,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-TERRACERÍA": {
+          "precioBase": 8108.02381,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-EMPEDRADO": {
+          "precioBase": 1.05245,
+          "precioProporcional": 0.01081,
+          "tasa": 0.16
+        },
+        "CONCRETO-ASFALTO": {
+          "precioBase": 11160.56236,
+          "precioProporcional": 1145.70994,
+          "tasa": 0.16
+        }
+      },
+      "drenaje": {
+        "ADOQUIN-ADOQUIN": {
+          "precioBase": 0.01067,
+          "precioProporcional": 0.01067,
+          "tasa": 0.16
+        },
+        "CONCRETO-ADOCRETO": {
+          "precioBase": 16089.21972,
+          "precioProporcional": 1646.61146,
+          "tasa": 0.16
+        },
+        "CONCRETO-ASFALTO": {
+          "precioBase": 17968.54896,
+          "precioProporcional": 1844.59831,
+          "tasa": 0.16
+        },
+        "CONCRETO-CONCRETO": {
+          "precioBase": 17092.61176,
+          "precioProporcional": 1872.28144,
+          "tasa": 0.16
+        },
+        "CONCRETO-EMPEDRADO": {
+          "precioBase": 15462.62531,
+          "precioProporcional": 1685.15815,
+          "tasa": 0.16
+        },
+        "LOSA-ADOQUIN": {
+          "precioBase": 21702.46448,
+          "precioProporcional": 2527.45618,
+          "tasa": 0.16
+        },
+        "LOSA-CANTERA": {
+          "precioBase": 20894.74605,
+          "precioProporcional": 2397.64486,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-EMPEDRADO": {
+          "precioBase": 0.00001,
+          "precioProporcional": 0.00001,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-TERRACERÍA": {
+          "precioBase": 15726.77712,
+          "precioProporcional": 1757.25753,
+          "tasa": 0.16
+        }
+      }
+    },
+    "medidor": {
+      "instalacion": {
+        "2": {
+          "precio": 2426.91,
+          "tasa": 0.16
+        },
+        "3": {
+          "precio": 2730.27,
+          "tasa": 0.16
+        },
+        "4": {
+          "precio": 2932.51,
+          "tasa": 0.16
+        },
+        "1/2-3/4-1": {
+          "precio": 984.11,
+          "tasa": 0.16
+        }
+      },
+      "medidorTipos": {
+        "velocidad_1/2_12parc": {
+          "precio": 853.99,
+          "tasa": 0.16
+        },
+        "velocidad_1/2_24parc": {
+          "precio": 940.3,
+          "tasa": 0.16
+        },
+        "velocidad_1/2_contado": {
+          "precio": 789.34,
+          "tasa": 0.16
+        },
+        "volumetrico_1/2_12parc": {
+          "precio": 1109.52,
+          "tasa": 0.16
+        },
+        "volumetrico_1/2_contado": {
+          "precio": 1025.53,
+          "tasa": 0.16
+        }
+      }
+    }
+  },
+  "PINAL DE AMOLES-PEÑAMILLER": {
+    "longitud": {
+      "agua": {
+        "CONCRETO-TERRACERIA": {
+          "precioBase": 8108.02381,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "ADOQUIN-ADOQUIN": {
+          "precioBase": 1.05245,
+          "precioProporcional": 0.01081,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-TERRACERÍA": {
+          "precioBase": 8108.02381,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "LOSA-ADOQUIN": {
+          "precioBase": 13438.63251,
+          "precioProporcional": 1525.63152,
+          "tasa": 0.16
+        },
+        "CONCRETO-EMPEDRADO": {
+          "precioBase": 8312.87468,
+          "precioProporcional": 905.95519,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-EMPEDRADO": {
+          "precioBase": 1.05245,
+          "precioProporcional": 0.01081,
+          "tasa": 0.16
+        },
+        "CONCRETO-ADOCRETO": {
+          "precioBase": 8880.17897,
+          "precioProporcional": 908.8197,
+          "tasa": 0.16
+        },
+        "LOSA-CANTERA": {
+          "precioBase": 11532.49571,
+          "precioProporcional": 1323.3425,
+          "tasa": 0.16
+        },
+        "CONCRETO-ASFALTO": {
+          "precioBase": 11160.56236,
+          "precioProporcional": 1145.70994,
+          "tasa": 0.16
+        },
+        "CONCRETO-CONCRETO": {
+          "precioBase": 11606.00032,
+          "precioProporcional": 1295.4756,
+          "tasa": 0.16
+        }
+      },
+      "drenaje": {
+        "ADOQUIN-ADOQUIN": {
+          "precioBase": 0.01067,
+          "precioProporcional": 0.01067,
+          "tasa": 0.16
+        },
+        "CONCRETO-ADOCRETO": {
+          "precioBase": 16089.21972,
+          "precioProporcional": 1646.61146,
+          "tasa": 0.16
+        },
+        "CONCRETO-ASFALTO": {
+          "precioBase": 17968.54896,
+          "precioProporcional": 1844.59831,
+          "tasa": 0.16
+        },
+        "CONCRETO-CONCRETO": {
+          "precioBase": 17092.61176,
+          "precioProporcional": 1872.28144,
+          "tasa": 0.16
+        },
+        "CONCRETO-EMPEDRADO": {
+          "precioBase": 15462.62531,
+          "precioProporcional": 1685.15815,
+          "tasa": 0.16
+        },
+        "LOSA-ADOQUIN": {
+          "precioBase": 21702.46448,
+          "precioProporcional": 2527.45618,
+          "tasa": 0.16
+        },
+        "LOSA-CANTERA": {
+          "precioBase": 20894.74605,
+          "precioProporcional": 2397.64486,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-EMPEDRADO": {
+          "precioBase": 0.00001,
+          "precioProporcional": 0.00001,
+          "tasa": 0.16
+        },
+        "TERRACERÍA-TERRACERÍA": {
+          "precioBase": 15726.77712,
+          "precioProporcional": 1757.25753,
+          "tasa": 0.16
+        }
+      }
+    },
+    "medidor": {
+      "instalacion": {
+        "2": {
+          "precio": 2426.91,
+          "tasa": 0.16
+        },
+        "3": {
+          "precio": 2730.27,
+          "tasa": 0.16
+        },
+        "4": {
+          "precio": 2932.51,
+          "tasa": 0.16
+        },
+        "1/2-3/4-1": {
+          "precio": 984.11,
+          "tasa": 0.16
+        }
+      },
+      "medidorTipos": {
+        "velocidad_1/2_12parc": {
+          "precio": 853.99,
+          "tasa": 0.16
+        },
+        "velocidad_1/2_24parc": {
+          "precio": 940.3,
+          "tasa": 0.16
+        },
+        "velocidad_1/2_contado": {
+          "precio": 789.34,
+          "tasa": 0.16
+        },
+        "volumetrico_1/2_12parc": {
+          "precio": 1109.52,
+          "tasa": 0.16
+        },
+        "volumetrico_1/2_contado": {
+          "precio": 1025.53,
+          "tasa": 0.16
+        }
+      }
+    }
+  }
+}
