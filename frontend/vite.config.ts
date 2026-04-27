@@ -36,8 +36,26 @@ export default defineConfig(() => ({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          'react-pdf': ['@react-pdf/renderer'],
+        /**
+         * Separar módulos que tienen inicialización de módulo compleja en sus
+         * propios chunks garantiza que se inicialicen antes de que el chunk
+         * consumidor corra — evita el "Cannot access 'X' before initialization"
+         * (Temporal Dead Zone) que Rollup produce en builds de producción cuando
+         * aplana módulos CJS/ESM en orden incorrecto.
+         */
+        manualChunks(id) {
+          if (id.includes('@react-pdf/renderer') || id.includes('@react-pdf/')) {
+            return 'react-pdf';
+          }
+          if (
+            id.includes('/src/lib/tarifas') ||
+            id.includes('/src/lib/cotizacion-tarifas') ||
+            id.includes('/src/lib/cotizacion.ts') ||
+            id.includes('/src/data/tarifas-agua') ||
+            id.includes('/src/data/tarifas-contratacion')
+          ) {
+            return 'tarifas';
+          }
         },
       },
     },
