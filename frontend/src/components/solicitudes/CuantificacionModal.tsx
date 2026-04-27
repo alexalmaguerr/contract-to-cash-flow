@@ -214,6 +214,21 @@ export function CuantificacionModal({
       ?? tiposTarifa[0] ?? '';
   }, [tipoContratacionNombre, tiposTarifa]);
 
+  // variablesCapturadas de la solicitud (códigos reservados)
+  const vc = (fd?.variablesCapturadas ?? {}) as Record<string, unknown>;
+
+  // Defaults: inspección tiene prioridad, luego variablesCapturadas, luego vacío
+  const matCalleDefault    = insp?.materialCalle    ?? String(vc.MATERIAL_CALLE    ?? '');
+  const matBanquetaDefault = insp?.materialBanqueta ?? String(vc.MATERIAL_BANQUETA ?? '');
+  const mlTomaDefault      = parseFloat(String(
+    insp?.metrosRupturaAguaCalle ?? insp?.metrosRupturaCalle ?? vc.METROS_TOMA ?? '0'
+  )) || 0;
+  const mlDescargaDefault  = parseFloat(String(
+    insp?.metrosRupturaDrenajeCalle ?? vc.METROS_DESCARGA ?? '0'
+  )) || 0;
+  const diametroTomaDefault   = insp?.diametroToma ?? String(vc.DIAMETRO_TOMA    ?? '');
+  const diametroDescargaDefault =                      String(vc.DIAMETRO_DESCARGA ?? '');
+
   // ── Estado del formulario ──────────────────────────────────────────────────
 
   const hoy = new Date();
@@ -297,21 +312,6 @@ export function CuantificacionModal({
   const [guardando, setGuardando] = useState(false);
 
   const requiresCert = fd?.tieneCertConexion === 'si';
-
-  // variablesCapturadas de la solicitud (códigos reservados)
-  const vc = (fd?.variablesCapturadas ?? {}) as Record<string, unknown>;
-
-  // Defaults: inspección tiene prioridad, luego variablesCapturadas, luego vacío
-  const matCalleDefault    = insp?.materialCalle    ?? String(vc.MATERIAL_CALLE    ?? '');
-  const matBanquetaDefault = insp?.materialBanqueta ?? String(vc.MATERIAL_BANQUETA ?? '');
-  const mlTomaDefault      = parseFloat(String(
-    insp?.metrosRupturaAguaCalle ?? insp?.metrosRupturaCalle ?? vc.METROS_TOMA ?? '0'
-  )) || 0;
-  const mlDescargaDefault  = parseFloat(String(
-    insp?.metrosRupturaDrenajeCalle ?? vc.METROS_DESCARGA ?? '0'
-  )) || 0;
-  const diametroTomaDefault   = insp?.diametroToma ?? String(vc.DIAMETRO_TOMA    ?? '');
-  const diametroDescargaDefault =                      String(vc.DIAMETRO_DESCARGA ?? '');
 
   // Dirección del predio
   const domicilio = useMemo(() => {
