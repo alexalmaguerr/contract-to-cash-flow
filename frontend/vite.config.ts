@@ -4,6 +4,9 @@ import path from "path";
 
 // https://vitejs.dev/config/
 export default defineConfig(() => ({
+  optimizeDeps: {
+    include: ['@react-pdf/renderer'],
+  },
   server: {
     host: "::",
     port: 8080,
@@ -28,6 +31,15 @@ export default defineConfig(() => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+    },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-pdf': ['@react-pdf/renderer'],
+        },
+      },
     },
   },
 }));
