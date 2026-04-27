@@ -759,6 +759,40 @@ function StepSolicitud({ form, set }: { form: SolicitudState; set: (p: Partial<S
   );
 }
 
+// ── Opciones para variables reservadas (igual que PasoVariables) ─────────────
+const DIAMETROS_SOL = ["1/2\"", "3/4\"", "1\"", "1.5\"", "2\"", "3\"", "4\""];
+const OPCIONES_RESERVADAS_SOL: Record<string, { label: string; value: string }[]> = {
+  DIAMETRO_TOMA:     DIAMETROS_SOL.map((d) => ({ value: d, label: d })),
+  DIAMETRO_DESCARGA: DIAMETROS_SOL.map((d) => ({ value: d, label: d })),
+  MATERIAL_CALLE: [
+    { value: 'concreto',           label: 'Concreto hidráulico' },
+    { value: 'losa',               label: 'Losa' },
+    { value: 'adoquin',            label: 'Adoquín' },
+    { value: 'concreto_asfaltico', label: 'Concreto asfáltico' },
+    { value: 'empedrado',          label: 'Empedrado' },
+    { value: 'tierra',             label: 'Terracería / tierra' },
+  ],
+  MATERIAL_BANQUETA: [
+    { value: 'concreto',  label: 'Concreto' },
+    { value: 'asfalto',   label: 'Asfalto' },
+    { value: 'adoquin',   label: 'Adoquín' },
+    { value: 'adocreto',  label: 'Adocreto' },
+    { value: 'empedrado', label: 'Empedrado' },
+    { value: 'tierra',    label: 'Terracería / tierra' },
+    { value: 'cantera',   label: 'Cantera' },
+  ],
+  TIPO_MEDIDOR: [
+    { value: 'velocidad',   label: 'Velocidad ½"' },
+    { value: 'volumetrico', label: 'Volumétrico ½"' },
+    { value: 'mayor',       label: 'Mayor que ½" (pago único)' },
+  ],
+  PLAN_PAGO_MEDIDOR: [
+    { value: 'contado', label: 'Contado' },
+    { value: '12parc',  label: '12 parcialidades' },
+    { value: '24parc',  label: '24 parcialidades' },
+  ],
+};
+
 function StepContratacion({ form, set }: { form: SolicitudState; set: (p: Partial<SolicitudState>) => void }) {
   const useApi = hasApi();
   const { data: administraciones = [], isLoading: adminsLoading, isError: adminsError } = useQuery({
@@ -889,39 +923,111 @@ function StepContratacion({ form, set }: { form: SolicitudState; set: (p: Partia
           {configLoading ? (
             <p className="text-xs text-muted-foreground">Cargando variables…</p>
           ) : variables.length > 0 ? (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2">
               {variables
                 .slice()
                 .sort((a, b) => a.orden - b.orden)
-                .map((v) => (
-                  <Field
-                    key={v.id}
-                    label={`${v.tipoVariable.nombre}${v.tipoVariable.unidad ? ` (${v.tipoVariable.unidad})` : ''}`}
-                    required={v.obligatorio}
-                  >
-                    <Input
-                      className="h-9"
-                      placeholder={v.valorDefecto ?? ''}
-                      value={(form.variablesCapturadas[v.tipoVariable.codigo] as string) ?? ''}
-                      onChange={(e) =>
-                        set({
-                          variablesCapturadas: {
-                            ...form.variablesCapturadas,
-                            [v.tipoVariable.codigo]: e.target.value,
-                          },
-                        })
-                      }
-                    />
-                  </Field>
-                ))}
+                .map((v) => {
+                  const tv = v.tipoVariable;
+                  const codigo = (tv.codigo ?? '').toUpperCase();
+                  const tipo = (tv.tipoDato ?? '').trim().toUpperCase();
+                  const rawVal = form.variablesCapturadas[tv.codigo];
+                  const def = v.valorDefecto?.trim();
+
+                  const setVar = (val: string | number | undefined) => {
+                    const next = { ...form.variablesCapturadas };
+                    if (val === undefined || val === '') {
+                      delete next[tv.codigo];
+                    } else {
+                      next[tv.codigo] = val;
+                    }
+                    set({ variablesCapturadas: next });
+                  };
+
+                  const labelNode = (
+                    <>
+                      {tv.nombre}
+                      {v.obligatorio && <span className="text-destructive"> *</span>}
+                      {tv.unidad?.trim() ? (
+                        <span className="ml-1 text-xs font-normal text-muted-foreground">({tv.unidad.trim()})</span>
+                      ) : null}
+                    </>
+                  );
+
+                  // Códigos reservados → select especializado
+                  const opcionesRes = OPCIONES_RESERVADAS_SOL[codigo];
+                  if (opcionesRes) {
+                    const valStr = rawVal != null && String(rawVal).length > 0 ? String(rawVal) : def ?? '';
+                    return (
+                      <div key={v.id} className="space-y-2">
+                        <Label htmlFor={`var-sol-${tv.codigo}`}>{labelNode}</Label>
+                        <Select
+                          value={valStr || '__none__'}
+                          onValueChange={(s) => setVar(s === '__none__' ? undefined : s)}
+                        >
+                          <SelectTrigger id={`var-sol-${tv.codigo}`} className="h-9">
+                            <SelectValue placeholder="Seleccione…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {!v.obligatorio && (
+                              <SelectItem value="__none__">
+                                <span className="text-muted-foreground">(vacío)</span>
+                              </SelectItem>
+                            )}
+                            {opcionesRes.map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    );
+                  }
+
+                  // Metros lineales / numérico
+                  if (['METROS_TOMA', 'METROS_DESCARGA', 'UNIDADES_SERVIDAS'].includes(codigo) || tipo === 'NUMERO') {
+                    const numStr = rawVal !== undefined ? String(rawVal) : def ?? '';
+                    return (
+                      <div key={v.id} className="space-y-2">
+                        <Label htmlFor={`var-sol-${tv.codigo}`}>{labelNode}</Label>
+                        <Input
+                          id={`var-sol-${tv.codigo}`}
+                          className="h-9"
+                          type="number"
+                          inputMode="decimal"
+                          min={0}
+                          step={['UNIDADES_SERVIDAS'].includes(codigo) ? 1 : 0.1}
+                          value={numStr}
+                          placeholder={['METROS_TOMA', 'METROS_DESCARGA'].includes(codigo) ? 'metros lineales' : ''}
+                          onChange={(e) => {
+                            const t = e.target.value.trim();
+                            setVar(t === '' ? undefined : Number(t));
+                          }}
+                        />
+                      </div>
+                    );
+                  }
+
+                  // Texto genérico
+                  return (
+                    <div key={v.id} className="space-y-2 sm:col-span-2">
+                      <Label htmlFor={`var-sol-${tv.codigo}`}>{labelNode}</Label>
+                      <Input
+                        id={`var-sol-${tv.codigo}`}
+                        className="h-9"
+                        placeholder={def ?? ''}
+                        value={rawVal != null ? String(rawVal) : ''}
+                        onChange={(e) => setVar(e.target.value.trim() || undefined)}
+                      />
+                    </div>
+                  );
+                })}
             </div>
           ) : (
-            <textarea
-              className="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
-              placeholder="Anota aquí las variables de contratación…"
-              value={form.variablesTexto}
-              onChange={(e) => set({ variablesTexto: e.target.value })}
-            />
+            <p className="text-sm text-muted-foreground">
+              {form.tipoContratacionId
+                ? 'Este tipo de contratación no define variables adicionales.'
+                : 'Seleccione primero el tipo de contratación.'}
+            </p>
           )}
         </div>
       </div>
