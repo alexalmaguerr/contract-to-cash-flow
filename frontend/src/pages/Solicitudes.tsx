@@ -1261,7 +1261,7 @@ function CotizacionModal({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="w-[95vw] max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[98vw] max-w-6xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Receipt className="h-5 w-5 text-blue-600" />
@@ -1311,8 +1311,8 @@ function CotizacionModal({
         <p className="text-xs text-muted-foreground">* Los precios son estimados y pueden ajustarse según las condiciones del terreno.</p>
 
         {/* Actions */}
-        <div className="flex items-center justify-between gap-3 pt-1">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+          <div className="flex flex-wrap items-center gap-2">
             {onEditarCuantificacion && (
               <Button
                 type="button"
