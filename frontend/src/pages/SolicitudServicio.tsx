@@ -1547,17 +1547,16 @@ export default function SolicitudServicio() {
       localidadId = locRes?.data?.[0]?.id ?? '';
     }
 
-    // Resolve colonia — prefer one matching the CP, else first available
+    // Resolve colonia — filter by localidad (Aquasis: colonias belong to localidad, not municipio)
     let coloniaId = dir.coloniaINEGIId;
-    if (!coloniaId) {
+    if (!coloniaId && localidadId) {
       const colRes = await queryClient.fetchQuery({
-        queryKey: ['inegi-colonias', municipioId],
-        queryFn: () => fetchInegiColoniasCatalogo({ municipioId, limit: 500 }),
+        queryKey: ['inegi-colonias', localidadId],
+        queryFn: () => fetchInegiColoniasCatalogo({ localidadId, limit: 500 }),
         staleTime: 10 * 60 * 1000,
       });
       const colonias = colRes?.data ?? [];
-      const byCP = dir.codigoPostal ? colonias.find((c) => c.codigoPostal === dir.codigoPostal) : null;
-      coloniaId = byCP?.id ?? colonias[0]?.id ?? '';
+      coloniaId = colonias[0]?.id ?? '';
     }
 
     return { ...dir, estadoINEGIId: estadoId, municipioINEGIId: municipioId, localidadINEGIId: localidadId, coloniaINEGIId: coloniaId };

@@ -21,6 +21,8 @@ Sistema de gestión de agua potable para la CEA (Comisión Estatal del Agua) de 
 | Base de datos | PostgreSQL 35.188.238.10:5433 (base: `hydra`) |
 | Auth | JWT (NestJS Guards) |
 
+**MER completo:** `docs/mer-hydra.md` (Mermaid, 10 dominios agrupados)
+
 **Puertos locales:**
 - Frontend: `http://localhost:8080` (Vite dev)
 - Backend: `http://localhost:3001`
@@ -147,7 +149,9 @@ También: `rechazada`, `cancelada`
 | `ConceptoCobro` | Conceptos de cobro con tarifas |
 | `Persona` | Persona física o moral (propietario, fiscal, contacto) |
 | `RolPersonaContrato` | Relación persona ↔ contrato con rol (PROPIETARIO, FISCAL, CONTACTO) |
-| `Domicilio` | Domicilio normalizado con claves INEGI |
+| `Domicilio` | Domicilio normalizado con claves INEGI/Aquasis |
+| `CatalogoLocalidadINEGI` | Localidad Aquasis (aquasisPobid); 3,595 registros, 18 municipios QRO |
+| `CatalogoColoniaINEGI` | Colonia Aquasis (aquasisBarrId, localidadId); 3,815 registros |
 | `Toma` | Toma de agua (conexión física) |
 | `Lectura` | Lectura de medidor |
 | `Consumo` | Consumo calculado por periodo |
@@ -246,7 +250,7 @@ const mutation = useMutation({ mutationFn: apiCall, onSuccess: () => queryClient
 
 ---
 
-## Estado Actual de Features (2026-04-23)
+## Estado Actual de Features (2026-04-27)
 
 ### ✅ Implementado y funcionando
 - Flujo completo solicitud → inspección → cotización → aceptar → wizard de alta
@@ -271,11 +275,32 @@ const mutation = useMutation({ mutationFn: apiCall, onSuccess: () => queryClient
   - Botones en `VerSolicitudDialog`: "Descargar PDF" (servidor) + "Regenerar PDF" (local)
 - ContratoEditDialog para editar contratos existentes
 - `VerSolicitudDialog` con resumen completo: propietario, predio, estado, cuantificación, botones PDF
+- **CuantificacionModal TDZ fix** (2026-04-27)
+  - Variables `vc`, `matCalleDefault`, `mlTomaDefault`, etc. movidas ANTES de los `useState` calls
+  - Error original: `Cannot access 'Be' before initialization` (Rollup flattening en producción)
+- **Inputs especializados en SolicitudServicio** (2026-04-27)
+  - Textarea genérica reemplazada por Selects + number inputs según código de variable reservado
+  - Códigos: DIAMETRO_TOMA, DIAMETRO_DESCARGA, MATERIAL_CALLE, MATERIAL_BANQUETA, TIPO_MEDIDOR, PLAN_PAGO_MEDIDOR → Select
+  - METROS_TOMA, METROS_DESCARGA, UNIDADES_SERVIDAS, tipo NUMERO → input number
+- **CotizacionModal recalcula precios** al cambiar cuantificación (2026-04-27)
+  - `onAceptar` de CuantificacionModal ahora pasa los datos al `cotizandoRecord.formData`
+- **Catálogos Aquasis — Localidades y Colonias** (2026-04-27)
+  - Migration: `20260427000000_aquasis_localidades_colonias`
+  - 3,595 localidades (Aquasis Localidad Población) + 3,815 colonias (Colonia Barrio) para 18 municipios QRO
+  - Schema: `CatalogoLocalidadINEGI.aquasisPobid` (UK), `CatalogoColoniaINEGI.aquasisBarrId` (UK), `localidadId` FK
+  - La tabla intermedia Localidad de Aquasis se usa solo en migración; colonia→localidad es relación directa
+  - Scripts obsoletos: `import-inegi-catalog.ts`, `import-localidades-sige-qro.ts` → stubs
+  - Backend: `domicilios.service.ts` filtra colonias por `localidadId` (antes por `municipioId`)
+  - Frontend: `domicilios-inegi.ts` — interfaces actualizadas con campos Aquasis
 
 ### 🔧 Pendiente / En progreso
 - Aplicar migración DB en servidor: `requiereInspeccion = false` para tipos INDIVIDUAL
   - Archivo: `backend/prisma/migrations/20260420150000_individual_no_requiere_inspeccion/migration.sql`
   - Servidor: 35.188.238.10:5433
+- **Aplicar migración Aquasis en servidor** (2026-04-27)
+  - Archivo: `backend/prisma/migrations/20260427000000_aquasis_localidades_colonias/migration.sql`
+  - Servidor: 35.188.238.10:5433
+- **DomicilioPickerForm frontend**: actualizar para filtrar colonias por `localidadId` en vez de `municipioId`
 - SearchableSelect pendiente en: régimen fiscal/CFDI (PasoPersonas)
 
 ### ⚠️ Notas de comportamiento
@@ -284,6 +309,7 @@ const mutation = useMutation({ mutationFn: apiCall, onSuccess: () => queryClient
 - `PasoConfigContrato` limpia `variablesCapturadas` al cambiar tipo de contratación — intencional para evitar datos huérfanos
 - PDFs guardados en `backend/uploads/cotizaciones/{id}.pdf` (en .gitignore); cuando se migre a bucket S3/GCS solo cambiar `uploadCotizacionPdf()` en `api/solicitudes.ts`
 - `SolicitudState.cotizacionItems` — nuevo campo JSONB opcional; guarda los ítems que se mostraron al cliente en la cotización
+- **TDZ en producción**: Rollup flatten puede reordenar módulos y exponer `const`/`let` antes de declaración. Si aparece `Cannot access 'Xx' before initialization`, revisar orden de declaraciones en el componente afectado. Fix: mover declaraciones que alimentan `useState(defaultValue)` antes de los useState calls.
 
 ---
 

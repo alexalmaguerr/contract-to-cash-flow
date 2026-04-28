@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 
@@ -75,28 +74,21 @@ export default function DomicilioPickerForm({ value, onChange, disabled = false 
   const localidades: CatalogoLocalidadINEGIRow[] = locRes?.data ?? [];
 
   const { data: colRes, isLoading: loadingCols } = useQuery({
-    queryKey: ['inegi-colonias', value.municipioINEGIId],
-    queryFn: () => fetchInegiColoniasCatalogo({ municipioId: value.municipioINEGIId, limit: 500 }),
-    enabled: Boolean(value.municipioINEGIId),
+    queryKey: ['inegi-colonias', value.localidadINEGIId],
+    queryFn: () => fetchInegiColoniasCatalogo({ localidadId: value.localidadINEGIId, limit: 500 }),
+    enabled: Boolean(value.localidadINEGIId),
     staleTime: 10 * 60 * 1000,
   });
   const colonias: CatalogoColoniaINEGIRow[] = colRes?.data ?? [];
-
-  // Auto-fill CP when colonia is selected
-  useEffect(() => {
-    if (!value.coloniaINEGIId) return;
-    const col = colonias.find((c) => c.id === value.coloniaINEGIId);
-    if (col?.codigoPostal && col.codigoPostal !== value.codigoPostal) {
-      set({ codigoPostal: col.codigoPostal });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value.coloniaINEGIId, colonias]);
 
   const handleEstado = (id: string) => {
     onChange({ ...EMPTY, estadoINEGIId: id });
   };
   const handleMunicipio = (id: string) => {
     set({ municipioINEGIId: id, localidadINEGIId: '', coloniaINEGIId: '', codigoPostal: '' });
+  };
+  const handleLocalidad = (id: string) => {
+    set({ localidadINEGIId: id, coloniaINEGIId: '' });
   };
 
   return (
@@ -149,7 +141,7 @@ export default function DomicilioPickerForm({ value, onChange, disabled = false 
         ) : (
           <SearchableSelect
             value={value.localidadINEGIId}
-            onValueChange={(id) => set({ localidadINEGIId: id })}
+            onValueChange={handleLocalidad}
             disabled={disabled || !value.municipioINEGIId}
             placeholder="Seleccionar localidad"
             searchPlaceholder="Buscar localidad…"
@@ -169,12 +161,12 @@ export default function DomicilioPickerForm({ value, onChange, disabled = false 
           <SearchableSelect
             value={value.coloniaINEGIId}
             onValueChange={(id) => set({ coloniaINEGIId: id })}
-            disabled={disabled || !value.municipioINEGIId}
-            placeholder={value.municipioINEGIId ? 'Seleccionar colonia' : 'Primero seleccione municipio'}
-            searchPlaceholder="Buscar colonia o C.P.…"
+            disabled={disabled || !value.localidadINEGIId}
+            placeholder={value.localidadINEGIId ? 'Seleccionar colonia' : 'Primero seleccione localidad'}
+            searchPlaceholder="Buscar colonia…"
             options={colonias.map((c: CatalogoColoniaINEGIRow) => ({
               value: c.id,
-              label: c.codigoPostal ? `${c.nombre} — ${c.codigoPostal}` : c.nombre,
+              label: c.tipo && c.tipo !== 'COLONIA' ? `${c.nombre} (${c.tipo})` : c.nombre,
             }))}
           />
         )}
