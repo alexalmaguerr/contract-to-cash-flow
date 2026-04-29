@@ -260,7 +260,7 @@ export default function PasoConfigContrato({ data, updateData }: StepProps) {
               <p className="text-sm">{actividadNombreDisplay}</p>
             </div>
           ) : null}
-          {esIndividualizacion && distritoNombreDisplay ? (
+          {distritoNombreDisplay ? (
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase">Distrito</p>
               <p className="text-sm">{distritoNombreDisplay}</p>
@@ -415,59 +415,33 @@ export default function PasoConfigContrato({ data, updateData }: StepProps) {
         </div>
       </div>
 
+      {/* ── Distrito (siempre visible en edit) ───────────────────────── */}
       <div className="space-y-2">
-        <Label htmlFor="wizard-tps">Tipo de punto de servicio</Label>
-        <SearchableSelect
-          value={data.tipoPuntoServicio ?? ''}
-          onValueChange={(v) => updateData({ tipoPuntoServicio: v })}
-          placeholder="Seleccione tipo…"
-          searchPlaceholder="Buscar tipo…"
-          options={TIPOS_PUNTO_SERVICIO.map((t) => ({ value: t.id, label: `${t.id} — ${t.descripcion}` }))}
-        />
+        <Label htmlFor="wizard-distrito">
+          Distrito{esIndividualizacion && <span className="ml-0.5 text-destructive">*</span>}
+        </Label>
+        {distritosQ.isLoading ? (
+          <div className="flex h-10 items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            Cargando distritos…
+          </div>
+        ) : distritosQ.isError ? (
+          <p className="text-sm text-destructive">No se pudieron cargar los distritos.</p>
+        ) : (
+          <SearchableSelect
+            value={data.distritoId ?? ''}
+            onValueChange={(v) => updateData({ distritoId: v || undefined })}
+            placeholder="Seleccione distrito…"
+            searchPlaceholder="Buscar distrito…"
+            options={(distritosQ.data ?? []).map((d) => ({ value: d.id, label: d.nombre }))}
+          />
+        )}
       </div>
-
-      {esIndividualizacion ? (
-        <div className="space-y-2">
-          <Label htmlFor="wizard-distrito">
-            Distrito (catálogo) <span className="text-destructive">*</span>
-          </Label>
-          {distritosQ.isLoading ? (
-            <div className="flex h-10 items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-              Cargando distritos…
-            </div>
-          ) : distritosQ.isError ? (
-            <p className="text-sm text-destructive">No se pudieron cargar los distritos.</p>
-          ) : (
-            <Select
-              value={data.distritoId ?? ''}
-              onValueChange={(v) => updateData({ distritoId: v || undefined })}
-            >
-              <SelectTrigger id="wizard-distrito" aria-label="Distrito">
-                <SelectValue placeholder="Seleccione distrito…" />
-              </SelectTrigger>
-              <SelectContent>
-                {(distritosQ.data ?? []).map((d) => (
-                  <SelectItem key={d.id} value={d.id}>
-                    {d.nombre}
-                    <span className="ml-1.5 font-mono text-[10px] text-muted-foreground">{d.zonaId}</span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-          <p className="text-xs text-muted-foreground">
-            El identificador de distrito se envía en <span className="font-mono">variablesCapturadas</span> al crear el contrato.
-          </p>
-        </div>
-      ) : null}
 
       <div className="space-y-2">
         <Label htmlFor="wizard-ref">
           {esIndividualizacion ? (
-            <>
-              Contrato padre / referencia <span className="text-destructive">*</span>
-            </>
+            <>Contrato padre / referencia <span className="text-destructive">*</span></>
           ) : (
             <>Referencia contrato anterior (opcional)</>
           )}
@@ -487,6 +461,18 @@ export default function PasoConfigContrato({ data, updateData }: StepProps) {
       </div>
         </>
       )}
+
+      {/* ── Tipo de punto de servicio (siempre seleccionable, fuera del bloqueo) ── */}
+      <div className="space-y-2">
+        <Label htmlFor="wizard-tps">Tipo de punto de servicio</Label>
+        <SearchableSelect
+          value={data.tipoPuntoServicio ?? ''}
+          onValueChange={(v) => updateData({ tipoPuntoServicio: v })}
+          placeholder="Seleccione tipo…"
+          searchPlaceholder="Buscar tipo…"
+          options={TIPOS_PUNTO_SERVICIO.map((t) => ({ value: t.id, label: `${t.id} — ${t.descripcion}` }))}
+        />
+      </div>
 
       {/* ── Predio y ocupación (siempre visible) ─────────────────────── */}
       <div className="space-y-4 rounded-lg border border-dashed p-4">

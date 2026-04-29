@@ -157,6 +157,7 @@ function PersonaBlock({
   regimenSat,
   usoSat,
   satPending,
+  showSat = true,
 }: {
   title: string;
   value: PersonaWizard | undefined;
@@ -168,6 +169,8 @@ function PersonaBlock({
   regimenSat: CatalogoSatItem[];
   usoSat: CatalogoSatItem[];
   satPending: boolean;
+  /** Muestra los campos de Régimen fiscal y Uso del CFDI. Solo aplica para persona fiscal. */
+  showSat?: boolean;
 }) {
   const v = value ?? {};
   const patch = (partial: Partial<PersonaWizard>) => onChange({ ...v, ...partial });
@@ -266,44 +269,48 @@ function PersonaBlock({
           {err('tipoPersona') && <p className="text-xs text-destructive">Campo obligatorio</p>}
         </div>
 
-        {/* Régimen fiscal y Uso del CFDI (GET /catalogos/sat o fallback offline) */}
-        <div className="space-y-1.5">
-          <Label>Régimen fiscal</Label>
-          <SearchableSelect
-            value={regimenSel ?? ''}
-            onValueChange={(nv) => patch({ regimenFiscal: nv, usoCfdi: '' })}
-            disabled={regimenDisabled}
-            placeholder={
-              !tipoOk
-                ? 'Primero elija tipo de persona…'
-                : useApi && satPending
-                  ? 'Cargando catálogo SAT…'
-                  : 'Seleccione régimen…'
-            }
-            searchPlaceholder="Buscar régimen fiscal…"
-            options={regimenOpciones.map((r) => ({ value: r.clave, label: `${r.clave} — ${r.texto}` }))}
-          />
-        </div>
+        {/* Régimen fiscal y Uso del CFDI — solo para persona fiscal */}
+        {showSat && (
+          <>
+            <div className="space-y-1.5">
+              <Label>Régimen fiscal</Label>
+              <SearchableSelect
+                value={regimenSel ?? ''}
+                onValueChange={(nv) => patch({ regimenFiscal: nv, usoCfdi: '' })}
+                disabled={regimenDisabled}
+                placeholder={
+                  !tipoOk
+                    ? 'Primero elija tipo de persona…'
+                    : useApi && satPending
+                      ? 'Cargando catálogo SAT…'
+                      : 'Seleccione régimen…'
+                }
+                searchPlaceholder="Buscar régimen fiscal…"
+                options={regimenOpciones.map((r) => ({ value: r.clave, label: `${r.clave} — ${r.texto}` }))}
+              />
+            </div>
 
-        <div className="space-y-1.5">
-          <Label>Uso del CFDI</Label>
-          <SearchableSelect
-            value={usoSel ?? ''}
-            onValueChange={(nv) => patch({ usoCfdi: nv })}
-            disabled={usoDisabled}
-            placeholder={
-              !tipoOk
-                ? 'Primero elija tipo de persona…'
-                : !regimenSel
-                  ? 'Primero elija régimen fiscal…'
-                  : useApi && satPending
-                    ? 'Cargando catálogo SAT…'
-                    : 'Seleccione uso…'
-            }
-            searchPlaceholder="Buscar uso del CFDI…"
-            options={usoOpciones.map((u) => ({ value: u.clave, label: `${u.clave} — ${u.texto}` }))}
-          />
-        </div>
+            <div className="space-y-1.5">
+              <Label>Uso del CFDI</Label>
+              <SearchableSelect
+                value={usoSel ?? ''}
+                onValueChange={(nv) => patch({ usoCfdi: nv })}
+                disabled={usoDisabled}
+                placeholder={
+                  !tipoOk
+                    ? 'Primero elija tipo de persona…'
+                    : !regimenSel
+                      ? 'Primero elija régimen fiscal…'
+                      : useApi && satPending
+                        ? 'Cargando catálogo SAT…'
+                        : 'Seleccione uso…'
+                }
+                searchPlaceholder="Buscar uso del CFDI…"
+                options={usoOpciones.map((u) => ({ value: u.clave, label: `${u.clave} — ${u.texto}` }))}
+              />
+            </div>
+          </>
+        )}
 
         {/* Paterno */}
         <Field label="Apellido paterno" required={required} error={!!err('paterno')}>
@@ -624,6 +631,7 @@ export default function PasoPersonas({ data, updateData }: StepProps) {
         regimenSat={regimenSat}
         usoSat={usoSat}
         satPending={satPending}
+        showSat={false}
       />
 
       <label

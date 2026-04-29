@@ -3,6 +3,11 @@ import { useQuery } from '@tanstack/react-query';
 import { CheckCircle2, Loader2 } from 'lucide-react';
 
 import { fetchActividades, fetchCalibres, fetchDistritos } from '@/api/catalogos';
+import {
+  fetchInegiMunicipiosCatalogo,
+  fetchInegiLocalidadesCatalogo,
+  fetchInegiColoniasCatalogo,
+} from '@/api/domicilios-inegi';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatMxn, useBillingPreview } from '../hooks/useBillingPreview';
@@ -96,6 +101,54 @@ export default function PasoResumen({ data, config }: StepProps) {
     queryFn: fetchCalibres,
     enabled: typeof vc.calibreMedidorId === 'string' && vc.calibreMedidorId.length > 0,
   });
+
+  // ── Domicilio del predio — resolución de nombres desde IDs ───────────────
+  const predioDir = data.solicitudFormSnapshot?.predioDir;
+  const mpioId = predioDir?.municipioINEGIId;
+  const locId = predioDir?.localidadINEGIId;
+  const colId = predioDir?.coloniaINEGIId;
+  const estadoId = predioDir?.estadoINEGIId;
+
+  const mpioQ = useQuery({
+    queryKey: ['inegi-municipios', estadoId],
+    queryFn: () => fetchInegiMunicipiosCatalogo({ estadoId: estadoId!, limit: 200 }),
+    enabled: Boolean(estadoId) && Boolean(mpioId),
+    staleTime: 10 * 60 * 1000,
+  });
+  const locQ = useQuery({
+    queryKey: ['inegi-localidades', mpioId],
+    queryFn: () => fetchInegiLocalidadesCatalogo({ municipioId: mpioId!, limit: 500 }),
+    enabled: Boolean(mpioId) && Boolean(locId),
+    staleTime: 10 * 60 * 1000,
+  });
+  const colQ = useQuery({
+    queryKey: ['inegi-colonias', locId],
+    queryFn: () => fetchInegiColoniasCatalogo({ localidadId: locId!, limit: 500 }),
+    enabled: Boolean(locId) && Boolean(colId),
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const mpioNombre = useMemo(
+    () => (mpioQ.data?.data ?? []).find((m) => m.id === mpioId)?.nombre ?? '',
+    [mpioQ.data, mpioId],
+  );
+  const locNombre = useMemo(
+    () => (locQ.data?.data ?? []).find((l) => l.id === locId)?.nombre ?? '',
+    [locQ.data, locId],
+  );
+  const colNombre = useMemo(
+    () => (colQ.data?.data ?? []).find((c) => c.id === colId)?.nombre ?? '',
+    [colQ.data, colId],
+  );
+
+  const predioGeoLinea = useMemo(() => {
+    const parts = [
+      colNombre ? `Col. ${colNombre}` : '',
+      locNombre,
+      mpioNombre,
+    ].filter(Boolean);
+    return parts.join(', ');
+  }, [colNombre, locNombre, mpioNombre]);
 
   const distritoNombreById = useMemo(() => {
     const m = new Map<string, string>();
@@ -193,6 +246,11 @@ export default function PasoResumen({ data, config }: StepProps) {
                 {data.predioDomicilioResumen?.trim() ||
                   data.puntoServicioDireccion?.trim() ||
                   '—'}
+                {predioGeoLinea && (
+                  <span className="block text-sm text-muted-foreground font-normal">
+                    {predioGeoLinea}
+                  </span>
+                )}
               </dd>
             </div>
           </dl>

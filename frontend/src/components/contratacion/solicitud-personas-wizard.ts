@@ -33,7 +33,13 @@ export function solicitudFormToWizardPersonas(fd: SolicitudState): {
   const tipoFis = tipoPersonaFromSolicitud(fd.fiscalTipoPersona) || tipoProp;
 
   const personaFiscal: PersonaWizard = fiscalIgualTitular
-    ? { ...propietario }
+    ? {
+        ...propietario,
+        // Régimen fiscal y uso del CFDI se guardan en los campos fiscal* incluso cuando
+        // fiscalIgualTitular=true — recuperamos esos valores de la solicitud.
+        regimenFiscal: fd.fiscalRegimenFiscal ?? '',
+        usoCfdi: fd.fiscalUsoCfdi ?? '',
+      }
     : {
         tipoPersona: tipoFis,
         paterno: '',
