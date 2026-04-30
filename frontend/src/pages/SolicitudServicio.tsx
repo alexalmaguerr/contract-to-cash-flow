@@ -271,7 +271,7 @@ function validCondominioCd(form: SolicitudState): boolean {
   return true;
 }
 
-function canAdvance(step: number, form: SolicitudState): boolean {
+function canAdvance(step: number, form: SolicitudState, esAdminQueretaro?: boolean): boolean {
   switch (step) {
     case 0: // Predio
       return validDir(form.predioDir);
@@ -305,7 +305,8 @@ function canAdvance(step: number, form: SolicitudState): boolean {
     }
 
     case 4: // Contratación
-      return !!(form.adminId && form.tipoContratacionId && form.distritoId && form.actividadId);
+      return !!(form.adminId && form.tipoContratacionId && form.actividadId &&
+        (!esAdminQueretaro || form.distritoId));
 
     case 5: // Resumen
       return true;
@@ -821,6 +822,10 @@ function StepContratacion({ form, set }: { form: SolicitudState; set: (p: Partia
     staleTime: 60 * 60 * 1000,
   });
 
+  const esAdminQueretaro = form.adminId
+    ? /quer[eé]taro/i.test(administraciones.find((a) => a.id === form.adminId)?.nombre ?? '')
+    : false;
+
   const { data: actividades = [], isLoading: actividadesLoading } = useQuery({
     queryKey: ['catalogos', 'actividades'],
     queryFn: fetchActividades,
@@ -884,16 +889,18 @@ function StepContratacion({ form, set }: { form: SolicitudState; set: (p: Partia
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Field label="Distrito" required>
-          <SearchableSelect
-            value={form.distritoId}
-            onValueChange={(v) => set({ distritoId: v })}
-            disabled={!useApi || distritosLoading || distritos.length === 0}
-            placeholder={distritosLoading ? 'Cargando…' : 'Seleccione distrito…'}
-            searchPlaceholder="Buscar distrito…"
-            options={distritos.map((d: DistritoCatalogo) => ({ value: d.id, label: d.nombre }))}
-          />
-        </Field>
+        {esAdminQueretaro && (
+          <Field label="Distrito" required>
+            <SearchableSelect
+              value={form.distritoId}
+              onValueChange={(v) => set({ distritoId: v })}
+              disabled={!useApi || distritosLoading || distritos.length === 0}
+              placeholder={distritosLoading ? 'Cargando…' : 'Seleccione distrito…'}
+              searchPlaceholder="Buscar distrito…"
+              options={distritos.map((d: DistritoCatalogo) => ({ value: d.id, label: d.nombre }))}
+            />
+          </Field>
+        )}
 
         <Field label="Actividad" required>
           <SearchableSelect
@@ -1501,7 +1508,7 @@ export default function SolicitudServicio() {
   }
 
   const isLastStep = currentStep === STEPS.length - 1;
-  const canNext = canAdvance(currentStep, form);
+  const canNext = canAdvance(currentStep, form, esAdminQueretaro);
 
   async function resolveDir(dir: DomicilioFormValue | undefined): Promise<DomicilioFormValue | undefined> {
     if (!dir) return dir;

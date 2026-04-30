@@ -266,7 +266,7 @@ export default function PasoConfigContrato({ data, updateData }: StepProps) {
               <p className="text-sm">{actividadNombreDisplay}</p>
             </div>
           ) : null}
-          {distritoNombreDisplay ? (
+          {esAdminQueretaro && distritoNombreDisplay ? (
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase">Distrito</p>
               <p className="text-sm">{distritoNombreDisplay}</p>
@@ -421,36 +421,30 @@ export default function PasoConfigContrato({ data, updateData }: StepProps) {
         </div>
       </div>
 
-      {/* ── Distrito (siempre visible; obligatorio solo para Querétaro) ── */}
-      <div className="space-y-2">
-        <Label htmlFor="wizard-distrito">
-          Distrito{distritoRequerido && <span className="ml-0.5 text-destructive">*</span>}
-        </Label>
-        {distritosQ.isLoading ? (
-          <div className="flex h-10 items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-            Cargando distritos…
-          </div>
-        ) : distritosQ.isError ? (
-          <p className="text-sm text-destructive">No se pudieron cargar los distritos.</p>
-        ) : (
-          <SearchableSelect
-            value={data.distritoId ?? ''}
-            onValueChange={(v) => updateData({ distritoId: v || undefined })}
-            placeholder="Seleccione distrito…"
-            searchPlaceholder="Buscar distrito…"
-            options={[
-              ...(!distritoRequerido
-                ? [{ value: '', label: '— Sin distrito —' }]
-                : []),
-              ...(distritosQ.data ?? []).map((d) => ({ value: d.id, label: d.nombre })),
-            ]}
-          />
-        )}
-        {!distritoRequerido && (
-          <p className="text-xs text-muted-foreground">Opcional para esta administración.</p>
-        )}
-      </div>
+      {/* ── Distrito (solo para administración Querétaro) ── */}
+      {esAdminQueretaro && (
+        <div className="space-y-2">
+          <Label htmlFor="wizard-distrito">
+            Distrito <span className="text-destructive">*</span>
+          </Label>
+          {distritosQ.isLoading ? (
+            <div className="flex h-10 items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              Cargando distritos…
+            </div>
+          ) : distritosQ.isError ? (
+            <p className="text-sm text-destructive">No se pudieron cargar los distritos.</p>
+          ) : (
+            <SearchableSelect
+              value={data.distritoId ?? ''}
+              onValueChange={(v) => updateData({ distritoId: v || undefined })}
+              placeholder="Seleccione distrito…"
+              searchPlaceholder="Buscar distrito…"
+              options={(distritosQ.data ?? []).map((d) => ({ value: d.id, label: d.nombre }))}
+            />
+          )}
+        </div>
+      )}
 
       <div className="space-y-2">
         <Label htmlFor="wizard-ref">
