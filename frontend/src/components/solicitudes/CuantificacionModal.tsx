@@ -35,6 +35,11 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { fetchAdministraciones } from '@/api/catalogos';
 import {
+  fetchInegiMunicipiosCatalogo,
+  fetchInegiLocalidadesCatalogo,
+  fetchInegiColoniasCatalogo,
+} from '@/api/domicilios-inegi';
+import {
   getTiposTarifa,
   resolveAdministracion,
   calcularCargoPeriodo,
@@ -100,7 +105,17 @@ function generarFolioCuantificacion(solicitudFolio: string): string {
   const now = new Date();
   const yy = String(now.getFullYear()).slice(2);
   const mm = String(now.getMonth() + 1).padStart(2, '0');
-  return `COT-${yy}${mm}-${solicitudFolio}`;
+  // Extraer solo el número secuencial del folio (ej. "SOL-2026-068" → "068")
+  const num = solicitudFolio.split('-').at(-1) ?? solicitudFolio;
+  return `COT-${yy}${mm}-${num}`;
+}
+
+/** Formatea Date a dd/mm/aaaa con ceros al inicio */
+function formatFechaES(d: Date): string {
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const aaaa = d.getFullYear();
+  return `${dd}/${mm}/${aaaa}`;
 }
 
 function toMonthInput(d: Date): string {
@@ -313,13 +328,53 @@ export function CuantificacionModal({
 
   const requiresCert = fd?.tieneCertConexion === 'si';
 
-  // Dirección del predio
+  // ── Domicilio: resolver nombres desde IDs Aquasis ─────────────────────────
+  const predioDir = fd?.predioDir;
+  const estadoIdDir = predioDir?.estadoINEGIId;
+  const mpioIdDir   = predioDir?.municipioINEGIId;
+  const locIdDir    = predioDir?.localidadINEGIId;
+  const colIdDir    = predioDir?.coloniaINEGIId;
+
+  const { data: mpioResDir } = useQuery({
+    queryKey: ['inegi-municipios', estadoIdDir],
+    queryFn: () => fetchInegiMunicipiosCatalogo({ estadoId: estadoIdDir!, limit: 200 }),
+    enabled: open && Boolean(estadoIdDir) && Boolean(mpioIdDir),
+    staleTime: 10 * 60 * 1000,
+  });
+  const { data: locResDir } = useQuery({
+    queryKey: ['inegi-localidades', mpioIdDir],
+    queryFn: () => fetchInegiLocalidadesCatalogo({ municipioId: mpioIdDir!, limit: 500 }),
+    enabled: open && Boolean(mpioIdDir) && Boolean(locIdDir),
+    staleTime: 10 * 60 * 1000,
+  });
+  const { data: colResDir } = useQuery({
+    queryKey: ['inegi-colonias', locIdDir],
+    queryFn: () => fetchInegiColoniasCatalogo({ localidadId: locIdDir!, limit: 500 }),
+    enabled: open && Boolean(locIdDir) && Boolean(colIdDir),
+    staleTime: 10 * 60 * 1000,
+  });
+
   const domicilio = useMemo(() => {
-    const p = fd?.predioDir;
-    if (!p) return record?.predioResumen ?? '—';
-    return [p.calle, p.numExterior ? `#${p.numExterior}` : '', p.coloniaINEGIId, p.municipioINEGIId]
-      .filter(Boolean).join(', ') || record?.predioResumen || '—';
-  }, [fd, record]);
+    const p = predioDir;
+    if (!p?.calle) return record?.predioResumen ?? '—';
+    const colNombre = colIdDir
+      ? (colResDir?.data ?? []).find((c) => c.id === colIdDir)?.nombre ?? ''
+      : '';
+    const locNombre = locIdDir
+      ? (locResDir?.data ?? []).find((l) => l.id === locIdDir)?.nombre ?? ''
+      : '';
+    const mpioNombre = mpioIdDir
+      ? (mpioResDir?.data ?? []).find((m) => m.id === mpioIdDir)?.nombre ?? ''
+      : '';
+    return [
+      p.calle,
+      p.numExterior ? `#${p.numExterior}` : '',
+      colNombre ? `Col. ${colNombre}` : '',
+      locNombre,
+      mpioNombre,
+      p.codigoPostal ? `CP ${p.codigoPostal}` : '',
+    ].filter(Boolean).join(', ') || record?.predioResumen || '—';
+  }, [predioDir, colIdDir, locIdDir, mpioIdDir, colResDir, locResDir, mpioResDir, record]);
 
   // Nombre del contratante
   const contratante = useMemo(() => {
@@ -403,18 +458,17 @@ export function CuantificacionModal({
             <Field
               label="No. certificado de conexión"
               required={requiresCert}
-              hint={!requiresCert ? 'No aplica (solicitud sin certificado)' : undefined}
+              hint={!requiresCert ? 'No requerido según solicitud' : undefined}
             >
               <Input
                 value={noCertConexion}
                 onChange={(e) => setNoCertConexion(e.target.value)}
-                placeholder={requiresCert ? 'Obligatorio' : 'Opcional'}
-                disabled={!requiresCert && noCertConexion === ''}
+                placeholder={requiresCert ? 'Requerido' : 'Opcional'}
               />
             </Field>
 
             <Field label="Fecha de emisión">
-              <Input value={hoy.toLocaleDateString('es-MX')} readOnly className="bg-muted/40" />
+              <Input value={formatFechaES(hoy)} readOnly className="bg-muted/40" />
             </Field>
 
             <Field label="Fecha de vigencia">

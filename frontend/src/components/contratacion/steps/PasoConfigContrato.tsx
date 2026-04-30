@@ -96,6 +96,12 @@ export default function PasoConfigContrato({ data, updateData }: StepProps) {
       ? (distritosQ.data ?? []).find((d) => d.id === data.distritoId)?.nombre ?? data.distritoId
       : undefined;
 
+  // Distrito obligatorio solo para la administración Querétaro
+  const esAdminQueretaro = adminNombre
+    ? /quer[eé]taro/i.test(adminNombre)
+    : false;
+  const distritoRequerido = esAdminQueretaro;
+
   const syncConfigMutation = useMutation({
     mutationFn: async () => {
       if (!solicitudId || !data.solicitudFormSnapshot) return;
@@ -415,10 +421,10 @@ export default function PasoConfigContrato({ data, updateData }: StepProps) {
         </div>
       </div>
 
-      {/* ── Distrito (siempre visible en edit) ───────────────────────── */}
+      {/* ── Distrito (siempre visible; obligatorio solo para Querétaro) ── */}
       <div className="space-y-2">
         <Label htmlFor="wizard-distrito">
-          Distrito{esIndividualizacion && <span className="ml-0.5 text-destructive">*</span>}
+          Distrito{distritoRequerido && <span className="ml-0.5 text-destructive">*</span>}
         </Label>
         {distritosQ.isLoading ? (
           <div className="flex h-10 items-center gap-2 text-sm text-muted-foreground">
@@ -433,8 +439,16 @@ export default function PasoConfigContrato({ data, updateData }: StepProps) {
             onValueChange={(v) => updateData({ distritoId: v || undefined })}
             placeholder="Seleccione distrito…"
             searchPlaceholder="Buscar distrito…"
-            options={(distritosQ.data ?? []).map((d) => ({ value: d.id, label: d.nombre }))}
+            options={[
+              ...(!distritoRequerido
+                ? [{ value: '', label: '— Sin distrito —' }]
+                : []),
+              ...(distritosQ.data ?? []).map((d) => ({ value: d.id, label: d.nombre })),
+            ]}
           />
+        )}
+        {!distritoRequerido && (
+          <p className="text-xs text-muted-foreground">Opcional para esta administración.</p>
         )}
       </div>
 
