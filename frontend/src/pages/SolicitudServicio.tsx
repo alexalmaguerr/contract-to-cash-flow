@@ -1507,6 +1507,15 @@ export default function SolicitudServicio() {
     setForm((prev) => ({ ...prev, ...patch }));
   }
 
+  const { data: adminsForValidation = [] } = useQuery({
+    queryKey: ['catalogos-operativos', 'administraciones'],
+    queryFn: fetchAdministraciones,
+    staleTime: 60 * 60 * 1000,
+  });
+  const esAdminQueretaro = form.adminId
+    ? /quer[eé]taro/i.test(adminsForValidation.find((a) => a.id === form.adminId)?.nombre ?? '')
+    : false;
+
   const isLastStep = currentStep === STEPS.length - 1;
   const canNext = canAdvance(currentStep, form, esAdminQueretaro);
 
