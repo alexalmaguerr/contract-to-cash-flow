@@ -407,6 +407,16 @@ export function WizardContratacion({ onComplete, onCancel, procesoPrecargaId, so
       patch.solicitudId = solDto.id;
       patch.solicitudFormSnapshot = solForm;
 
+      // Precarga de campos numéricos desde solicitud
+      if (solForm.esCondominio === 'si' && solForm.condoViviendas) {
+        const n = parseInt(solForm.condoViviendas, 10);
+        if (n > 0) patch.unidadesServidas = n;
+      }
+      if (solForm.personasVivienda) {
+        const n = parseInt(solForm.personasVivienda, 10);
+        if (n > 0) patch.personasHabitanVivienda = n;
+      }
+
       // Cotización aprobada: prefer persisted items, fall back to computing from inspeccion
       if (Array.isArray(solForm?.cotizacionItems) && solForm!.cotizacionItems!.length > 0) {
         patch.cotizacionPrevia = solForm!.cotizacionItems;

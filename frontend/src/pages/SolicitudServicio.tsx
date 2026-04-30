@@ -1405,6 +1405,18 @@ function StepResumen({ form }: { form: SolicitudState }) {
               <>
                 <ResumenRow label="Infraestructura CEA" value={form.hayInfraCEA === 'si' ? 'Sí' : form.hayInfraCEA === 'no' ? 'No' : '—'} />
                 <ResumenRow label="Es condominio" value={form.esCondominio === 'si' ? 'Sí' : form.esCondominio === 'no' ? 'No' : '—'} />
+                {form.esCondominio === 'si' && (
+                  <>
+                    {form.condoViviendas && <ResumenRow label="Viviendas / unidades privativas" value={form.condoViviendas} />}
+                    {form.condoUbicacionTomas && <ResumenRow label="Ubicación de tomas" value={form.condoUbicacionTomas === 'banqueta' ? 'En la banqueta' : 'Hay cuadro para instalar medidor'} />}
+                    {form.condoTieneMedidorMacro && <ResumenRow label="Medidor macro" value={form.condoTieneMedidorMacro === 'si' ? 'Sí' : 'No'} />}
+                    {form.condoTieneMedidorMacro === 'si' && form.condoNumMedidor && <ResumenRow label="No. medidor macro" value={form.condoNumMedidor} />}
+                    {form.condoAreasComunes && <ResumenRow label="Áreas comunes" value={form.condoAreasComunes === 'si' ? 'Sí' : 'No'} />}
+                    {form.condoAreasComunes === 'si' && form.condoNumAreas && <ResumenRow label="Cantidad de áreas" value={form.condoNumAreas} />}
+                    {form.condoAgrupacion && <ResumenRow label="Agrupación formal" value={form.condoAgrupacion === 'si' ? 'Sí' : 'No'} />}
+                    {form.condoAgrupacion === 'si' && form.condoNombreAgrupacion && <ResumenRow label="Nombre de agrupación" value={form.condoNombreAgrupacion} />}
+                  </>
+                )}
                 {form.esCondominio === 'no' && form.personasVivienda && (
                   <ResumenRow label="Personas en vivienda" value={form.personasVivienda} />
                 )}

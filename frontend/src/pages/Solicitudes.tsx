@@ -1144,28 +1144,6 @@ function calcularCotizacionDesdeCuantificacion(
     });
   }
 
-  // ── 4. Medidor (pieza física) ─────────────────────────────────────────────
-  if (cuant.tipoMedidor && cuant.tipoMedidor !== 'mayor') {
-    // Buscar precio en tarifas-contratacion.json via clave compuesta
-    const claveKey = `${cuant.tipoMedidor === 'velocidad' ? 'velocidad' : 'volumetrico'}_1/2_${cuant.planPagoMedidor}` as const;
-    // Precios hardcoded del JSON (Feb-2026) como fallback directo
-    const PRECIOS_MEDIDOR: Record<string, number> = {
-      'velocidad_1/2_contado':    789.34,
-      'velocidad_1/2_12parc':     853.99,
-      'velocidad_1/2_24parc':     940.30,
-      'volumetrico_1/2_contado':  1025.53,
-      'volumetrico_1/2_12parc':   1109.52,
-    };
-    const precio = PRECIOS_MEDIDOR[claveKey] ?? 789.34;
-    const tipoLabel = cuant.tipoMedidor === 'velocidad' ? 'Velocidad ½"' : 'Volumétrico ½"';
-    const planLabel = { contado: 'contado', '12parc': '12 parc.', '24parc': '24 parc.' }[cuant.planPagoMedidor] ?? '';
-    conceptos.push({
-      descripcion: `Medidor ${tipoLabel} (${planLabel})`,
-      cantidad: 1, unidad: 'pieza',
-      precioUnitario: precio, subtotal: precio, tasa: 0.16,
-    });
-  }
-
   return conceptos;
 }
 

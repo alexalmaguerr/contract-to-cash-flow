@@ -12,6 +12,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -49,6 +50,19 @@ import type { SolicitudRecord, OrdenInspeccionData } from '@/types/solicitudes';
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 
+const TARIFAS_FIJAS = [
+  'BENEFICENCIA',
+  'COMERCIAL',
+  'DOMÉSTICA MEDIO',
+  'DOMÉSTICO APOYO SOCIAL',
+  'DOMESTICO ECONOMICO',
+  'DOMESTICO ZONA RURAL',
+  'HIDRANTE',
+  'INDUSTRIAL',
+  'PÚBLICO CONCESIONADO',
+  'SANTA MARIA MAGDALENA',
+];
+
 const DIAMETROS_TOMA = ["1/2\"", "3/4\"", "1\"", "1.5\"", "2\"", "3\"", "4\""];
 
 // Materiales del catálogo CSV (claves que entiende cotizacion-tarifas.ts)
@@ -71,17 +85,6 @@ const MATERIALES_BANQUETA = [
   { value: 'cantera',            label: 'Cantera' },
 ];
 
-const TIPOS_MEDIDOR = [
-  { value: 'velocidad',   label: 'Velocidad ½"' },
-  { value: 'volumetrico', label: 'Volumétrico ½"' },
-  { value: 'mayor',       label: 'Mayor que ½" (pago único)' },
-];
-
-const PLANES_PAGO_MEDIDOR = [
-  { value: 'contado',    label: 'Contado' },
-  { value: '12parc',     label: '12 parcialidades' },
-  { value: '24parc',     label: '24 parcialidades' },
-];
 
 const FORMAS_PAGO = [
   { value: 'contado',   label: 'Contado' },
@@ -96,19 +99,9 @@ const TIPO_AGUA_OPTS = [
   { value: 'condominal',  label: 'Condominal' },
 ];
 
-const NUM_MESES_OPTS = [3, 6, 9, 12] as const;
 
 const MXN = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 });
 
-/** Genera folio de cuantificación temporal hasta que el backend lo provea. */
-function generarFolioCuantificacion(solicitudFolio: string): string {
-  const now = new Date();
-  const yy = String(now.getFullYear()).slice(2);
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
-  // Extraer solo el número secuencial del folio (ej. "SOL-2026-068" → "068")
-  const num = solicitudFolio.split('-').at(-1) ?? solicitudFolio;
-  return `COT-${yy}${mm}-${num}`;
-}
 
 /** Formatea Date a dd/mm/aaaa con ceros al inicio */
 function formatFechaES(d: Date): string {
@@ -130,7 +123,13 @@ function addMonths(yyyymm: string, n: number): string {
 
 function monthLabel(yyyymm: string): string {
   const [y, m] = yyyymm.split('-').map(Number);
-  return new Date(y, m - 1, 1).toLocaleDateString('es-MX', { month: 'short', year: 'numeric' });
+  return new Date(y, m - 1, 1).toLocaleDateString('es-MX', { month: 'long', year: 'numeric' });
+}
+
+function diffMonths(from: string, to: string): number {
+  const [fy, fm] = from.split('-').map(Number);
+  const [ty, tm] = to.split('-').map(Number);
+  return Math.max(1, (ty - fy) * 12 + (tm - fm) + 1);
 }
 
 // ── Tipos internos ────────────────────────────────────────────────────────────
@@ -155,8 +154,6 @@ export interface CuantificacionData {
   mlToma: number;
   mlDescarga: number;
   // Medidor
-  tipoMedidor: string;
-  planPagoMedidor: string;
   // Agua
   incluirAgua: boolean;
   tipoAgua: 'individual' | 'condominal';
@@ -202,6 +199,8 @@ export function CuantificacionModal({
     enabled: open,
   });
 
+  const { user } = useAuth();
+
   const adminNombre = useMemo(() => {
     if (!fd?.adminId) return '—';
     return adminsData?.find((a) => a.id === fd.adminId)?.nombre ?? fd.adminId;
@@ -211,22 +210,22 @@ export function CuantificacionModal({
   const adminCatalogo = resolveAdministracion(adminNombre) ?? 'QUERÉTARO';
   const tiposTarifa = getTiposTarifa(adminCatalogo);
 
-  // Unidades servidas: para doméstico, tomar condoViviendas; si no, 1
+  // Unidades servidas: tomar condoViviendas si condominio, si no dejar vacío
   const unidadesDefault = useMemo(() => {
-    if (!fd) return 1;
-    if (fd.usoDomestico === 'si' && fd.esCondominio === 'si') {
-      return parseInt(fd.condoViviendas, 10) || 1;
+    if (!fd) return 0;
+    if (fd.esCondominio === 'si') {
+      return parseInt(fd.condoViviendas, 10) || 0;
     }
-    return 1;
+    return 0;
   }, [fd]);
 
   // Tarifa inicial: resolver desde tipoContratacionNombre
   const tarifaDefault = useMemo(() => {
-    if (!tipoContratacionNombre) return tiposTarifa[0] ?? '';
-    // Busca coincidencia parcial en la lista de tarifas
+    if (!tipoContratacionNombre) return TARIFAS_FIJAS[0] ?? '';
+    // Busca coincidencia parcial en la lista fija
     const upper = tipoContratacionNombre.toUpperCase();
-    return tiposTarifa.find((t) => upper.includes(t.toUpperCase()) || t.toUpperCase().includes(upper))
-      ?? tiposTarifa[0] ?? '';
+    return TARIFAS_FIJAS.find((t) => upper.includes(t.toUpperCase()) || t.toUpperCase().includes(upper))
+      ?? TARIFAS_FIJAS[0] ?? '';
   }, [tipoContratacionNombre, tiposTarifa]);
 
   // variablesCapturadas de la solicitud (códigos reservados)
@@ -250,9 +249,16 @@ export function CuantificacionModal({
   const vigenciaDefault = new Date(hoy);
   vigenciaDefault.setDate(vigenciaDefault.getDate() + 5);
 
-  const [folio]             = useState(() => generarFolioCuantificacion(record?.folio ?? ''));
+  // Periodo: inicio = fecha de la solicitud, fin = hoy; numMeses calculado automático
+  const periodoInicio = record?.fechaSolicitud
+    ? toMonthInput(new Date(record.fechaSolicitud))
+    : toMonthInput(hoy);
+  const periodoFin = toMonthInput(hoy);
+  const numMeses = diffMonths(periodoInicio, periodoFin);
+
+  const folio = record?.folio ?? '';
   const [noCertConexion, setNoCertConexion]   = useState('');
-  const [elabora, setElabora]                 = useState('');
+  const [elabora, setElabora]                 = useState(user?.name ?? '');
   const [observaciones, setObservaciones]     = useState('');
   const [fechaVigencia, setFechaVigencia]     = useState(vigenciaDefault.toISOString().slice(0, 10));
   const [formaPago, setFormaPago]             = useState('contado');
@@ -262,26 +268,16 @@ export function CuantificacionModal({
   const [matBanqueta, setMatBanqueta]         = useState(matBanquetaDefault);
   const [mlToma, setMlToma]                   = useState(String(mlTomaDefault || ''));
   const [mlDescarga, setMlDescarga]           = useState(String(mlDescargaDefault || ''));
-  const [tipoMedidor, setTipoMedidor]         = useState(String(vc.TIPO_MEDIDOR ?? 'velocidad'));
-  const [planPagoMedidor, setPlanPagoMedidor] = useState(String(vc.PLAN_PAGO_MEDIDOR ?? 'contado'));
   const [tarifa, setTarifa]                   = useState(tarifaDefault);
-  const [unidades, setUnidades]               = useState(String(unidadesDefault));
+  const [unidades, setUnidades]               = useState(unidadesDefault > 0 ? String(unidadesDefault) : '');
   const [incluirAgua, setIncluirAgua]           = useState(true);
   const [tipoAgua, setTipoAgua]                 = useState<'individual' | 'condominal'>(
     fd?.esCondominio === 'si' ? 'condominal' : 'individual',
   );
-  const [periodoInicio, setPeriodoInicio]       = useState(toMonthInput(hoy));
-  const [numMeses, setNumMeses]                 = useState<number>(3);
   const [consumoM3, setConsumoM3]               = useState('');
   const [aplicaAgua, setAplicaAgua]             = useState(true);
   const [aplicaAlcantarillado, setAplicaAlcantarillado] = useState(true);
   const [aplicaSaneamiento, setAplicaSaneamiento]       = useState(true);
-
-  // Período fin: auto-calculado desde inicio + numMeses
-  const periodoFin = useMemo(
-    () => addMonths(periodoInicio, numMeses - 1),
-    [periodoInicio, numMeses],
-  );
 
   // Vista previa del cálculo de agua por mes
   const previewRows = useMemo(() => {
@@ -310,12 +306,14 @@ export function CuantificacionModal({
 
   // Re-aplicar defaults cuando cambia el record (por si el modal se reutiliza)
   useEffect(() => {
-    if (diametroTomaDefault)    setDiametroToma(diametroTomaDefault);
+    if (diametroTomaDefault)     setDiametroToma(diametroTomaDefault);
     if (diametroDescargaDefault) setDiametroDescarga(diametroDescargaDefault);
-    if (matCalleDefault)    setMatCalle(matCalleDefault);
-    if (matBanquetaDefault) setMatBanqueta(matBanquetaDefault);
-    if (mlTomaDefault > 0)     setMlToma(String(mlTomaDefault));
-    if (mlDescargaDefault > 0) setMlDescarga(String(mlDescargaDefault));
+    if (matCalleDefault)         setMatCalle(matCalleDefault);
+    if (matBanquetaDefault)      setMatBanqueta(matBanquetaDefault);
+    if (mlTomaDefault > 0)       setMlToma(String(mlTomaDefault));
+    if (mlDescargaDefault > 0)   setMlDescarga(String(mlDescargaDefault));
+    setUnidades(unidadesDefault > 0 ? String(unidadesDefault) : '');
+    setElabora(user?.name ?? '');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [record?.id]);
 
@@ -404,8 +402,6 @@ export function CuantificacionModal({
       matBanqueta,
       mlToma:   parseFloat(mlToma)    || 0,
       mlDescarga: parseFloat(mlDescarga) || 0,
-      tipoMedidor,
-      planPagoMedidor,
       incluirAgua,
       tipoAgua,
       periodoInicio,
@@ -617,35 +613,12 @@ export function CuantificacionModal({
               />
             </Field>
 
-            {/* Medidor */}
-            <Field label="Tipo de medidor">
-              <Select value={tipoMedidor} onValueChange={setTipoMedidor}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {TIPOS_MEDIDOR.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-
-            <Field label="Plan de pago del medidor">
-              <Select value={planPagoMedidor} onValueChange={setPlanPagoMedidor}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {PLANES_PAGO_MEDIDOR.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-
             {/* Tarifa agua periódica y unidades */}
             <Field label="Tarifa periódica de agua">
               <Select value={tarifa} onValueChange={setTarifa}>
                 <SelectTrigger><SelectValue placeholder="Seleccionar…" /></SelectTrigger>
                 <SelectContent>
-                  {tiposTarifa.map((t) => (
+                  {TARIFAS_FIJAS.map((t) => (
                     <SelectItem key={t} value={t}>{t}</SelectItem>
                   ))}
                 </SelectContent>
@@ -722,41 +695,20 @@ export function CuantificacionModal({
                 </Field>
 
                 <Field label="Periodo inicio">
-                  <Input
-                    type="month"
-                    value={periodoInicio}
-                    onChange={(e) => setPeriodoInicio(e.target.value)}
-                  />
-                </Field>
-
-                <Field label="Número de meses">
-                  <div className="flex gap-2">
-                    {NUM_MESES_OPTS.map((n) => (
-                      <button
-                        key={n}
-                        type="button"
-                        onClick={() => setNumMeses(n)}
-                        className={`flex-1 h-9 rounded-md border text-sm font-medium transition-colors
-                          ${numMeses === n
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : 'bg-background hover:bg-muted'}`}
-                      >
-                        {n}
-                      </button>
-                    ))}
+                  <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm capitalize">
+                    {monthLabel(periodoInicio)}
                   </div>
                 </Field>
 
                 <Field label="Periodo fin">
-                  <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm tabular-nums">
+                  <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm capitalize">
                     {monthLabel(periodoFin)}
-                    <Badge variant="secondary" className="ml-2 text-xs">Auto</Badge>
                   </div>
                 </Field>
 
-                <Field label="Total meses">
+                <Field label="Total meses" className="col-span-2">
                   <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm tabular-nums">
-                    {numMeses} meses
+                    {numMeses} {numMeses === 1 ? 'mes' : 'meses'}
                   </div>
                 </Field>
 
